@@ -1,0 +1,21 @@
+:javascript
+  $(function() {
+    if (location.hash)
+      $('#hashbang').val(location.hash);
+  });
+
+.container
+  .row.justify-content-center
+    .col-lg-6
+      = form_tag create_account_session_path, method: 'POST', class: 'signin-box' do
+        = hidden_field_tag :backto, @backto
+        = hidden_field_tag :hashbang, @hashbang
+        - flash.each do |type, msg|
+          .alert{ class: "alert-#{type}" }
+            = msg
+        .form-group
+          %input.form-control{ type: 'email', name: 'email', value: @email, placeholder: 'メールアドレス' }
+        .form-group
+          %input.form-control{ type: 'password', name: 'password', placeholder: 'パスワード' }
+        .form-group.text-center
+          = submit_tag 'ログインする', class: 'btn btn-primary btn-lg', data: { disable_with: 'ログイン中…' }
