@@ -45,7 +45,7 @@ group :development do
   gem 'wdm', '>= 0.1.0' if Gem.win_platform? # Windows用の設定
   gem 'listen', '~> 3.7'
   gem 'spring'
-  gem 'spring-watcher-listen', '~> 2.0.0'
+  gem 'spring-watcher-listen', '~> 2.1.0'
   # ======================================
 end
 
