@@ -9,3 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return new bootstrap.Tooltip(tooltipTriggerEl)
   })
 })
+
+import $ from "jquery";
+window.$ = $;
+window.jQuery = $;
