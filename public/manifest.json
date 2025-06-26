@@ -1,0 +1,10 @@
+// public/manifest.json
+{
+  "name": "Kintone Photo App",
+  "short_name": "PhotoApp",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#317EFB",
+  "icons": []
+}
