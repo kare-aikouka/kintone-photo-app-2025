@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "Kintone Photo App 2025" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= javascript_include_tag "application", "data-turbo-track": "reload", defer: true, type: "module" %>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-lg-6">
+          <h2 class="mt-5">ログイン</h2>
+          <form class="sign-in" action="/sign_in" accept-charset="UTF-8" method="post">
+            <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>" />
+            <input type="hidden" name="backto" id="backto" value="<%= params[:backto] || "/" %>" autocomplete="off" />
+            <input type="hidden" name="hashbang" id="hashbang" autocomplete="off" />
+
+            <div class="form-group">
+              <input class="form-control" name="email" placeholder="メールアドレス" type="email" value="" />
+            </div>
+
+            <div class="form-group mt-3">
+              <input class="form-control" name="password" placeholder="パスワード" type="password" />
+            </div>
+
+            <div class="form-group mt-4">
+              <button class="btn btn-primary w-100" type="submit">ログインする</button>
+            </div>
+          </form>
+
+          
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
