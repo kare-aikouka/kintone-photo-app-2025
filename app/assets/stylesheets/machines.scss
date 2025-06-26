@@ -1,0 +1,40 @@
+/** じぶんページCSS上書き */
+body {
+  background-color: #F5F7FB; /* #F5F7FB #FFCCCC*/
+}
+.app-navbar {
+  background-color: #6CD5F5; /* #3E5FAA #AA5F3E*/
+}
+
+body {
+  margin-bottom: 350px;
+}
+
+.hidden {
+  display: none;
+}
+
+.list-group-item {
+  cursor: pointer;
+}
+
+.pills-area {
+  font-size: 1.5em;
+}
+
+.entrance-lists {
+  font-size: 1.2em;
+}
+
+.corp-name {
+  font-weight: bold;
+}
+
+.machine-name {
+  color: inherit;
+  text-decoration: none;
+}
+
+.nav-pills {
+  cursor: pointer;
+}

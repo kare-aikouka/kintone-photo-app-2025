@@ -1,0 +1,306 @@
+/** 施工写真CSS */
+
+@mixin clearfix() {
+  &::after {
+    display: block;
+    content: "";
+    clear: both;
+  }
+}
+
+.clearfix {
+  @include clearfix;
+}
+
+/** じぶんページCSS上書き */
+body { /* yosh */
+    background-color: #F5F7FB; /* #F5F7FB #FFCCCC*/
+}
+.app-navbar {
+    background-color: #6CD5F5; /* #3E5FAA #AA5F3E*/
+}
+
+.nav-pills .nav-item+.nav-item {
+    margin-left: 5px;
+}
+
+.nav-pills .nav-link {
+    background-color: rgba(0,0,0,0.075);
+    text-align: center;
+}
+.nav-pills .nav-link:hover {
+    color: #fff;
+    background-color: #304a85;
+}
+/** 企業ロゴ */
+.app-navbar .company-logo-icon {
+  min-height: 38px;
+}
+
+/** サブテーブルのボタンサイズをリセット */
+.react-bs-table table tbody td .btn {
+    padding: 0.5rem 1rem; /* 0.2rem */
+}
+
+/** 一覧画面 */
+div.screen.index{
+}
+
+/** 日付選択 */
+.GoqooDateSelector{
+    background-color: #F5F7FB;
+    margin: 0px;
+    padding: 10px 10px;
+    width: 100%;
+    position: fixed;
+    top: 61px;
+    z-index: 999;
+}
+
+/** 施工写真リスト表示 */
+.GoqooPhotoRows{
+    margin-top: 66px;
+}
+
+.GoqooPhotoRows .GoqooPhotoRow{
+}
+
+.GoqooPhotoRows .GoqooPhotoRow:hover{
+    border: 1px solid #0000FF !important;
+    background-color: #fcf8e3 !important; /* #d9edf7 #FEFDDA */
+}
+
+/** 施工写真表示行 */
+.GoqooPhotoRow{
+    border: 1px solid #CCCCCC !important;
+    background-color: #fff; /* #fcf8e3 #FEFDC1 */
+    width: 100%;
+    padding: 10px;
+}
+
+.GoqooPhotoRow .btn-group{
+    margin-right: 5px;
+}
+
+/** 一覧メッセージ */
+.GoqooPhotoList .alert{
+    margin: 0px 10px 10px 10px;
+}
+
+/** 詳細画面 */
+div.screen.detail{
+    margin-top: 135px;
+    bdrder :1px solid red;
+}
+
+/** 施工写真ヘッダー */
+.GoqooPhotoDetail .GoqooPhotoRow{
+    position: fixed;
+    top: 61px;
+    z-index: 999;
+}
+
+/*
+.btn-green{
+    background-color: #4FAE45;
+    color:#ffffff;
+    margin: 5px;
+}
+.btn-green:hover{
+    background-color: #408D3A;
+    color:#ffffff;
+}
+
+.btn-pink{
+    background-color: #E35394;
+    color:#ffffff;
+    margin: 5px;
+}
+.btn-pink:hover{
+    background-color: #DB436F;
+    color:#ffffff;
+}
+
+.btn-cyan{
+    background-color: #529DE6;
+    color:#ffffff;
+    margin: 5px;
+    padding: 0.5rem 1rem !important;
+}
+.btn-cyan:hover {
+    background-color: #368DC4;
+    color: #ffffff;
+}
+*/
+
+/**
+ * Badge
+ * @see Bootstrap v4.0.0-alpha.6
+ */
+.badge {
+    border: 1px solid #000;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.4em;
+    font-size: 75%;
+    font-weight: bold;
+    line-height: 1;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+}
+
+.badge:empty {
+    display: none;
+}
+
+.btn .badge {
+    position: relative;
+    top: -1px;
+}
+
+a.badge:focus, a.badge:hover {
+    color: #fff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.badge-pill {
+    padding-right: 0.6em;
+    padding-left: 0.6em;
+    border-radius: 10rem;
+}
+
+.nav-pills .nav-link .badge{
+    position: relative;
+    top: -2px;
+    left: 0px;
+    color: #55595c;
+    background-color: #fff;
+    border-style: none;
+}
+
+.nav-pills .nav-link:hover .badge{
+    color: #304a85;
+    cursor: default;
+    background-color: #fff;
+    border-style: none;
+}
+
+.nav-pills .nav-link.active .badge,
+.nav-pills .nav-link.active:focus .badge,
+.nav-pills .nav-link.active:hover .badge{
+    color: #304a85;
+    cursor: default;
+    background-color: #fff;
+    border-style: none;
+}
+
+.vertical-bottom {
+  bottom: 5px;
+  position: absolute;
+}
+
+.hidden {
+  display: none;
+}
+
+.jibun-thumbnail {
+  max-width: 100%;
+}
+
+.btn-add-form {
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+.jibun-row {
+  margin-bottom: 20px;
+}
+
+.btn-photo-base {
+  font-size: 1.5em !important;
+  font-weight: bold !important;
+}
+
+.btn-photo {
+  @extend .btn-photo-base;
+  padding: 14px 25px !important;
+}
+
+.btn-photo-remove {
+}
+
+.btn-retry {
+  @extend .btn-photo-base;
+  padding: 14px 10px !important;
+}
+
+.btn-form-save {
+}
+
+.btn-form-edit {
+}
+
+.mb-10 {
+  margin-bottom: 10px;
+}
+
+.form-number {
+  // 単位記号がつくことを考慮する
+  display: inline-block;
+  width: 80%;
+}
+
+.multi-line-text {
+  overflow: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.uploading {
+  -webkit-filter: grayscale(100%);
+  filter: grayscale(100%);
+  opacity: .3;
+}
+
+.error-image {
+  opacity: .4;
+}
+
+.error-mark {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  -webkit-transform: translate(-50%,-50%);
+  transform: translate(-50%,-50%);
+  margin: 0;
+  padding: 0;
+
+  &:after {
+    content: '×';
+    color: #f00;
+    font-size: 6em;
+  }
+}
+
+.error-bg {
+  position: relative;
+  display: inline-block;
+}
+
+.photo-buttons {
+  margin-top: 15px;
+
+  button {
+    margin-right: 15px;
+  }
+}
+
+.jibun-form-file {
+  white-space: normal;
+}
