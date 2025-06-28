@@ -1,0 +1,12 @@
+.row
+  .col-12
+    .alert
+      %h2.alert-heading
+        ブックマーク登録用画面
+      %p 本画面をブックマークに登録してください
+
+  .col-12
+    = button_to 'ブックマーク登録したので先へ進む',
+      { action: :create },
+      { class: 'btn btn-primary' }
+
