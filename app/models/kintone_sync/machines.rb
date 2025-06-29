@@ -1,7 +1,8 @@
-# app/kintone_sync/machines.rb
-
+# app/models/kintone_sync/machines.rb
 module KintoneSync
-  class Machines
-    # ここに必要な処理を書く
+  class Machines < Record
+    def app_id
+      898 # ←本番環境のkintoneアプリID（ご自身のIDを使ってください）
+    end
   end
 end

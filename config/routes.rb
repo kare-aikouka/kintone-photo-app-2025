@@ -1,6 +1,6 @@
 Rails.application.routes.draw do
   resources :machines, only: %i[index]
-  resources :photos, only: %i[show index]
+  resources :machines, only: [:index, :show]
   get 'router' => 'router#index'
 
   get 'sign_in' => 'accounts#sign_in'

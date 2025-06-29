@@ -8,13 +8,15 @@ gem "rails", "~> 7.2.2", ">= 7.2.2.1"
 gem "sprockets-rails"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
-gem "jsbundling-rails"
+# gem "jsbundling-rails"
 gem "turbo-rails"
 gem "stimulus-rails"
 gem "cssbundling-rails"
 gem "jbuilder"
 gem "bootsnap", require: false
 gem "tzinfo-data", platforms: %i[ windows jruby ]
+gem 'sassc-rails'
+gem "importmap-rails"
 
 # === ここから、古いアプリで使われていた重要なgemを追加 ===
 gem "dotenv-rails" # .env ファイルを読み込むために追加

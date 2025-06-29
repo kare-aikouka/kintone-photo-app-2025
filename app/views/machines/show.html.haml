@@ -1,0 +1,7 @@
+= link_to "← 運用会社一覧へ戻る", machines_path(area: @selected_area)
+%h2= "#{@company} の所有機械"
+
+%ul.machine-list
+  - @machines.each do |machine|
+    %li
+      = link_to machine["施工機通称"]["value"], photos_path(machine: machine["施工機通称"]["value"]) # 適宜

@@ -1,2 +1,9 @@
-#mountNode
-  = javascript_include_tag "application", "data-turbo-track": "reload", defer: true
+%h2
+  %span{ id: "btn-hokkaido", class: "toggle-area selected" } 北海道
+  %span{ id: "btn-honshu", class: "toggle-area" } 本州
+
+%div{id: "company-list"}
+
+:javascript
+  window.machineData = #{@machines.to_json.html_safe};
+  console.log("machineData:", window.machineData);
