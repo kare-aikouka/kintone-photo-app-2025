@@ -55,7 +55,7 @@ group :test do
   gem "selenium-webdriver"
   
   # === 古いアプリで使われていたテスト用のgem ===
-  gem 'rspec-rails', '~> 3.7'
+  gem 'rspec-rails', '~> 8.0'
   gem 'factory_bot_rails'
   # =======================================
 end
