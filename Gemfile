@@ -4,7 +4,7 @@ source "https://rubygems.org"
 ruby "3.1.7"
 
 # === 基本的なRailsのgem ===
-gem "rails", "~> 7.2.2", ">= 7.2.2.1"
+gem "rails", "~> 7.2.2"
 gem "sprockets-rails"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
