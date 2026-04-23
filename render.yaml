@@ -20,9 +20,17 @@ services:
         sync: false
       - key: KINTONE_API_TOKEN
         sync: false
+      - key: KINTONE_API_TOKEN_898
+        sync: false
+      - key: KINTONE_API_TOKEN_779
+        sync: false
       - key: APP_MACHINES
         sync: false
+      - key: APP_MACHINE
+        sync: false
       - key: APP_PHOTOS
+        sync: false
+      - key: APP_PHOTO
         sync: false
       - key: APP_ACCOUNT
         sync: false

@@ -69,7 +69,7 @@ class MachinesController < ApplicationController
   end
 
   def machines_app_id
-    ENV.fetch("APP_MACHINES", 898).to_i
+    (ENV["APP_MACHINES"].presence || ENV["APP_MACHINE"].presence || 898).to_i
   end
 
   def machines_guest_space_id

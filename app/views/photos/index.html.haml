@@ -14,10 +14,19 @@
   .photo-date-tabs
     - @date_tabs.each do |date|
       - count = @records_by_date.fetch(date, []).count
-      - active = date == @selected_date
+      - incomplete_count = @records_by_date.fetch(date, []).count { |record| incomplete?(record) }
+      - active = @selected_filter != "all" && date == @selected_date
       = link_to photos_path(machine: @machine_name, date: date), class: "photo-date-tab #{'active' if active}" do
         %span= "#{date.month}/#{date.day} #{weekdays[date.wday]}"
-        %strong= count
+        .photo-tab-badges
+          %strong= count
+          - if active
+            %strong= incomplete_count + @past_incomplete_records.count
+    = link_to photos_path(machine: @machine_name, date: "all"), class: "photo-date-tab #{'active' if @selected_filter == 'all'}" do
+      %span 全て
+      .photo-tab-badges
+        %strong= @default_records.count
+        %strong= @incomplete_records.count
 
   - if @selected_records.present?
     .photo-records
@@ -26,16 +35,23 @@
           .photo-record-main
             .photo-record-date
               = field_value(record, :date) || @selected_date
-              - if field_value(record, :time).present?
-                = field_value(record, :time)
             .photo-record-site
-              = [field_value(record, :company), field_value(record, :branch), field_value(record, :site)].compact.join("　")
-            - if field_value(record, :address).present?
-              .photo-record-address= field_value(record, :address)
+              = record_title(record)
+            - if record_address(record).present?
+              .photo-record-address= "【#{record_address(record)}】"
+            .photo-record-actions
+              = link_to "地図", "javascript:undefined", class: "btn disabled"
+              = link_to "図面", "javascript:undefined", class: "btn disabled"
+              = link_to "設計資料", "javascript:undefined", class: "btn disabled"
+              - if record_id(record).present?
+                = link_to "写真", photo_path(record_id(record)), class: "btn primary"
+              - else
+                = link_to "写真", "javascript:undefined", class: "btn primary disabled"
+              = link_to "管理", "javascript:undefined", class: "btn primary disabled"
           .photo-record-status
             %span
               写真：
-              %strong= field_value(record, :photo_status).presence || "未設定"
+              %strong= photo_status(record)
             %span
               管理：
               %strong= field_value(record, :management_status).presence || "未設定"

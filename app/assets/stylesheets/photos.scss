@@ -351,17 +351,23 @@ a.badge:focus, a.badge:hover {
   color: #fff;
 }
 
-.photo-date-tab span,
-.photo-date-tab strong {
+.photo-date-tab span {
   display: block;
 }
 
-.photo-date-tab strong {
+.photo-tab-badges {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.photo-tab-badges strong {
   background: #fff;
   border-radius: 999px;
   color: #555;
-  margin: 8px auto 0;
-  max-width: 34px;
+  min-width: 28px;
+  padding: 2px 8px;
 }
 
 .photo-record {
@@ -380,6 +386,33 @@ a.badge:focus, a.badge:hover {
 
 .photo-record-address {
   color: #f00;
+}
+
+.photo-record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.photo-record-actions .btn {
+  background: #fff;
+  border: 1px solid #d8dce2;
+  color: #777;
+  min-width: 95px;
+  padding: 10px 14px;
+  text-align: center;
+}
+
+.photo-record-actions .btn.primary {
+  background: #3E5FAA;
+  border-color: #3E5FAA;
+  color: #fff;
+}
+
+.photo-record-actions .btn.disabled {
+  opacity: .45;
+  pointer-events: none;
 }
 
 .photo-record-status {
