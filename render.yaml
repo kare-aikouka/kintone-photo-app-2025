@@ -22,5 +22,29 @@ services:
         sync: false
       - key: APP_ACCOUNT
         sync: false
+      - key: APP_PASSWORD
+        sync: false
+      - key: APP_ACCOUNTS
+        sync: false
+      - key: APP_ACCOUNT_1
+        sync: false
+      - key: APP_PASSWORD_1
+        sync: false
+      - key: APP_ACCOUNT_2
+        sync: false
+      - key: APP_PASSWORD_2
+        sync: false
+      - key: APP_ACCOUNT_3
+        sync: false
+      - key: APP_PASSWORD_3
+        sync: false
+      - key: APP_ACCOUNT_4
+        sync: false
+      - key: APP_PASSWORD_4
+        sync: false
+      - key: APP_ACCOUNT_5
+        sync: false
+      - key: APP_PASSWORD_5
+        sync: false
       - key: GUEST_SPACE
         sync: false
