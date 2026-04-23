@@ -3,20 +3,23 @@
 module KintoneSync
   class Record < Base
     def find(id)
-      api.record.get(app_id, id)
+      client.get("record.json", { app: app_id, id: id })
     end
 
     def create(record)
-      api.record.register(app_id, record)
+      client.post("record.json", { app: app_id, record: record })
     end
 
     def update(id, record)
-      api.record.update(app_id, id, record)
+      client.put("record.json", { app: app_id, id: id, record: record })
     end
 
     def find_list(query: nil, fields: nil, total_count: nil)
       logger.info query.to_s
-      api.records.get(app_id, query, fields || [], total_count: total_count)
+      params = { app: app_id, query: query }
+      params[:fields] = fields if fields
+      params[:totalCount] = total_count if total_count
+      client.get("records.json", params)
     end
 
     CONTAINER_TYPES = %w(DROP_DOWN CHECK_BOX RADIO_BUTTON).freeze
@@ -55,7 +58,8 @@ module KintoneSync
     def find_by(cond, options = {})
       base_query = where_query(cond, options)
       query = "#{base_query} limit 1 offset 0"
-      api.records.get(app_id, query, [])['records'].first
+      records = client.get("records.json", { app: app_id, query: query, fields: [] })['records']
+      records&.first
     end
 
     private
@@ -66,7 +70,8 @@ module KintoneSync
       limit = 500
       loop do
         query = "#{base_query} limit #{limit} offset #{offset}"
-        records = api.records.get(app_id, query, [])['records']
+        response = client.get("records.json", { app: app_id, query: query, fields: [] })
+        records = response['records']
         break unless records
         res += records
         break if records.count < limit

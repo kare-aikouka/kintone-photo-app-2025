@@ -20,7 +20,7 @@ gem "importmap-rails"
 
 # === ここから、古いアプリで使われていた重要なgemを追加 ===
 gem "dotenv-rails" # .env ファイルを読み込むために追加
-gem 'kintone', github: 'ruffnote/kintone', branch: 'basic-auth', ref: '0f1cb77' # メインの場所へ移動
+gem 'faraday', '~> 2.8'
 gem 'config'
 gem 'newrelic_rpm'
 gem "haml-rails"

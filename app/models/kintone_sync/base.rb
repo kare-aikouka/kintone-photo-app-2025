@@ -23,13 +23,7 @@ module KintoneSync
       )
     end
 
-    def api
-      client.api
-    end
 
-    def api_url(path)
-      client.api_url(path)
-    end
 
     def properties
       fields['properties']
@@ -38,8 +32,7 @@ module KintoneSync
     def fields
       @__fields_cache ||= {}
       @__fields_cache[app_id] ||= begin
-        url = api_url('/v1/app/form/fields.json')
-        api.get(url, { app: app_id })
+        client.get('form/fields.json', { app: app_id })
       end
     end
 
