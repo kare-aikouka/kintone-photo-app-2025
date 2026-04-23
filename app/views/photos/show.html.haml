@@ -1,0 +1,105 @@
+- weekdays = %w[日 月 火 水 木 金 土]
+- back_url = request.referer.presence || photos_path(machine: @machine_name)
+
+.photo-page.photo-detail-page
+  .photo-header
+    .photo-title
+      = link_to "← 戻る", back_url
+      %span.machine-title= @machine_name.presence || "施工写真詳細"
+
+  - if @photo_error
+    .alert.alert-danger
+      %strong 施工写真詳細を取得できませんでした。
+      %pre= "#{@photo_error.class}: #{@photo_error.message}"
+
+  - if @record.present?
+    .photo-record.photo-detail-summary
+      .photo-record-main
+        .photo-record-date
+          - if record_date(@record)
+            = "#{record_date(@record).month}/#{record_date(@record).day}(#{weekdays[record_date(@record).wday]}) 00:00"
+          - else
+            = field_value(@record, :date)
+        .photo-record-site= record_title(@record)
+        - if record_address(@record).present?
+          .photo-record-address= "【#{record_address(@record)}】"
+        .photo-record-actions
+          = link_to "地図", "javascript:undefined", class: "btn disabled"
+          = link_to "図面", "javascript:undefined", class: "btn disabled"
+          = link_to "設計資料", "javascript:undefined", class: "btn disabled"
+          = link_to "写真", photo_path(record_id(@record)), class: "btn primary"
+          = link_to "管理", "javascript:undefined", class: "btn primary disabled"
+      .photo-record-status
+        %span
+          写真：
+          %strong= photo_status(@record)
+        %span
+          管理：
+          %strong= field_value(@record, :management_status).presence || "未設定"
+
+    .photo-detail-machine
+      = field_value(@record, :machine)
+
+    - @detail_sections.each do |section|
+      .photo-detail-section
+        .photo-detail-section-title= section[:title]
+        - if section[:note].present?
+          .photo-detail-note= section[:note]
+
+        - section[:tables].each do |table_code|
+          - rows = detail_table_rows(@record, table_code)
+          - columns = detail_table_columns(rows)
+          .photo-detail-table
+            .photo-detail-table-title= detail_table_label(table_code)
+            .photo-detail-table-actions
+              = button_tag "追加", type: "button", class: "btn", disabled: true
+              = button_tag "編集", type: "button", class: "btn", disabled: true
+            - if rows.present? && columns.present?
+              .photo-detail-table-scroll
+                %table
+                  %thead
+                    %tr
+                      - columns.each do |column|
+                        %th= column
+                  %tbody
+                    - rows.each do |row|
+                      %tr
+                        - columns.each do |column|
+                          %td
+                            - if detail_file_cell?(row, column)
+                              - files = Array(detail_cell_value(row, column))
+                              - if files.present?
+                                .photo-file-list
+                                  - files.each do |file|
+                                    - file_key = file["fileKey"]
+                                    - content_type = file["contentType"].presence || "image/jpeg"
+                                    - if file_key.present?
+                                      = link_to files_path(key: file_key, type: content_type), target: "_blank", rel: "noopener", class: "photo-file" do
+                                        - if content_type.start_with?("image/")
+                                          = image_tag files_path(key: file_key, type: content_type), alt: file["name"]
+                                        %span= file["name"].presence || "ファイル"
+                              - else
+                                %span.photo-empty 未登録
+                            - else
+                              - value = detail_cell_value(row, column)
+                              - if value.is_a?(Array)
+                                = value.join(", ")
+                              - else
+                                = value.presence || "-"
+            - else
+              .photo-detail-empty
+                まだ登録されている行はありません。
+
+    - if @field_keys.present?
+      %details.photo-debug
+        %summary 取得フィールド確認
+        %p
+          %strong フィールド:
+          = @field_keys.join(", ")
+        - if @field_preview.present?
+          %table
+            %tbody
+              - @field_preview.first(40).each do |key, value|
+                %tr
+                  %th= key
+                  %td= value

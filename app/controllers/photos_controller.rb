@@ -3,6 +3,84 @@ class PhotosController < ApplicationController
 
   PICTURE_FLAG_DONE = "完了"
 
+  DETAIL_SECTIONS = [
+    {
+      title: "☆施工前状況",
+      note: "大和様案件は、施工前敷地状況項目の中で「施工前全景」写真も撮影して下さい。",
+      tables: %w[
+        テーブル施工前敷地状況
+        テーブル施工前_前面道路
+        テーブル施工前_養生状況・施工機搬入
+        テーブル看板
+        テーブル管理装置の確認
+        テーブルKY確認
+        テーブル異常箇所
+        テーブル隣接構造物確認
+        テーブル設計GL・仮BM確認
+      ]
+    },
+    {
+      title: "☆配置確認",
+      note: "大和案件は、配置写真各項目3か所づつ撮影して下さい。",
+      tables: %w[
+        テーブル配置確認追い出し
+        テーブル配置確認平行
+        テーブル杭芯割付状況
+      ]
+    },
+    {
+      title: "☆杭材搬入",
+      tables: %w[
+        テーブル材料搬入
+        テーブル刷り版
+        テーブル杭材検寸全景
+        テーブル杭材検寸断面
+        テーブル杭材検寸杭下端部
+        テーブル杭材検寸杭頭端部
+        テーブル施工機全景
+      ]
+    },
+    {
+      title: "☆施工開始！",
+      tables: %w[
+        テーブル掘削長マーキング
+        テーブル杭芯オーガーセット
+        テーブル杭芯ずれ確認オーガー掘削時
+        テーブルオーガー掘削
+        テーブル最終掘削状況
+        テーブル鉛直確認
+        テーブル杭建て込み状況
+        テーブル杭押込状況
+        テーブル建て込み状況・下杭
+        テーブル鉛直確認・下杭
+        テーブル杭押し込み状況・下杭
+        テーブル継ぎ手状況1
+        テーブル建て込み状況・中杭
+        テーブル継ぎ手状況2
+        テーブル建て込み状況・上杭
+        テーブル鉛直確認・上杭
+        テーブル杭押し込み状況・上杭
+        テーブル最終圧入
+        テーブル打設後杭芯確認
+        テーブル杭頭レベル確認
+      ]
+    },
+    {
+      title: "☆施工終了",
+      note: "大和様案件の場合、施工後敷地状況の項目の中で「施工後全景」写真も撮影して下さい。",
+      tables: %w[
+        テーブル清掃状況
+        テーブル杭天端仕上げ確認
+        テーブル完了整地状況
+        テーブル施工後完了
+        テーブル施工後敷地状況
+        テーブル施工後道路状況
+        テーブルデータ確認状況
+        その他
+      ]
+    }
+  ].freeze
+
   FIELD_ALIASES = {
     machine: %w[施工機 施工機通称 施工班通称 施工機名 施工班名 施工班 機械名 重機名],
     date: %w[施工予定日 日付 施工日 作業日 撮影日 予定日 開始日 日時 登録日時],
@@ -21,7 +99,8 @@ class PhotosController < ApplicationController
 
   def index
     @machine_name = params[:machine].to_s.strip
-    @records = @machine_name.present? ? photo_records_for(@machine_name) : []
+    @machine_search_values = machine_search_values(@machine_name, params[:machine_model])
+    @records = @machine_name.present? ? photo_records_for(@machine_search_values) : []
     @default_records = default_records(@records)
     @incomplete_records = @default_records.select { |record| incomplete?(record) }
     @past_incomplete_records = past_incomplete_records(@default_records)
@@ -30,8 +109,8 @@ class PhotosController < ApplicationController
     @selected_filter = selected_filter
     @selected_date = selected_date(@date_tabs)
     @selected_records = selected_records
-    @field_keys = record_field_keys(@records.presence || sample_photo_records)
-    @field_preview = record_field_preview(@records.presence || sample_photo_records)
+    @field_keys = record_field_keys(@records)
+    @field_preview = record_field_preview(@records)
   rescue StandardError => e
     Rails.logger.error("Photos kintone fetch failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
@@ -48,28 +127,43 @@ class PhotosController < ApplicationController
 
   def show
     @page_title = '施工写真詳細'
+    @record = photo_record(params[:id])
+    @machine_name = field_value(@record, :machine)
+    @detail_sections = visible_detail_sections(@record)
+    @field_keys = record_field_keys([@record])
+    @field_preview = record_field_preview([@record])
+  rescue StandardError => e
+    Rails.logger.error("Photo detail fetch failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+
+    @photo_error = e
+    @record = nil
+    @detail_sections = []
   end
 
   private
 
-  def photo_records_for(machine_name)
-    fetched_photo_records(machine_name).select do |record|
-      normalize(field_value(record, :machine)) == normalize(machine_name)
+  def photo_record(id)
+    response = KintoneSync::Record.new(photos_app_id, photos_guest_space_id).find(id)
+    response["record"]
+  end
+
+  def photo_records_for(machine_values)
+    normalized_values = machine_values.map { |value| normalize(value) }
+    fetched_photo_records(machine_values).select do |record|
+      normalized_values.include?(normalize(field_value(record, :machine)))
     end
   end
 
-  def fetched_photo_records(machine_name)
-    # Original app queried app 779 by the "施工機" field and then filtered again in JS.
+  def fetched_photo_records(machine_values)
+    # Avoid querying the kintone drop-down field with values that may not exist
+    # in its option list. Fetch a bounded date range, then filter locally.
     base_query = <<~QUERY.squish
-      施工機 in ("#{kintone_query_value(machine_name)}") and
       施工予定日 > FROM_TODAY(-2, MONTHS) and
       施工予定日 < FROM_TODAY(1, WEEKS)
       order by レコード番号 asc
     QUERY
     fetch_all_photo_records(base_query)
-  rescue StandardError => e
-    Rails.logger.warn("Photos filtered query failed; falling back to all records: #{e.class}: #{e.message}")
-    fetch_all_photo_records("order by レコード番号 asc")
   end
 
   def fetch_all_photo_records(base_query)
@@ -88,12 +182,6 @@ class PhotosController < ApplicationController
     end
 
     records
-  end
-
-  def sample_photo_records
-    @sample_photo_records ||= fetch_all_photo_records("order by レコード番号 asc").first(1)
-  rescue StandardError
-    []
   end
 
   def default_records(records)
@@ -139,6 +227,7 @@ class PhotosController < ApplicationController
     value = field_value(record, :date)
     parse_date(value)
   end
+  helper_method :record_date
 
   def parse_date(value)
     return value if value.is_a?(Date)
@@ -158,6 +247,11 @@ class PhotosController < ApplicationController
   end
   helper_method :field_value
 
+  def field_raw_value(record, field_code)
+    record&.dig(field_code, "value")
+  end
+  helper_method :field_raw_value
+
   def record_title(record)
     [field_value(record, :company), field_value(record, :branch), field_value(record, :site), field_value(record, :detail)].compact_blank.join("　")
   end
@@ -176,6 +270,39 @@ class PhotosController < ApplicationController
   end
   helper_method :record_id
 
+  def detail_table_label(table_code)
+    table_code.to_s.sub(/\Aテーブル/, "")
+  end
+  helper_method :detail_table_label
+
+  def detail_table_rows(record, table_code)
+    Array(record&.dig(table_code, "value"))
+  end
+  helper_method :detail_table_rows
+
+  def detail_table_columns(rows)
+    rows.flat_map { |row| row.dig("value")&.keys || [] }.uniq
+  end
+  helper_method :detail_table_columns
+
+  def detail_cell(row, column)
+    row.dig("value", column)
+  end
+  helper_method :detail_cell
+
+  def detail_cell_value(row, column)
+    cell = detail_cell(row, column)
+    return "" unless cell
+
+    cell["value"]
+  end
+  helper_method :detail_cell_value
+
+  def detail_file_cell?(row, column)
+    detail_cell(row, column)&.dig("type") == "FILE"
+  end
+  helper_method :detail_file_cell?
+
   def photo_status(record)
     field_value(record, :photo_status).presence || "未完了"
   end
@@ -187,11 +314,42 @@ class PhotosController < ApplicationController
   helper_method :incomplete?
 
   def normalize(value)
-    value.to_s.strip.tr("Ａ-Ｚａ-ｚ０-９", "A-Za-z0-9")
+    value.to_s.strip.tr("Ａ-Ｚａ-ｚ０-９", "A-Za-z0-9").gsub(/[[:space:]　]+/, "")
+  end
+
+  def machine_search_values(*values)
+    values.flatten.compact_blank.flat_map do |value|
+      raw = value.to_s.strip
+      [
+        raw,
+        raw.tr("　", " "),
+        raw.gsub(/[[:space:]　]+/, "")
+      ]
+    end.compact_blank.uniq
+  end
+
+  def machine_query_values(values)
+    variants = machine_search_values(values)
+
+    variants.map { |variant| %("#{kintone_query_value(variant)}") }.join(",")
   end
 
   def kintone_query_value(value)
     value.to_s.gsub(/[\\"]/) { |char| "\\#{char}" }
+  end
+
+  def visible_detail_sections(record)
+    enabled = Array(record&.dig("報告書フォーマット撮影写真", "value")).map(&:to_s)
+
+    DETAIL_SECTIONS.filter_map do |section|
+      tables = section[:tables].select do |table_code|
+        rows = detail_table_rows(record, table_code)
+        enabled.include?(detail_table_label(table_code)) || rows.present? || table_code == "その他"
+      end
+      next if tables.blank?
+
+      section.merge(tables: tables)
+    end
   end
 
   def record_field_keys(records)

@@ -11,7 +11,10 @@ class FilesController < ApplicationController
   private
 
   def download(file_key)
-    @@__kintone ||= KintoneSync::File.new(nil, ENV['GUEST_SPACE'])
+    @@__kintone ||= KintoneSync::File.new(
+      ENV["APP_PHOTOS"].presence || ENV["APP_PHOTO"].presence || 779,
+      ENV["GUEST_SPACE"].presence || 57
+    )
     @@__kintone.download(file_key)
   end
 end

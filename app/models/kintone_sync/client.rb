@@ -15,6 +15,8 @@ module KintoneSync
       raise "KINTONE_HOST is not configured." if @host.blank?
 
       @connection ||= Faraday.new(url: "https://#{@host}") do |builder|
+        builder.options.open_timeout = 5
+        builder.options.timeout = 20
         builder.request :json
         builder.response :json, parser_options: { symbolize_names: false }
 
