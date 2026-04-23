@@ -26,6 +26,19 @@ document.addEventListener('DOMContentLoaded', function () {
     return row?.$id?.value || row?.レコード番号?.value || "";
   }
 
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function photosPath(machineName) {
+    return `/photos?machine=${encodeURIComponent(machineName)}`;
+  }
+
   // グループ化+ソート
   function groupAndSort(data, areaName) {
     // areaNameでフィルタ
@@ -71,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (machines.length > 0) {
         html += `<ul style="margin:0 0 8px 24px;padding:0;">`;
         machines.forEach(({ machName }) => {
-          html += `<li>${machName}</li>`;
+          html += `<li><a class="machine-name" href="${photosPath(machName)}">${escapeHtml(machName)}</a></li>`;
         });
         html += `</ul>`;
       } else {

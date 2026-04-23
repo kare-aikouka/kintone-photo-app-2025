@@ -22,6 +22,8 @@ services:
         sync: false
       - key: APP_MACHINES
         sync: false
+      - key: APP_PHOTOS
+        sync: false
       - key: APP_ACCOUNT
         sync: false
       - key: APP_PASSWORD

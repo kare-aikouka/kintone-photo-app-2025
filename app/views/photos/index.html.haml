@@ -1,0 +1,58 @@
+- weekdays = %w[日 月 火 水 木 金 土]
+
+.photo-page
+  .photo-header
+    .photo-title
+      = link_to "← 施工機一覧", machines_path
+      %span.machine-title= @machine_name.presence || "施工機未指定"
+
+  - if @photo_error
+    .alert.alert-danger
+      %strong 写真・物件情報を取得できませんでした。
+      %pre= "#{@photo_error.class}: #{@photo_error.message}"
+
+  .photo-date-tabs
+    - @date_tabs.each do |date|
+      - count = @records_by_date.fetch(date, []).count
+      - active = date == @selected_date
+      = link_to photos_path(machine: @machine_name, date: date), class: "photo-date-tab #{'active' if active}" do
+        %span= "#{date.month}/#{date.day} #{weekdays[date.wday]}"
+        %strong= count
+
+  - if @selected_records.present?
+    .photo-records
+      - @selected_records.each do |record|
+        .photo-record
+          .photo-record-main
+            .photo-record-date
+              = field_value(record, :date) || @selected_date
+              - if field_value(record, :time).present?
+                = field_value(record, :time)
+            .photo-record-site
+              = [field_value(record, :company), field_value(record, :branch), field_value(record, :site)].compact.join("　")
+            - if field_value(record, :address).present?
+              .photo-record-address= field_value(record, :address)
+          .photo-record-status
+            %span
+              写真：
+              %strong= field_value(record, :photo_status).presence || "未設定"
+            %span
+              管理：
+              %strong= field_value(record, :management_status).presence || "未設定"
+  - else
+    .alert.alert-info
+      = "#{@machine_name} に紐づく物件レコードが見つかりませんでした。"
+
+  - if @field_keys.present?
+    %details.photo-debug
+      %summary 取得フィールド確認
+      %p
+        %strong フィールド:
+        = @field_keys.join(", ")
+      - if @field_preview.present?
+        %table
+          %tbody
+            - @field_preview.first(30).each do |key, value|
+              %tr
+                %th= key
+                %td= value
