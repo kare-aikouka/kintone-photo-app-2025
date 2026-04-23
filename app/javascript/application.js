@@ -1,3 +1,2 @@
-import "@hotwired/turbo-rails"
-import "controllers" // ← Stimulusなど使ってる場合
-//= require machines
+// application.js は importmap 経由でロードされます
+// turbo-rails は importmap.rb で pin されています
