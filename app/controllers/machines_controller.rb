@@ -16,6 +16,8 @@ class MachinesController < ApplicationController
       @machines = fetch_machine_records(app_id, guest_space_id, { "エリア" => "北海道" })
     end
     log_machine_field_keys(@machines)
+    @machine_field_keys = machine_field_keys(@machines)
+    @machine_field_preview = machine_field_preview(@machines)
     @companies = @machines.filter_map { |machine| field_value(machine, "運用会社名") }.uniq
     @selected_area = area
   rescue StandardError => e
@@ -43,8 +45,22 @@ class MachinesController < ApplicationController
   end
 
   def log_machine_field_keys(records)
+    keys = machine_field_keys(records)
+    Rails.logger.info("Machine record field keys: #{keys.join(', ')}") if keys.any?
+  end
+
+  def machine_field_keys(records)
     sample = Array(records).find(&:present?)
-    Rails.logger.info("Machine record field keys: #{sample.keys.join(', ')}") if sample.respond_to?(:keys)
+    sample.respond_to?(:keys) ? sample.keys : []
+  end
+
+  def machine_field_preview(records)
+    sample = Array(records).find(&:present?)
+    return {} unless sample.respond_to?(:each)
+
+    sample.each_with_object({}) do |(key, field), result|
+      result[key] = field.is_a?(Hash) ? field["value"] : field
+    end
   end
 
   def fetch_machine_records(app_id, guest_space_id, cond)
@@ -53,7 +69,7 @@ class MachinesController < ApplicationController
   end
 
   def machines_app_id
-    ENV.fetch("APP_MACHINES", 779).to_i
+    ENV.fetch("APP_MACHINES", 898).to_i
   end
 
   def machines_guest_space_id

@@ -4,6 +4,20 @@
 
 %div{id: "company-list"}
 
+- if @machine_field_keys.present?
+  %details.machine-debug
+    %summary 取得フィールド確認
+    %p
+      %strong フィールド:
+      = @machine_field_keys.join(", ")
+    - if @machine_field_preview.present?
+      %table
+        %tbody
+          - @machine_field_preview.first(20).each do |key, value|
+            %tr
+              %th= key
+              %td= value
+
 :javascript
   window.machineData = #{@machines.to_json.html_safe};
   console.log("machineData:", window.machineData);
