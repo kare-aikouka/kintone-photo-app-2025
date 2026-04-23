@@ -1,6 +1,6 @@
 Rails.application.routes.draw do
-  resources :machines, only: %i[index]
-  resources :machines, only: [:index, :show]
+  resources :machines, only: %i[index show]
+  resources :photos, only: %i[index show]
   get 'router' => 'router#index'
 
   get 'sign_in' => 'accounts#sign_in'
@@ -40,5 +40,5 @@ Rails.application.routes.draw do
   resource :bookmark, only: %i[show create], controller: :bookmarks
   resources :files, only: :index
 
-  root to: 'bookmarks#create'
+  root to: 'router#index'
 end

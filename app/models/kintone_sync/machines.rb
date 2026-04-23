@@ -2,7 +2,7 @@
 module KintoneSync
   class Machines < Record
     def app_id
-      898 # ←本番環境のkintoneアプリID（ご自身のIDを使ってください）
+      ENV.fetch("APP_MACHINES", super).to_i
     end
   end
 end
