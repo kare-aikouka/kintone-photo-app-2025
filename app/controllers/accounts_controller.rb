@@ -11,9 +11,9 @@ class AccountsController < ApplicationController
   end
 
   def session_create
-    @email = params[:email]
+    @email = params[:email].to_s.strip
     backto_path = build_backto_path
-    account = Account.sign_in(email: params[:email], password: params[:password])
+    account = Account.sign_in(email: @email, password: params[:password].to_s)
     session[:account_id] = account.id
     ActionLogger.info('account.success.signed_in', request, account)
     if backto_path.present?
@@ -23,7 +23,7 @@ class AccountsController < ApplicationController
     end
   rescue Account::AccountError => e
     error_key = e.class.name.underscore.split('/').last
-    flash.now[:danger] = I18n.t(error_key, scope: 'flash.errors')
+    flash.now[:danger] = I18n.t(error_key, scope: 'flash.errors', default: I18n.t('flash.errors.signed_in_error'))
     account = Account.new
     account.record.email = @email
     ActionLogger.info([:account, :errors, error_key], request, account)

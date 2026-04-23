@@ -41,9 +41,12 @@ module KintoneSync
     def authenticate(app_id)
       return unless app_id
 
-      @permit_apps ||= ENV['PERMIT_APPS'].split(',').map(&:to_i)
+      permit_apps = ENV['PERMIT_APPS'].to_s.split(',').filter_map do |value|
+        value.strip.presence&.to_i
+      end
+      return if permit_apps.empty?
 
-      unless @permit_apps.include?(app_id.try!(:to_i))
+      unless permit_apps.include?(app_id.try!(:to_i))
         raise ApplicationNotPermit, "アプリID #{app_id}のアプリへのアクセスが許可されていません。"
       end
     end

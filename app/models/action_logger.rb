@@ -26,6 +26,10 @@ class ActionLogger < ActiveKintone
 
   class << self
     delegate :info, to: :new
+
+    def enabled?
+      ENV['APP_ACTION_LOG'].present?
+    end
   end
 
   def initialize(record_data = nil)
@@ -34,10 +38,15 @@ class ActionLogger < ActiveKintone
   end
 
   def info(key, request = nil, account = nil)
+    return self unless self.class.enabled?
+
     record.action = message(key)
     assign_request(request) if request
     assign_user(account) if account
     create
+    self
+  rescue StandardError => e
+    Rails.logger.warn("ActionLogger skipped: #{e.class}: #{e.message}")
     self
   end
 
