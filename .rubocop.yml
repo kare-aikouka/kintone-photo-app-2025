@@ -1,8 +1,42 @@
 # Omakase Ruby styling for Rails
 inherit_gem: { rubocop-rails-omakase: rubocop.yml }
 
-# Overwrite or add rules to create your own house style
-#
-# # Use `[a, [b, c]]` not `[ a, [ b, c ] ]`
-# Layout/SpaceInsideArrayLiteralBrackets:
-#   Enabled: false
+# =====================================================
+# レガシーコードとの互換性のため、スタイルルールを緩和
+# モダン化完了後、段階的に厳しくしていく方針
+# =====================================================
+
+# シングルクォート/ダブルクォートの混在を許可
+Style/StringLiterals:
+  Enabled: false
+
+# 末尾の空白を許可（レガシーコード対応）
+Layout/TrailingWhitespace:
+  Enabled: false
+
+# 末尾の空行を許可
+Layout/TrailingEmptyLines:
+  Enabled: false
+
+# 配列括弧内のスペースを許可
+Layout/SpaceInsideArrayLiteralBrackets:
+  Enabled: false
+
+# ハッシュ末尾のカンマを許可
+Style/TrailingCommaInHashLiteral:
+  Enabled: false
+
+# メソッド定義の括弧スタイルを許可
+Style/MethodDefParentheses:
+  Enabled: false
+
+# %w リテラルの区切り文字を許可
+Style/PercentLiteralDelimiters:
+  Enabled: false
+
+# else/end のアラインメントを許可
+Layout/ElseAlignment:
+  Enabled: false
+
+Layout/EndAlignment:
+  Enabled: false
