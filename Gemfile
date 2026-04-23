@@ -1,7 +1,7 @@
 # Gemfile
 
 source "https://rubygems.org"
-ruby "3.1.7"
+ruby "3.3.6"
 
 # === 基本的なRailsのgem ===
 gem "rails", "~> 7.2.2", ">= 7.2.2.1"
