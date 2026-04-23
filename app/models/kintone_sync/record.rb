@@ -36,10 +36,9 @@ module KintoneSync
       query = ''.dup
       cond.each do |k, v|
         query << ' and ' unless query == ''
-        type = properties[k.to_s].try(:[], 'type')
-        is_container = container_type?(type)
+        is_container = configured_container_field?(k) || container_type?(field_type(k))
         not_op = is_container ? 'not' : ?! if options[:not]
-        query << if container_type?(type)
+        query << if is_container
                    if v.is_a?(Array)
                      "#{k} #{not_op} in (\"#{v.join('","')}\")"
                    else
@@ -63,6 +62,21 @@ module KintoneSync
     end
 
     private
+
+    def field_type(field_code)
+      properties[field_code.to_s].try(:[], 'type')
+    rescue StandardError => e
+      logger.warn("Kintone form fields lookup skipped: #{e.class}: #{e.message}")
+      nil
+    end
+
+    def configured_container_field?(field_code)
+      container_fields.include?(field_code.to_s)
+    end
+
+    def container_fields
+      ENV.fetch('KINTONE_CONTAINER_FIELDS', 'エリア').split(',').map(&:strip)
+    end
 
     def fetch_all_records(base_query = '')
       res = []

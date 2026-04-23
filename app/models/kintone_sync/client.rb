@@ -6,25 +6,29 @@ module KintoneSync
     delegate :logger, to: :Rails
 
     def initialize(app_id = nil, params = {})
-      @host = params[:host] || ENV['KINTONE_HOST']
+      @host = normalize_host(params[:host] || ENV['KINTONE_HOST'])
       @app_id = app_id.try! :to_i
-      @guest_space_id = params[:guest].try! :to_i
+      @guest_space_id = params[:guest].presence&.to_i
     end
 
     def connection
+      raise "KINTONE_HOST is not configured." if @host.blank?
+
       @connection ||= Faraday.new(url: "https://#{@host}") do |builder|
         builder.request :json
         builder.response :json, parser_options: { symbolize_names: false }
-        
-        if ENV["KINTONE_API_TOKEN_#{@app_id}"]
+
+        if ENV["KINTONE_API_TOKEN_#{@app_id}"].present?
           builder.headers['X-Cybozu-API-Token'] = ENV["KINTONE_API_TOKEN_#{@app_id}"]
-        elsif ENV['KINTONE_API_TOKEN']
+        elsif ENV['KINTONE_API_TOKEN'].present?
           builder.headers['X-Cybozu-API-Token'] = ENV['KINTONE_API_TOKEN']
         else
+          raise "KINTONE_API_TOKEN or KINTONE_USER/KINTONE_PASS is not configured." if ENV['KINTONE_USER'].blank? || ENV['KINTONE_PASS'].blank?
+
           builder.headers['X-Cybozu-Authorization'] = Base64.strict_encode64("#{ENV['KINTONE_USER']}:#{ENV['KINTONE_PASS']}")
         end
 
-        if ENV['KINTONE_BASIC_USER'] && ENV['KINTONE_BASIC_PASS']
+        if ENV['KINTONE_BASIC_USER'].present? && ENV['KINTONE_BASIC_PASS'].present?
           builder.request :authorization, :basic, ENV['KINTONE_BASIC_USER'], ENV['KINTONE_BASIC_PASS']
         end
         builder.adapter Faraday.default_adapter
@@ -52,6 +56,12 @@ module KintoneSync
       res = connection.put(api_url(path), body)
       raise "Kintone API Error: #{res.body}" unless res.success?
       res.body
+    end
+
+    private
+
+    def normalize_host(host)
+      host.to_s.strip.sub(%r{\Ahttps?://}, '').sub(%r{/+\z}, '')
     end
   end
 end

@@ -1,0 +1,17 @@
+%section.kintone-error
+  %h2 施工機一覧を取得できませんでした
+  %p kintone 連携設定またはAPI権限を確認してください。
+
+  %h3 エラー内容
+  %pre= "#{@kintone_error.class}: #{@kintone_error.message}"
+
+  %h3 診断情報
+  %table
+    %tbody
+      - @kintone_diagnostics.each do |key, value|
+        %tr
+          %th= key
+          %td= value
+
+  %p
+    Render のログには詳細なバックトレースも出力しています。
