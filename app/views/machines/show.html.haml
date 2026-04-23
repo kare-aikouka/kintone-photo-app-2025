@@ -3,5 +3,9 @@
 
 %ul.machine-list
   - @machines.each do |machine|
+    - machine_name = machine&.dig("施工機通称", "value") || machine&.dig("施工班通称", "value")
     %li
-      = link_to machine["施工機通称"]["value"], photos_path(machine: machine["施工機通称"]["value"]) # 適宜
+      - if machine_name.present?
+        = link_to machine_name, photos_path(machine: machine_name)
+      - else
+        %span （名称未設定）

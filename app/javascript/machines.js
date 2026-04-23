@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // グループ化+ソート
   function groupAndSort(data, areaName) {
     // areaNameでフィルタ
-    const areaRows = data.filter(row => row["エリア"]?.value === areaName);
+    const areaRows = (data || []).filter(row => row?.["エリア"]?.value === areaName);
 
     // 運用会社でグループ化
     const companyMap = {};

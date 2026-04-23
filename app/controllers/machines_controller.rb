@@ -15,7 +15,8 @@ class MachinesController < ApplicationController
     else
       @machines = fetch_machine_records(app_id, guest_space_id, { "エリア" => "北海道" })
     end
-    @companies = @machines.map { |m| m["運用会社名"]["value"] }.uniq.compact
+    log_machine_field_keys(@machines)
+    @companies = @machines.filter_map { |machine| field_value(machine, "運用会社名") }.uniq
     @selected_area = area
   rescue StandardError => e
     render_kintone_error(e, app_id: app_id, guest_space_id: guest_space_id)
@@ -37,9 +38,18 @@ class MachinesController < ApplicationController
 
   private
 
+  def field_value(record, field_code)
+    record&.dig(field_code, "value")
+  end
+
+  def log_machine_field_keys(records)
+    sample = Array(records).find(&:present?)
+    Rails.logger.info("Machine record field keys: #{sample.keys.join(', ')}") if sample.respond_to?(:keys)
+  end
+
   def fetch_machine_records(app_id, guest_space_id, cond)
     records = KintoneSync::Machines.new(app_id, guest_space_id).where(cond)
-    records.is_a?(Hash) ? records["records"] : records
+    Array(records.is_a?(Hash) ? records["records"] : records)
   end
 
   def machines_app_id
