@@ -40,5 +40,5 @@ Rails.application.routes.draw do
   resource :bookmark, only: %i[show create], controller: :bookmarks
   resources :files, only: :index
 
-  root to: 'router#index'
+  root to: 'accounts#sign_in'
 end

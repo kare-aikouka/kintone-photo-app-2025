@@ -1,12 +1,11 @@
 # frozen_string_literal: true
 
 class AccountsController < ApplicationController
-  before_action :redirect_if_already_signed_in, only: :sign_in
-
   def sign_in
     @page_title = 'ログイン画面'
     @email = ''
     @backto = params[:backto]
+    @hashbang = params[:hashbang]
     @account = Account.new
   end
 
@@ -32,14 +31,10 @@ class AccountsController < ApplicationController
 
   def session_destroy
     session.delete :account_id
-    redirect_to sign_in_path
+    redirect_to root_path
   end
 
   private
-
-  def redirect_if_already_signed_in
-    redirect_to router_path if signed_in?
-  end
 
   def build_backto_path
     @backto = params[:backto]

@@ -99,20 +99,22 @@ document.addEventListener('DOMContentLoaded', function () {
     const companies = groupAndSort(window.machineData, area);
     let html = '';
     if (companies.length === 0) {
-      companyListDiv.innerHTML = '<p style="margin-top:16px;color:#888;">該当する施工機レコードがありません。</p>';
+      companyListDiv.innerHTML = '<p class="machine-empty">該当する施工機レコードがありません。</p>';
       return;
     }
     companies.forEach(({ corpName, machines }) => {
-      html += `<div class="corp-name" style="margin:8px 0;cursor:pointer;font-weight:bold;" tabindex="0" onclick="this.nextElementSibling.classList.toggle('hidden')">${corpName}</div>`;
+      html += `<section class="company-group">`;
+      html += `<button class="corp-name" type="button" onclick="this.nextElementSibling.classList.toggle('hidden')">${escapeHtml(corpName)}</button>`;
       if (machines.length > 0) {
-        html += `<ul style="margin:0 0 8px 24px;padding:0;">`;
+        html += `<ul class="machine-list">`;
         machines.forEach(({ machName }) => {
           html += `<li><a class="machine-name" href="${photosPath(machName)}">${escapeHtml(machName)}</a></li>`;
         });
         html += `</ul>`;
       } else {
-        html += `<ul class="hidden" style="margin:0 0 8px 24px;padding:0;"><li style="color:#ccc;">（登録なし）</li></ul>`;
+        html += `<ul class="machine-list hidden"><li class="machine-list-empty">（登録なし）</li></ul>`;
       }
+      html += `</section>`;
     });
     companyListDiv.innerHTML = html;
   }

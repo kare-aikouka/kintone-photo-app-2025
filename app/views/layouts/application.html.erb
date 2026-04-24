@@ -11,7 +11,7 @@
   <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
   <%= javascript_importmap_tags "machines" %>
 </head>
-<body>
+<body class="<%= body_css_classes %>">
   <%= yield %>
 </body>
 </html>
