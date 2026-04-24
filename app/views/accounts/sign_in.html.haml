@@ -4,18 +4,25 @@
       $('#hashbang').val(location.hash);
   });
 
-.container
-  .row.justify-content-center
-    .col-lg-6
-      = form_tag create_account_session_path, method: 'POST', class: 'signin-box' do
-        = hidden_field_tag :backto, @backto
-        = hidden_field_tag :hashbang, @hashbang
-        - flash.each do |type, msg|
-          .alert{ class: "alert-#{type}" }
-            = msg
-        .form-group
-          %input.form-control{ type: 'email', name: 'email', value: @email, placeholder: 'メールアドレス' }
-        .form-group
-          %input.form-control{ type: 'password', name: 'password', placeholder: 'パスワード' }
-        .form-group.text-center
-          = submit_tag 'ログインする', class: 'btn btn-primary btn-lg', data: { disable_with: 'ログイン中…' }
+.signin-screen
+  .signin-hero
+    %p.signin-eyebrow Kintone Photo
+    %h1.signin-title 現場写真アプリ
+    %p.signin-lead
+      ログインして、施工機ごとの現場一覧と写真記録を確認します。
+
+  .signin-panel
+    = form_tag create_account_session_path, method: 'POST', class: 'signin-box' do
+      = hidden_field_tag :backto, @backto
+      = hidden_field_tag :hashbang, @hashbang
+      - flash.each do |type, msg|
+        .alert{ class: "alert-#{type}" }
+          = msg
+      .form-group
+        %label.signin-label{ for: 'email' } ログインID
+        %input.form-control{ id: 'email', type: 'email', name: 'email', value: @email, placeholder: 'メールアドレス' }
+      .form-group
+        %label.signin-label{ for: 'password' } パスワード
+        %input.form-control{ id: 'password', type: 'password', name: 'password', placeholder: 'パスワード' }
+      .form-group.text-center
+        = submit_tag 'ログインする', class: 'btn btn-primary btn-lg signin-submit', data: { disable_with: 'ログイン中…' }

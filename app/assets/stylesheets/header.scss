@@ -1,3 +1,158 @@
-.machine-name {
-  margin-left: 15px;
+.app-main {
+  min-height: 100vh;
+}
+
+.app-main-with-shell {
+  padding-top: 88px;
+}
+
+.app-shell {
+  background: linear-gradient(135deg, #65c8f0 0%, #78daf5 100%);
+  box-shadow: 0 10px 30px rgba(62, 95, 170, 0.18);
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+
+.app-shell-inner {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 14px 20px;
+}
+
+.app-shell-brand {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  min-width: 0;
+}
+
+.app-shell-logo {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.85rem;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.app-shell-logo:hover {
+  color: #fff;
+  text-decoration: none;
+}
+
+.app-shell-copy {
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-shell-primary,
+.app-shell-secondary,
+.app-shell-context {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell-primary {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.app-shell-secondary {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.app-shell-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.app-shell-context {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.app-shell-link,
+.app-shell-button {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 10px 14px;
+  text-decoration: none;
+}
+
+.app-shell-link:hover,
+.app-shell-button:hover {
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  text-decoration: none;
+}
+
+.app-shell-actions form {
+  margin: 0;
+}
+
+.page-kicker {
+  color: #4d658f;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.alert {
+  border-radius: 16px;
+  margin-bottom: 20px;
+  padding: 16px 18px;
+}
+
+.alert-danger {
+  background: #fff3f3;
+  border: 1px solid #f1c6c6;
+  color: #8a3030;
+}
+
+.alert-info {
+  background: #f3f8ff;
+  border: 1px solid #d5e3fb;
+  color: #2f4c78;
+}
+
+@media (max-width: 760px) {
+  .app-main-with-shell {
+    padding-top: 116px;
+  }
+
+  .app-shell-inner {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 12px 14px;
+  }
+
+  .app-shell-actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .app-shell-link,
+  .app-shell-button {
+    min-height: 44px;
+  }
 }

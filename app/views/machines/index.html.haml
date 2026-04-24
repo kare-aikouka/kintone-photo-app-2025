@@ -1,7 +1,12 @@
 .machines-page
   .machines-page-header
-    %h1 施工機一覧
-    %p.machine-page-subtitle エリアを選択して施工機を表示します。
+    .machines-page-title-group
+      %p.page-kicker Machine Index
+      %h1 施工機一覧
+      %p.machine-page-subtitle エリアを選択して施工機を表示します。
+    .machines-page-summary
+      %span.summary-chip 会社ごとに表示
+      %span.summary-chip タップで施工機一覧を展開
 
   .machines-area-switch
     %button{ id: "btn-hokkaido", class: "toggle-area selected", type: "button" } 北海道
@@ -9,7 +14,7 @@
 
   %div{id: "company-list", class: "company-list"}
 
-  - if @machine_field_keys.present?
+  - if show_debug_panels? && @machine_field_keys.present?
     %details.machine-debug
       %summary 取得フィールド確認
       %p

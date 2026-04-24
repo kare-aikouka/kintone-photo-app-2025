@@ -5,9 +5,12 @@
     .photo-title
       = link_to "← 施工機一覧", machines_path
       %span.machine-title= @machine_name.presence || "施工機未指定"
+    .photo-header-meta
+      %span.header-badge= "#{@default_records.count}件"
+      %span.header-badge= "未完了 #{@incomplete_records.count}件"
 
   - if @photo_error
-    .alert.alert-danger
+    .alert.alert-danger.photo-alert
       %strong 写真・物件情報を取得できませんでした。
       %pre= "#{@photo_error.class}: #{@photo_error.message}"
 
@@ -40,26 +43,26 @@
             - if record_address(record).present?
               .photo-record-address= "【#{record_address(record)}】"
             .photo-record-actions
-              = link_to "地図", "javascript:undefined", class: "btn disabled"
-              = link_to "図面", "javascript:undefined", class: "btn disabled"
-              = link_to "設計資料", "javascript:undefined", class: "btn disabled"
+              = link_to "地図", "javascript:undefined", class: "btn btn-soft disabled"
+              = link_to "図面", "javascript:undefined", class: "btn btn-soft disabled"
+              = link_to "設計資料", "javascript:undefined", class: "btn btn-soft disabled"
               - if record_id(record).present?
-                = link_to "写真", photo_path(record_id(record)), class: "btn primary"
+                = link_to "写真", photo_path(record_id(record)), class: "btn btn-primary-action"
               - else
-                = link_to "写真", "javascript:undefined", class: "btn primary disabled"
-              = link_to "管理", "javascript:undefined", class: "btn primary disabled"
+                = link_to "写真", "javascript:undefined", class: "btn btn-primary-action disabled"
+              = link_to "管理", "javascript:undefined", class: "btn btn-secondary-action disabled"
           .photo-record-status
-            %span
+            %span.photo-status-line
               写真：
-              %strong= photo_status(record)
-            %span
+              %strong{ class: ("is-done" if photo_status(record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(record)
+            %span.photo-status-line
               管理：
               %strong= field_value(record, :management_status).presence || "未設定"
   - else
-    .alert.alert-info
+    .alert.alert-info.photo-alert
       = "#{@machine_name} に紐づく物件レコードが見つかりませんでした。"
 
-  - if @field_keys.present?
+  - if show_debug_panels? && @field_keys.present?
     %details.photo-debug
       %summary 取得フィールド確認
       %p

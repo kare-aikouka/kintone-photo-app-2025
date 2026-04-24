@@ -1,0 +1,23 @@
+<header class="app-shell">
+  <div class="app-shell-inner">
+    <div class="app-shell-brand">
+      <%= link_to app_home_path, class: "app-shell-logo", aria: { label: "ホームへ移動" } do %>
+        AIZAWA
+      <% end %>
+      <div class="app-shell-copy">
+        <strong class="app-shell-primary"><%= app_shell_primary_label %></strong>
+        <% if app_shell_secondary_label.present? %>
+          <span class="app-shell-secondary"><%= app_shell_secondary_label %></span>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="app-shell-actions">
+      <% if app_shell_context_label.present? %>
+        <span class="app-shell-context"><%= app_shell_context_label %></span>
+      <% end %>
+      <%= link_to "ホーム", app_home_path, class: "app-shell-link" %>
+      <%= link_to "ログアウト", sign_out_path, data: { turbo_method: :delete }, class: "app-shell-button" %>
+    </div>
+  </div>
+</header>

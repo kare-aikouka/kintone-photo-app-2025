@@ -12,7 +12,13 @@
   <%= javascript_importmap_tags "machines" %>
 </head>
 <body class="<%= body_css_classes %>">
-  <%= yield %>
+  <% if show_app_shell? %>
+    <%= render "layouts/app_shell" %>
+  <% end %>
+
+  <main class="<%= show_app_shell? ? 'app-main app-main-with-shell' : 'app-main' %>">
+    <%= yield %>
+  </main>
 </body>
 </html>
 

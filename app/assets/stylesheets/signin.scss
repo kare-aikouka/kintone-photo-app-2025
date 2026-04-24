@@ -1,6 +1,8 @@
 body.controller-accounts.action-sign-in {
   align-items: center;
-  background: linear-gradient(180deg, #eef5ff 0%, #f5f7fb 100%);
+  background:
+    radial-gradient(circle at top left, rgba(108, 213, 245, 0.24), transparent 28%),
+    linear-gradient(180deg, #eef5ff 0%, #f5f7fb 100%);
   display: flex;
   justify-content: center;
   min-height: 100vh;
@@ -8,7 +10,46 @@ body.controller-accounts.action-sign-in {
 }
 
 body.controller-accounts.action-sign-in .container {
-  max-width: 720px;
+  max-width: 920px;
+  width: 100%;
+}
+
+.signin-screen {
+  display: grid;
+  gap: 28px;
+  margin: 0 auto;
+  max-width: 920px;
+}
+
+.signin-hero {
+  text-align: center;
+}
+
+.signin-eyebrow {
+  color: #3E5FAA;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+
+.signin-title {
+  color: #23395f;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1.1;
+  margin-bottom: 14px;
+}
+
+.signin-lead {
+  color: #5b6f92;
+  font-size: 1.05rem;
+  margin: 0 auto;
+  max-width: 560px;
+}
+
+.signin-panel {
+  margin: 0 auto;
   width: 100%;
 }
 
@@ -23,5 +64,41 @@ body.controller-accounts.action-sign-in .container {
 
   .form-group:last-child {
     margin-bottom: 0;
+  }
+}
+
+.signin-label {
+  color: #36517f;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.signin-box .form-control {
+  border: 1px solid #cfd9ea;
+  border-radius: 14px;
+  font-size: 1rem;
+  min-height: 52px;
+  padding: 12px 14px;
+}
+
+.signin-submit {
+  border-radius: 14px;
+  min-height: 52px;
+  min-width: 220px;
+}
+
+@media (max-width: 640px) {
+  body.controller-accounts.action-sign-in {
+    padding: 20px 12px;
+  }
+
+  .signin-box {
+    border-radius: 16px;
+    padding: 24px 18px;
+  }
+
+  .signin-submit {
+    width: 100%;
   }
 }

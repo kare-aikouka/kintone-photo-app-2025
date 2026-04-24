@@ -6,9 +6,11 @@
     .photo-title
       = link_to "← 戻る", back_url
       %span.machine-title= @machine_name.presence || "施工写真詳細"
+    .photo-header-meta
+      %span.header-badge 写真詳細
 
   - if @photo_error
-    .alert.alert-danger
+    .alert.alert-danger.photo-alert
       %strong 施工写真詳細を取得できませんでした。
       %pre= "#{@photo_error.class}: #{@photo_error.message}"
 
@@ -24,21 +26,22 @@
         - if record_address(@record).present?
           .photo-record-address= "【#{record_address(@record)}】"
         .photo-record-actions
-          = link_to "地図", "javascript:undefined", class: "btn disabled"
-          = link_to "図面", "javascript:undefined", class: "btn disabled"
-          = link_to "設計資料", "javascript:undefined", class: "btn disabled"
-          = link_to "写真", photo_path(record_id(@record)), class: "btn primary"
-          = link_to "管理", "javascript:undefined", class: "btn primary disabled"
+          = link_to "地図", "javascript:undefined", class: "btn btn-soft disabled"
+          = link_to "図面", "javascript:undefined", class: "btn btn-soft disabled"
+          = link_to "設計資料", "javascript:undefined", class: "btn btn-soft disabled"
+          = link_to "写真", photo_path(record_id(@record)), class: "btn btn-primary-action"
+          = link_to "管理", "javascript:undefined", class: "btn btn-secondary-action disabled"
       .photo-record-status
-        %span
+        %span.photo-status-line
           写真：
-          %strong= photo_status(@record)
-        %span
+          %strong{ class: ("is-done" if photo_status(@record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(@record)
+        %span.photo-status-line
           管理：
           %strong= field_value(@record, :management_status).presence || "未設定"
 
     .photo-detail-machine
-      = field_value(@record, :machine)
+      .photo-detail-machine-label 施工機
+      .photo-detail-machine-value= field_value(@record, :machine)
 
     - @detail_sections.each do |section|
       .photo-detail-section
@@ -52,8 +55,8 @@
           .photo-detail-table
             .photo-detail-table-title= detail_table_label(table_code)
             .photo-detail-table-actions
-              = button_tag "追加", type: "button", class: "btn", disabled: true
-              = button_tag "編集", type: "button", class: "btn", disabled: true
+              = button_tag "追加", type: "button", class: "btn btn-soft", disabled: true
+              = button_tag "編集", type: "button", class: "btn btn-soft", disabled: true
             - if rows.present? && columns.present?
               .photo-detail-table-scroll
                 %table
@@ -90,7 +93,7 @@
               .photo-detail-empty
                 まだ登録されている行はありません。
 
-    - if @field_keys.present?
+    - if show_debug_panels? && @field_keys.present?
       %details.photo-debug
         %summary 取得フィールド確認
         %p
