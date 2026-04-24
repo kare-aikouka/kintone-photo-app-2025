@@ -1,6 +1,10 @@
 {
   "name": "kintone-photo-app",
   "private": true,
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  },
   "dependencies": {
     "@babel/core": "^7.20.0",
     "@babel/plugin-proposal-class-properties": "^7.18.6",
@@ -24,6 +28,7 @@
   "scripts": {
     "build": "esbuild app/javascript/machines.js --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets",
     "build:css": "sass ./app/assets/stylesheets/application.scss:./app/assets/builds/application.css --no-source-map --load-path=node_modules",
+    "heroku-postbuild": "npm run build:css",
     "watch:css": "sass ./app/assets/stylesheets/application.scss:./app/assets/builds/application.css --watch --no-source-map --load-path=node_modules"
   }
 }

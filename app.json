@@ -1,0 +1,12 @@
+{
+  "name": "kintone-photo-app-2025",
+  "description": "Kintone-based photo management app for piling construction workflows.",
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    },
+    {
+      "url": "heroku/ruby"
+    }
+  ]
+}
