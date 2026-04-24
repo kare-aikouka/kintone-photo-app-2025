@@ -84,7 +84,7 @@ body.controller-machines.action-index {
 }
 
 .machines-page-header h1 {
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: 2rem;
   margin-bottom: 6px;
 }
 
@@ -215,5 +215,11 @@ body.controller-machines.action-index {
     font-size: 1.2rem;
     min-width: 110px;
     padding: 10px 14px;
+  }
+}
+
+@media (min-width: 900px) {
+  .machines-page-header h1 {
+    font-size: 3rem;
   }
 }

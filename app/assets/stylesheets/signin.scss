@@ -36,7 +36,7 @@ body.controller-accounts.action-sign-in .container {
 
 .signin-title {
   color: #23395f;
-  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-size: 2rem;
   line-height: 1.1;
   margin-bottom: 14px;
 }
@@ -100,5 +100,11 @@ body.controller-accounts.action-sign-in .container {
 
   .signin-submit {
     width: 100%;
+  }
+}
+
+@media (min-width: 900px) {
+  .signin-title {
+    font-size: 3.4rem;
   }
 }
