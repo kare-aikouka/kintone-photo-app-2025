@@ -1,4 +1,9 @@
 require 'base64'
+require 'json'
+require 'net/http'
+require 'securerandom'
+require 'tempfile'
+require 'uri'
 
 module KintoneSync
   class File < Base
@@ -10,17 +15,22 @@ module KintoneSync
     end
 
     def upload(params)
-      filename = params[:filename]
+      filename = params[:filename].presence || 'upload.jpg'
+      content_type = params[:content_type].presence || 'application/octet-stream'
+      boundary = "----kintone-photo-#{SecureRandom.hex(12)}"
+      body = multipart_body(boundary, filename, content_type, params[:data])
+      uri = URI("https://#{host}#{api_url('file.json')}")
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = "multipart/form-data; boundary=#{boundary}"
+      auth_headers.each { |key, value| request[key] = value }
+      request.body = body
 
-      res = nil
-      Tempfile.create filename, encoding: 'ascii-8bit' do |f|
-        f.write(params[:data])
-        f.flush
-        f.path
-        res = api.file.register(f.path, params[:content_type], params[:filename])
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 30) do |http|
+        http.request(request)
       end
-      # logger.info "upload: #{res}"
-      res
+      raise "Kintone file upload failed: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+
+      JSON.parse(response.body).fetch('fileKey')
     end
 
     private
@@ -44,16 +54,36 @@ module KintoneSync
     end
 
     def configure_auth_headers(builder)
+      auth_headers.each { |key, value| builder.headers[key] = value }
+
+      return unless ENV['KINTONE_BASIC_USER'].present? && ENV['KINTONE_BASIC_PASS'].present?
+
+      builder.request :authorization, :basic, ENV['KINTONE_BASIC_USER'], ENV['KINTONE_BASIC_PASS']
+    end
+
+    def auth_headers
+      headers = {}
       token = ENV["KINTONE_API_TOKEN_#{app_id}"].presence || ENV['KINTONE_API_TOKEN'].presence
       if token.present?
-        builder.headers['X-Cybozu-API-Token'] = token
+        headers['X-Cybozu-API-Token'] = token
       elsif ENV['KINTONE_USER'].present? && ENV['KINTONE_PASS'].present?
-        builder.headers['X-Cybozu-Authorization'] = Base64.strict_encode64("#{ENV['KINTONE_USER']}:#{ENV['KINTONE_PASS']}")
+        headers['X-Cybozu-Authorization'] = Base64.strict_encode64("#{ENV['KINTONE_USER']}:#{ENV['KINTONE_PASS']}")
       end
 
       if ENV['KINTONE_BASIC_USER'].present? && ENV['KINTONE_BASIC_PASS'].present?
-        builder.request :authorization, :basic, ENV['KINTONE_BASIC_USER'], ENV['KINTONE_BASIC_PASS']
+        headers['Authorization'] = "Basic #{Base64.strict_encode64("#{ENV['KINTONE_BASIC_USER']}:#{ENV['KINTONE_BASIC_PASS']}")}"
       end
+      headers
+    end
+
+    def multipart_body(boundary, filename, content_type, data)
+      body = +"".b
+      body << "--#{boundary}\r\n".b
+      body << "Content-Disposition: form-data; name=\"file\"; filename=\"#{filename}\"\r\n".b
+      body << "Content-Type: #{content_type}\r\n\r\n".b
+      body << data.to_s.b
+      body << "\r\n--#{boundary}--\r\n".b
+      body
     end
   end
 end

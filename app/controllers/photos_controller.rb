@@ -1,3 +1,5 @@
+require 'digest/sha1'
+
 class PhotosController < ApplicationController
   before_action :authentication
 
@@ -146,6 +148,38 @@ class PhotosController < ApplicationController
     @photo_error = e
     @record = nil
     @detail_sections = []
+  end
+
+  def add_table_row
+    record = photo_record(params[:id])
+    table_code = table_row_params[:table_code]
+    rows = detail_table_rows(record, table_code).map { |row| kintone_table_row_payload(row) }
+    rows << new_table_row_payload
+    update_table_rows(params[:id], table_code, rows)
+
+    redirect_to photo_path(params[:id])
+  rescue StandardError => e
+    Rails.logger.error("Photo table row add failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    redirect_to photo_path(params[:id]), alert: "写真・メモの追加に失敗しました。"
+  end
+
+  def update_table_row
+    record = photo_record(params[:id])
+    table_code = table_row_params[:table_code]
+    target_row_id = table_row_params[:row_id].to_s
+    rows = detail_table_rows(record, table_code).map do |row|
+      payload = kintone_table_row_payload(row)
+      apply_table_row_params(payload) if row["id"].to_s == target_row_id
+      payload
+    end
+    update_table_rows(params[:id], table_code, rows)
+
+    redirect_to photo_path(params[:id])
+  rescue StandardError => e
+    Rails.logger.error("Photo table row update failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    redirect_to photo_path(params[:id]), alert: "写真・メモの編集に失敗しました。"
   end
 
   private
@@ -305,10 +339,24 @@ class PhotosController < ApplicationController
   end
   helper_method :detail_table_rows
 
-  def detail_table_columns(rows)
-    rows.flat_map { |row| row.dig("value")&.keys || [] }.uniq
+  def detail_table_columns(rows, table_code = nil)
+    columns = rows.flat_map { |row| row.dig("value")&.keys || [] }.uniq
+    columns = table_subfield_codes(table_code) if columns.blank? && table_code.present?
+    order_detail_table_columns(rows, columns, table_code)
   end
   helper_method :detail_table_columns
+
+  def detail_file_column(rows, columns, table_code = nil)
+    columns.find do |column|
+      rows.any? { |row| detail_file_cell?(row, column) } || table_subfield_type(table_code, column) == "FILE"
+    end || columns.find { |column| !memo_column?(column) }
+  end
+  helper_method :detail_file_column
+
+  def detail_memo_column(columns)
+    columns.find { |column| memo_column?(column) }
+  end
+  helper_method :detail_memo_column
 
   def detail_cell(row, column)
     row.dig("value", column)
@@ -327,6 +375,11 @@ class PhotosController < ApplicationController
     detail_cell(row, column)&.dig("type") == "FILE"
   end
   helper_method :detail_file_cell?
+
+  def table_row_dom_id(table_code, suffix)
+    "table-row-#{Digest::SHA1.hexdigest(table_code.to_s).first(12)}-#{suffix}"
+  end
+  helper_method :table_row_dom_id
 
   def photo_status(record)
     field_value(record, :photo_status).presence || "未完了"
@@ -391,6 +444,100 @@ class PhotosController < ApplicationController
     (FIELD_ALIASES.values.flatten + SUMMARY_SYSTEM_FIELDS).uniq.select do |field_code|
       field_code.start_with?("$") || available_codes.include?(field_code)
     end
+  end
+
+  def table_row_params
+    params.permit(:table_code, :row_id, :file_column, :memo_column, :memo, :photo)
+  end
+
+  def update_table_rows(record_id, table_code, rows)
+    KintoneSync::Record.new(photos_app_id, photos_guest_space_id).update(
+      record_id,
+      table_code => { value: rows }
+    )
+  end
+
+  def new_table_row_payload
+    payload = { value: {} }
+    apply_table_row_params(payload)
+    payload
+  end
+
+  def apply_table_row_params(payload)
+    file_column = table_row_params[:file_column].presence
+    memo_column = table_row_params[:memo_column].presence
+    payload[:value] ||= {}
+
+    if file_column.present? && uploaded_photo_file_key.present?
+      payload[:value][file_column] = { value: [{ fileKey: uploaded_photo_file_key }] }
+    end
+
+    payload[:value][memo_column] = { value: table_row_params[:memo].to_s } if memo_column.present?
+    payload
+  end
+
+  def uploaded_photo_file_key
+    return @uploaded_photo_file_key if defined?(@uploaded_photo_file_key)
+
+    photo = table_row_params[:photo]
+    @uploaded_photo_file_key = if photo.present?
+                                 KintoneSync::File.new(photos_app_id, photos_guest_space_id).upload(
+                                   data: photo.read,
+                                   content_type: photo.content_type,
+                                   filename: photo.original_filename
+                                 )
+                               end
+  end
+
+  def kintone_table_row_payload(row)
+    payload = { value: {} }
+    payload[:id] = row["id"] if row["id"].present?
+    row.fetch("value", {}).each do |field_code, field|
+      payload[:value][field_code] = { value: kintone_field_update_value(field) }
+    end
+    payload
+  end
+
+  def kintone_field_update_value(field)
+    return Array(field["value"]).filter_map { |file| { fileKey: file["fileKey"] } if file["fileKey"].present? } if field["type"] == "FILE"
+
+    field["value"]
+  end
+
+  def order_detail_table_columns(rows, columns, table_code)
+    columns.sort_by do |column|
+      file_column = rows.any? { |row| detail_file_cell?(row, column) } || table_subfield_type(table_code, column) == "FILE"
+      [
+        memo_column?(column) ? 1 : 0,
+        file_column ? 0 : 1,
+        column.to_s
+      ]
+    end
+  end
+
+  def memo_column?(column)
+    column.to_s.start_with?("メモ")
+  end
+
+  def table_subfield_codes(table_code)
+    table_subfield_properties(table_code).keys
+  end
+
+  def table_subfield_type(table_code, column)
+    table_subfield_properties(table_code).dig(column.to_s, "type")
+  end
+
+  def table_subfield_properties(table_code)
+    return {} if table_code.blank?
+
+    @table_subfield_properties ||= {}
+    @table_subfield_properties[table_code.to_s] ||= begin
+      field = KintoneSync::Record.new(photos_app_id, photos_guest_space_id).properties[table_code.to_s]
+      field&.dig("fields") || {}
+    end
+  rescue StandardError => e
+    Rails.logger.warn("Kintone table fields lookup skipped: #{e.class}: #{e.message}")
+    {}
   end
 
   def record_field_keys(records)

@@ -586,6 +586,54 @@ a.badge:focus, a.badge:hover {
   padding: 10px 18px;
 }
 
+.photo-table-form {
+  background: #f8fafc;
+  border: 1px solid #d8dce2;
+  border-radius: 14px;
+  margin: 12px 18px 0;
+  padding: 14px;
+}
+
+.photo-table-form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(180px, 280px) minmax(240px, 1fr);
+}
+
+.photo-table-form-field label {
+  color: #475467;
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.photo-table-file,
+.photo-table-memo {
+  background: #fff;
+  border: 1px solid #cfd8e8;
+  border-radius: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.photo-table-memo {
+  resize: vertical;
+}
+
+.photo-table-submit {
+  border: 0;
+  border-radius: 12px;
+  margin-top: 12px;
+  min-height: 44px;
+  padding: 10px 18px;
+}
+
+.photo-detail-edit-row td {
+  background: #f8fafc;
+}
+
 .photo-detail-table-scroll {
   overflow-x: auto;
   padding: 0 18px 18px;
@@ -749,6 +797,10 @@ a.badge:focus, a.badge:hover {
 
   .photo-detail-table table {
     min-width: 620px;
+  }
+
+  .photo-table-form-grid {
+    grid-template-columns: 1fr;
   }
 
   .bookmark-page,
