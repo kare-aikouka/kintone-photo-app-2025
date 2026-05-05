@@ -106,9 +106,11 @@ class PhotosController < ApplicationController
     @records = @machine_name.present? ? photo_records_for(@machine_search_values) : []
     @default_records = default_records(@records)
     @incomplete_records = @default_records.select { |record| incomplete?(record) }
-    @past_incomplete_records = past_incomplete_records(@default_records)
+    @date_tabs = date_tabs
     @records_by_date = @default_records.group_by { |record| record_date(record) || Date.current }
-    @date_tabs = next_week_tabs
+    @completed_records = completed_records(@default_records)
+    @future_records = future_records(@default_records, @date_tabs)
+    @future_incomplete_count = @future_records.count { |record| incomplete?(record) }
     @selected_filter = selected_filter
     @selected_date = selected_date(@date_tabs)
     @selected_records = selected_records
@@ -122,7 +124,9 @@ class PhotosController < ApplicationController
     @records = []
     @default_records = []
     @incomplete_records = []
-    @past_incomplete_records = []
+    @completed_records = []
+    @future_records = []
+    @future_incomplete_count = 0
     @records_by_date = {}
     @date_tabs = []
     @selected_records = []
@@ -178,7 +182,7 @@ class PhotosController < ApplicationController
     # in its option list. Fetch only the bounded summary range, then filter locally.
     <<~QUERY.squish
       施工予定日 > FROM_TODAY(-2, MONTHS) and
-      施工予定日 < FROM_TODAY(1, WEEKS)
+      施工予定日 < FROM_TODAY(6, MONTHS)
       order by レコード番号 asc
     QUERY
   end
@@ -201,19 +205,25 @@ class PhotosController < ApplicationController
   end
 
   def default_records(records)
-    begin_date = Date.current.prev_month
+    records.sort_by { |record| [record_date(record) || Date.new(9999, 12, 31), record_id(record).to_i] }
+  end
+
+  def completed_records(records)
+    records.select { |record| record_date(record).present? && record_date(record) < Date.current }
+           .sort_by { |record| [record_date(record) || Date.new(1, 1, 1), record_id(record).to_i] }
+           .reverse
+  end
+
+  def future_records(records, visible_dates)
+    last_visible_date = visible_dates.last || Date.current
     records.select do |record|
       date = record_date(record)
-      date.nil? || date >= begin_date || incomplete?(record)
-    end.sort_by { |record| [incomplete?(record) ? 0 : 1, record_date(record) || Date.new(9999, 12, 31)] }
+      date.nil? || date > last_visible_date
+    end
   end
 
-  def past_incomplete_records(records)
-    records.select { |record| incomplete?(record) && record_date(record).present? && record_date(record) < Date.current }
-  end
-
-  def next_week_tabs
-    (0..6).map { |index| Date.current + index.days }
+  def date_tabs
+    (0..7).map { |index| Date.current + index.days }
   end
 
   def selected_date(date_tabs)
@@ -230,12 +240,11 @@ class PhotosController < ApplicationController
   def selected_records
     case @selected_filter
     when "all"
-      @default_records
-    when "incomplete"
-      @incomplete_records
+      @future_records
+    when "completed"
+      @completed_records
     else
-      dated_records = @records_by_date.fetch(@selected_date, [])
-      (@past_incomplete_records + dated_records).uniq
+      @records_by_date.fetch(@selected_date, [])
     end
   end
 

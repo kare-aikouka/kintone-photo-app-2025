@@ -30,14 +30,10 @@
           = link_to "図面", "javascript:undefined", class: "btn btn-soft disabled"
           = link_to "設計資料", "javascript:undefined", class: "btn btn-soft disabled"
           = link_to "写真", photo_path(record_id(@record)), class: "btn btn-primary-action"
-          = link_to "管理", "javascript:undefined", class: "btn btn-secondary-action disabled"
       .photo-record-status
         %span.photo-status-line
           写真：
           %strong{ class: ("is-done" if photo_status(@record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(@record)
-        %span.photo-status-line
-          管理：
-          %strong= field_value(@record, :management_status).presence || "未設定"
 
     .photo-detail-machine
       .photo-detail-machine-label 施工機

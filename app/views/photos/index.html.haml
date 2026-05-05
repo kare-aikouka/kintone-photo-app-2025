@@ -18,18 +18,22 @@
     - @date_tabs.each do |date|
       - count = @records_by_date.fetch(date, []).count
       - incomplete_count = @records_by_date.fetch(date, []).count { |record| incomplete?(record) }
-      - active = @selected_filter != "all" && date == @selected_date
+      - active = !%w[all completed].include?(@selected_filter) && date == @selected_date
       = link_to photos_path(machine: @machine_name, date: date), class: "photo-date-tab #{'active' if active}" do
         %span= "#{date.month}/#{date.day} #{weekdays[date.wday]}"
         .photo-tab-badges
           %strong= count
           - if active
-            %strong= incomplete_count + @past_incomplete_records.count
+            %strong= incomplete_count
     = link_to photos_path(machine: @machine_name, date: "all"), class: "photo-date-tab #{'active' if @selected_filter == 'all'}" do
       %span 全て
       .photo-tab-badges
-        %strong= @default_records.count
-        %strong= @incomplete_records.count
+        %strong= @future_records.count
+        %strong= @future_incomplete_count
+    = link_to photos_path(machine: @machine_name, date: "completed"), class: "photo-date-tab photo-date-tab-completed #{'active' if @selected_filter == 'completed'}" do
+      %span 完了分
+      .photo-tab-badges
+        %strong= @completed_records.count
 
   - if @selected_records.present?
     .photo-records
@@ -50,14 +54,10 @@
                 = link_to "写真", photo_path(record_id(record)), class: "btn btn-primary-action"
               - else
                 = link_to "写真", "javascript:undefined", class: "btn btn-primary-action disabled"
-              = link_to "管理", "javascript:undefined", class: "btn btn-secondary-action disabled"
           .photo-record-status
             %span.photo-status-line
               写真：
               %strong{ class: ("is-done" if photo_status(record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(record)
-            %span.photo-status-line
-              管理：
-              %strong= field_value(record, :management_status).presence || "未設定"
   - else
     .alert.alert-info.photo-alert
       = "#{@machine_name} に紐づく物件レコードが見つかりませんでした。"

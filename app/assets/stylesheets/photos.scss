@@ -376,6 +376,18 @@ a.badge:focus, a.badge:hover {
   color: #fff;
 }
 
+.photo-date-tab-completed {
+  border-color: #f0b3b3;
+  color: #b32626;
+  font-weight: 800;
+}
+
+.photo-date-tab-completed.active {
+  background: #d43535;
+  border-color: #d43535;
+  color: #fff;
+}
+
 .photo-date-tab span {
   display: block;
 }
