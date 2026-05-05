@@ -55,8 +55,8 @@
           .photo-detail-table
             .photo-detail-table-title= detail_table_label(table_code)
             .photo-detail-table-actions
-              = button_tag "追加", type: "button", class: "btn btn-soft js-photo-table-toggle", data: { target: add_form_id }, disabled: file_column.blank? && memo_column.blank?
-              = button_tag "編集", type: "button", class: "btn btn-soft js-photo-table-toggle", data: { target: edit_rows_id }, disabled: rows.blank? || (file_column.blank? && memo_column.blank?)
+              = button_tag "追加", type: "button", class: "btn photo-table-action-add js-photo-table-toggle", data: { target: add_form_id }, disabled: file_column.blank? && memo_column.blank?
+              = button_tag "編集", type: "button", class: "btn photo-table-action-edit js-photo-table-toggle", data: { target: edit_rows_id }, disabled: rows.blank? || (file_column.blank? && memo_column.blank?)
             - if columns.present?
               .photo-detail-table-scroll
                 %table
