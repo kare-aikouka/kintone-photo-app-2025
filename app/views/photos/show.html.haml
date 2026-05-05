@@ -124,24 +124,24 @@
                     - if file_column.present? || memo_column.present?
                       %tr.photo-detail-add-row.hidden{ id: add_form_id }
                         %td{ colspan: columns.count }
-                          .photo-table-row-editor.photo-table-row-editor-add
-                            .photo-table-row-editor-title このテーブルの最下段に追加
+                          .photo-table-row-editor.photo-table-row-editor-add.photo-table-inline-editor
                             = form_with url: table_rows_photo_path(record_id(@record)), method: :post, multipart: true, local: true do
                               = hidden_field_tag :table_code, table_code
                               = hidden_field_tag :file_column, file_column
                               = hidden_field_tag :memo_column, memo_column
-                              .photo-table-form-grid
-                                - if file_column.present?
-                                  .photo-table-form-field
-                                    = label_tag :photo, "写真"
-                                    = file_field_tag :photo, accept: "image/*", class: "photo-table-file photo-table-file-large"
-                                - if memo_column.present?
-                                  .photo-table-form-field
-                                    = label_tag :memo, "メモ"
-                                    = text_area_tag :memo, nil, rows: 3, class: "photo-table-memo"
-                              .photo-table-form-actions
-                                = submit_tag "追加する", class: "btn btn-primary-action photo-table-submit"
-                                = button_tag "キャンセル", type: "button", class: "btn btn-soft photo-table-cancel js-photo-table-close", data: { target: add_form_id }
+                              .photo-table-inline-grid{ style: "grid-template-columns: repeat(#{columns.count}, minmax(220px, 1fr));" }
+                                - columns.each do |column|
+                                  .photo-table-inline-cell
+                                    - if column == file_column
+                                      .photo-table-attachment-empty （添付なし）
+                                      = file_field_tag :photo, accept: "image/*", class: "photo-table-file photo-table-file-large"
+                                      .photo-table-form-actions.photo-table-inline-actions
+                                        = submit_tag "追加する", class: "btn btn-primary-action photo-table-submit"
+                                        = button_tag "キャンセル", type: "button", class: "btn btn-soft photo-table-cancel js-photo-table-close", data: { target: add_form_id }
+                                    - elsif column == memo_column
+                                      = text_area_tag :memo, nil, rows: 4, class: "photo-table-memo photo-table-inline-memo", placeholder: "メモ"
+                                    - else
+                                      %span.photo-empty -
             - else
               .photo-detail-empty
                 まだ登録されている行はありません。

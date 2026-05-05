@@ -653,7 +653,7 @@ a.badge:focus, a.badge:hover {
 .photo-table-submit {
   border: 0;
   border-radius: 12px;
-  margin-top: 12px;
+  margin-top: 0;
   min-height: 44px;
   padding: 10px 18px;
 }
@@ -671,6 +671,43 @@ a.badge:focus, a.badge:hover {
   margin-bottom: 12px;
 }
 
+.photo-table-inline-editor {
+  background: #fff;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.photo-table-inline-grid {
+  display: grid;
+  min-width: 720px;
+}
+
+.photo-table-inline-cell {
+  border-right: 1px solid #d8dce2;
+  min-height: 132px;
+  padding: 14px 12px;
+}
+
+.photo-table-inline-cell:last-child {
+  border-right: 0;
+}
+
+.photo-table-attachment-empty {
+  color: #667085;
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+.photo-table-inline-memo {
+  border: 0;
+  min-height: 112px;
+}
+
+.photo-table-inline-actions {
+  margin-top: 14px;
+}
+
 .photo-table-form-actions {
   align-items: center;
   display: flex;
@@ -681,8 +718,12 @@ a.badge:focus, a.badge:hover {
 
 .photo-table-form-actions .btn,
 .photo-table-form-actions input[type="submit"] {
+  align-items: center;
   border-radius: 12px;
+  display: inline-flex;
   font-weight: 800;
+  justify-content: center;
+  line-height: 1.2;
   min-height: 48px;
   min-width: 124px;
   padding: 10px 18px;
@@ -727,6 +768,11 @@ a.badge:focus, a.badge:hover {
 .photo-detail-add-row td,
 .photo-detail-edit-row td {
   background: #f8fafc;
+}
+
+.photo-detail-add-row > td {
+  background: #fff;
+  padding: 0;
 }
 
 .photo-detail-placeholder-row td {
