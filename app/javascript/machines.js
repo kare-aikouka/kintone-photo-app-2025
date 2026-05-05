@@ -51,14 +51,14 @@ document.addEventListener('DOMContentLoaded', function () {
     window.location.replace(`/photos?machine=${encodeURIComponent(machineName)}`);
   }
 
-  function escapeHashValue(value) {
-    return encodeURIComponent(value).replace(/[()]/g, function (char) {
-      return char === "(" ? "%28" : "%29";
-    });
-  }
+  function photosPath(machineName, machineModel) {
+    const params = new URLSearchParams();
+    params.set('machine', machineName);
+    if (machineModel) {
+      params.set('machine_model', machineModel);
+    }
 
-  function photosPath(machineName) {
-    return `/photos#machine-${escapeHashValue(machineName)}`;
+    return `/photos?${params.toString()}`;
   }
 
   // グループ化+ソート
@@ -104,11 +104,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     companies.forEach(({ corpName, machines }) => {
       html += `<section class="company-group">`;
-      html += `<button class="corp-name" type="button" onclick="this.nextElementSibling.classList.toggle('hidden')">${escapeHtml(corpName)}</button>`;
+      html += `<button class="corp-name" type="button" onclick="this.nextElementSibling.classList.toggle('hidden'); this.classList.toggle('open')" aria-expanded="false">${escapeHtml(corpName)}</button>`;
       if (machines.length > 0) {
-        html += `<ul class="machine-list">`;
-        machines.forEach(({ machName }) => {
-          html += `<li><a class="machine-name" href="${photosPath(machName)}">${escapeHtml(machName)}</a></li>`;
+        html += `<ul class="machine-list hidden">`;
+        machines.forEach(({ machName, machModel }) => {
+          html += `<li><a class="machine-name" href="${photosPath(machName, machModel)}">${escapeHtml(machName)}</a></li>`;
         });
         html += `</ul>`;
       } else {

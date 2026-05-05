@@ -151,6 +151,18 @@ body.controller-machines.action-index {
   width: 100%;
 }
 
+.corp-name::after {
+  color: #6b7280;
+  content: "＋";
+  float: right;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.corp-name.open::after {
+  content: "－";
+}
+
 .machine-list {
   display: grid;
   gap: 10px;

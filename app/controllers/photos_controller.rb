@@ -2,6 +2,9 @@ class PhotosController < ApplicationController
   before_action :authentication
 
   PICTURE_FLAG_DONE = "完了"
+  SUMMARY_CACHE_VERSION = "v2"
+  SUMMARY_CACHE_TTL = 3.minutes
+  SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
 
   DETAIL_SECTIONS = [
     {
@@ -155,25 +158,38 @@ class PhotosController < ApplicationController
     end
   end
 
-  def fetched_photo_records(machine_values)
+  def fetched_photo_records(_machine_values)
+    Rails.cache.fetch(photo_summary_cache_key, expires_in: SUMMARY_CACHE_TTL) do
+      fetch_photo_summary_records
+    end
+  end
+
+  def fetch_photo_summary_records
+    record_client = KintoneSync::Record.new(photos_app_id, photos_guest_space_id)
+    fields = summary_field_codes(record_client)
+    fetch_all_photo_records(photo_summary_query, record_client: record_client, fields: fields)
+  rescue StandardError => e
+    Rails.logger.warn("Photo summary fetch with limited fields failed: #{e.class}: #{e.message}")
+    fetch_all_photo_records(photo_summary_query)
+  end
+
+  def photo_summary_query
     # Avoid querying the kintone drop-down field with values that may not exist
-    # in its option list. Fetch a bounded date range, then filter locally.
-    base_query = <<~QUERY.squish
+    # in its option list. Fetch only the bounded summary range, then filter locally.
+    <<~QUERY.squish
       施工予定日 > FROM_TODAY(-2, MONTHS) and
       施工予定日 < FROM_TODAY(1, WEEKS)
       order by レコード番号 asc
     QUERY
-    fetch_all_photo_records(base_query)
   end
 
-  def fetch_all_photo_records(base_query)
-    record_client = KintoneSync::Record.new(photos_app_id, photos_guest_space_id)
+  def fetch_all_photo_records(base_query, record_client: KintoneSync::Record.new(photos_app_id, photos_guest_space_id), fields: nil)
     records = []
     offset = 0
     limit = 500
 
     loop do
-      response = record_client.find_list(query: "#{base_query} limit #{limit} offset #{offset}")
+      response = record_client.find_list(query: "#{base_query} limit #{limit} offset #{offset}", fields: fields)
       page = Array(response["records"])
       records.concat(page)
       break if page.count < limit
@@ -349,6 +365,22 @@ class PhotosController < ApplicationController
       next if tables.blank?
 
       section.merge(tables: tables)
+    end
+  end
+
+  def photo_summary_cache_key
+    [
+      "photos-summary",
+      SUMMARY_CACHE_VERSION,
+      photos_app_id,
+      photos_guest_space_id
+    ].join(":")
+  end
+
+  def summary_field_codes(record_client)
+    available_codes = record_client.properties.keys
+    (FIELD_ALIASES.values.flatten + SUMMARY_SYSTEM_FIELDS).uniq.select do |field_code|
+      field_code.start_with?("$") || available_codes.include?(field_code)
     end
   end
 
