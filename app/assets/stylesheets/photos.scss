@@ -630,8 +630,79 @@ a.badge:focus, a.badge:hover {
   padding: 10px 18px;
 }
 
+.photo-table-row-editor {
+  background: #f8fafc;
+  border: 1px solid #d8dce2;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.photo-table-row-editor-title {
+  color: #344054;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.photo-table-form-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.photo-table-form-actions .btn,
+.photo-table-form-actions input[type="submit"] {
+  border-radius: 12px;
+  font-weight: 800;
+  min-height: 48px;
+  min-width: 124px;
+  padding: 10px 18px;
+}
+
+.photo-table-cancel {
+  background: #fff;
+  border: 1px solid #cfd8e8;
+  color: #344054;
+}
+
+.btn-danger-action,
+.photo-table-delete {
+  background: #d43535;
+  border: 1px solid #d43535;
+  color: #fff;
+}
+
+.photo-table-delete-form {
+  margin-top: 8px;
+}
+
+.photo-table-file-large {
+  cursor: pointer;
+  font-size: 1.08rem;
+  min-height: 62px;
+  padding: 12px;
+}
+
+.photo-table-file-large::file-selector-button {
+  background: #fff;
+  border: 2px solid #111;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1.08rem;
+  font-weight: 800;
+  margin-right: 12px;
+  min-height: 42px;
+  padding: 8px 16px;
+}
+
+.photo-detail-add-row td,
 .photo-detail-edit-row td {
   background: #f8fafc;
+}
+
+.photo-detail-placeholder-row td {
+  color: #777;
 }
 
 .photo-detail-table-scroll {

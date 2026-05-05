@@ -182,6 +182,24 @@ class PhotosController < ApplicationController
     redirect_to photo_path(params[:id]), alert: "写真・メモの編集に失敗しました。"
   end
 
+  def delete_table_row
+    record = photo_record(params[:id])
+    table_code = table_row_params[:table_code]
+    target_row_id = table_row_params[:row_id].to_s
+    rows = detail_table_rows(record, table_code).filter_map do |row|
+      next if row["id"].to_s == target_row_id
+
+      kintone_table_row_payload(row)
+    end
+    update_table_rows(params[:id], table_code, rows)
+
+    redirect_to photo_path(params[:id])
+  rescue StandardError => e
+    Rails.logger.error("Photo table row delete failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    redirect_to photo_path(params[:id]), alert: "写真・メモの削除に失敗しました。"
+  end
+
   private
 
   def photo_record(id)

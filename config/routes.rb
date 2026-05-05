@@ -4,6 +4,7 @@ Rails.application.routes.draw do
     member do
       post 'table_rows', action: :add_table_row
       patch 'table_rows', action: :update_table_row
+      delete 'table_rows', action: :delete_table_row
     end
   end
   get 'router' => 'router#index'

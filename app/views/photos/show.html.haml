@@ -57,23 +57,7 @@
             .photo-detail-table-actions
               = button_tag "追加", type: "button", class: "btn btn-soft js-photo-table-toggle", data: { target: add_form_id }, disabled: file_column.blank? && memo_column.blank?
               = button_tag "編集", type: "button", class: "btn btn-soft js-photo-table-toggle", data: { target: edit_rows_id }, disabled: rows.blank? || (file_column.blank? && memo_column.blank?)
-            - if file_column.present? || memo_column.present?
-              .photo-table-form.hidden{ id: add_form_id }
-                = form_with url: table_rows_photo_path(record_id(@record)), method: :post, multipart: true, local: true do
-                  = hidden_field_tag :table_code, table_code
-                  = hidden_field_tag :file_column, file_column
-                  = hidden_field_tag :memo_column, memo_column
-                  .photo-table-form-grid
-                    - if file_column.present?
-                      .photo-table-form-field
-                        = label_tag :photo, "写真"
-                        = file_field_tag :photo, accept: "image/*", class: "photo-table-file"
-                    - if memo_column.present?
-                      .photo-table-form-field
-                        = label_tag :memo, "メモ"
-                        = text_area_tag :memo, nil, rows: 3, class: "photo-table-memo"
-                  = submit_tag "追加する", class: "btn btn-primary-action photo-table-submit"
-            - if rows.present? && columns.present?
+            - if columns.present?
               .photo-detail-table-scroll
                 %table
                   %thead
@@ -81,48 +65,83 @@
                       - columns.each do |column|
                         %th= column
                   %tbody
-                    - rows.each do |row|
-                      %tr
-                        - columns.each do |column|
-                          %td
-                            - if detail_file_cell?(row, column)
-                              - files = Array(detail_cell_value(row, column))
-                              - if files.present?
-                                .photo-file-list
-                                  - files.each do |file|
-                                    - file_key = file["fileKey"]
-                                    - content_type = file["contentType"].presence || "image/jpeg"
-                                    - if file_key.present?
-                                      = link_to files_path(key: file_key, type: content_type), target: "_blank", rel: "noopener", class: "photo-file" do
-                                        - if content_type.start_with?("image/")
-                                          = image_tag files_path(key: file_key, type: content_type), alt: file["name"]
-                                        %span= file["name"].presence || "ファイル"
+                    - if rows.present?
+                      - rows.each do |row|
+                        - edit_row_id = table_row_dom_id("#{table_code}-#{row["id"]}", "edit")
+                        %tr
+                          - columns.each do |column|
+                            %td
+                              - if detail_file_cell?(row, column)
+                                - files = Array(detail_cell_value(row, column))
+                                - if files.present?
+                                  .photo-file-list
+                                    - files.each do |file|
+                                      - file_key = file["fileKey"]
+                                      - content_type = file["contentType"].presence || "image/jpeg"
+                                      - if file_key.present?
+                                        = link_to files_path(key: file_key, type: content_type), target: "_blank", rel: "noopener", class: "photo-file" do
+                                          - if content_type.start_with?("image/")
+                                            = image_tag files_path(key: file_key, type: content_type), alt: file["name"]
+                                          %span= file["name"].presence || "ファイル"
+                                - else
+                                  %span.photo-empty 未登録
                               - else
-                                %span.photo-empty 未登録
-                            - else
-                              - value = detail_cell_value(row, column)
-                              - if value.is_a?(Array)
-                                = value.join(", ")
-                              - else
-                                = value.presence || "-"
-                      - if file_column.present? || memo_column.present?
-                        %tr.photo-detail-edit-row.hidden{ class: edit_rows_id }
-                          %td{ colspan: columns.count }
-                            = form_with url: table_rows_photo_path(record_id(@record)), method: :patch, multipart: true, local: true do
+                                - value = detail_cell_value(row, column)
+                                - if value.is_a?(Array)
+                                  = value.join(", ")
+                                - else
+                                  = value.presence || "-"
+                        - if file_column.present? || memo_column.present?
+                          %tr.photo-detail-edit-row.hidden{ id: edit_row_id, class: edit_rows_id }
+                            %td{ colspan: columns.count }
+                              .photo-table-row-editor
+                                .photo-table-row-editor-title この直上の写真・メモを編集
+                                = form_with url: table_rows_photo_path(record_id(@record)), method: :patch, multipart: true, local: true do
+                                  = hidden_field_tag :table_code, table_code
+                                  = hidden_field_tag :row_id, row["id"]
+                                  = hidden_field_tag :file_column, file_column
+                                  = hidden_field_tag :memo_column, memo_column
+                                  .photo-table-form-grid
+                                    - if file_column.present?
+                                      .photo-table-form-field
+                                        = label_tag :photo, "写真を差し替え"
+                                        = file_field_tag :photo, accept: "image/*", class: "photo-table-file photo-table-file-large"
+                                    - if memo_column.present?
+                                      .photo-table-form-field
+                                        = label_tag :memo, "メモ"
+                                        = text_area_tag :memo, detail_cell_value(row, memo_column), rows: 3, class: "photo-table-memo"
+                                  .photo-table-form-actions
+                                    = submit_tag "更新する", class: "btn btn-primary-action photo-table-submit"
+                                    = button_tag "キャンセル", type: "button", class: "btn btn-soft photo-table-cancel js-photo-table-close", data: { target: edit_row_id }
+                                = form_with url: table_rows_photo_path(record_id(@record)), method: :delete, local: true, class: "photo-table-delete-form", data: { turbo_confirm: "この写真・メモを削除します。よろしいですか？" } do
+                                  = hidden_field_tag :table_code, table_code
+                                  = hidden_field_tag :row_id, row["id"]
+                                  .photo-table-form-actions
+                                    = submit_tag "削除する", class: "btn btn-danger-action photo-table-delete"
+                    - else
+                      %tr.photo-detail-placeholder-row
+                        %td{ colspan: columns.count } まだ登録されている行はありません。
+                    - if file_column.present? || memo_column.present?
+                      %tr.photo-detail-add-row.hidden{ id: add_form_id }
+                        %td{ colspan: columns.count }
+                          .photo-table-row-editor.photo-table-row-editor-add
+                            .photo-table-row-editor-title このテーブルの最下段に追加
+                            = form_with url: table_rows_photo_path(record_id(@record)), method: :post, multipart: true, local: true do
                               = hidden_field_tag :table_code, table_code
-                              = hidden_field_tag :row_id, row["id"]
                               = hidden_field_tag :file_column, file_column
                               = hidden_field_tag :memo_column, memo_column
                               .photo-table-form-grid
                                 - if file_column.present?
                                   .photo-table-form-field
-                                    = label_tag :photo, "写真を差し替え"
-                                    = file_field_tag :photo, accept: "image/*", class: "photo-table-file"
+                                    = label_tag :photo, "写真"
+                                    = file_field_tag :photo, accept: "image/*", class: "photo-table-file photo-table-file-large"
                                 - if memo_column.present?
                                   .photo-table-form-field
                                     = label_tag :memo, "メモ"
-                                    = text_area_tag :memo, detail_cell_value(row, memo_column), rows: 3, class: "photo-table-memo"
-                              = submit_tag "更新する", class: "btn btn-primary-action photo-table-submit"
+                                    = text_area_tag :memo, nil, rows: 3, class: "photo-table-memo"
+                              .photo-table-form-actions
+                                = submit_tag "追加する", class: "btn btn-primary-action photo-table-submit"
+                                = button_tag "キャンセル", type: "button", class: "btn btn-soft photo-table-cancel js-photo-table-close", data: { target: add_form_id }
             - else
               .photo-detail-empty
                 まだ登録されている行はありません。
@@ -151,6 +170,13 @@
         groupedTargets.forEach(function (element) {
           element.classList.toggle("hidden");
         });
+      });
+    });
+
+    document.querySelectorAll(".js-photo-table-close").forEach(function (button) {
+      button.addEventListener("click", function () {
+        const target = document.getElementById(button.dataset.target);
+        if (target) target.classList.add("hidden");
       });
     });
   });
