@@ -735,6 +735,75 @@ a.badge:focus, a.badge:hover {
   color: #344054;
 }
 
+.photo-table-capture-control {
+  margin-top: 14px;
+}
+
+.photo-table-hidden-file {
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+
+.photo-table-capture-button {
+  align-items: center;
+  background: #3E5FAA;
+  border: 1px solid #3E5FAA;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 1.25rem;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 56px;
+  min-width: 148px;
+  padding: 10px 18px;
+}
+
+.photo-table-capture-button:hover {
+  background: #304a85;
+  color: #fff;
+}
+
+.photo-table-row-memo {
+  border-radius: 4px;
+  min-height: 104px;
+}
+
+.photo-table-action-column {
+  text-align: center;
+  width: 92px;
+}
+
+.photo-table-row-actions {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.photo-table-row-actions .photo-table-delete-form {
+  margin-top: 0;
+}
+
+.photo-table-row-save,
+.photo-table-row-delete {
+  border-radius: 6px;
+  font-weight: 800;
+  min-height: 40px;
+  min-width: 64px;
+  padding: 7px 10px;
+}
+
+.photo-table-row-save {
+  background: #43a047;
+  border: 1px solid #43a047;
+  color: #fff;
+}
+
 .btn-danger-action,
 .photo-table-delete {
   background: #d43535;
