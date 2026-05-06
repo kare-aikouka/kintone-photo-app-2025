@@ -555,7 +555,7 @@ a.badge:focus, a.badge:hover {
 
 .photo-detail-table-actions {
   display: flex;
-  gap: 6px;
+  gap: 10px;
   padding: 8px 18px 0;
 }
 
@@ -563,9 +563,11 @@ a.badge:focus, a.badge:hover {
   border-radius: 14px;
   border: 0;
   color: #fff;
+  font-size: 1.2rem;
   font-weight: 800;
-  min-width: 110px;
-  padding: 10px 18px;
+  min-height: 62px;
+  min-width: 144px;
+  padding: 14px 24px;
 }
 
 .photo-detail-table-actions .btn:disabled {
@@ -710,12 +712,13 @@ a.badge:focus, a.badge:hover {
   align-items: center;
   border-radius: 12px;
   display: inline-flex;
+  font-size: 1.18rem;
   font-weight: 800;
   justify-content: center;
   line-height: 1.2;
-  min-height: 48px;
-  min-width: 124px;
-  padding: 10px 18px;
+  min-height: 62px;
+  min-width: 154px;
+  padding: 14px 22px;
 }
 
 .photo-table-cancel {
@@ -736,7 +739,7 @@ a.badge:focus, a.badge:hover {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 14px;
 }
 
 .photo-table-hidden-file {
@@ -751,16 +754,16 @@ a.badge:focus, a.badge:hover {
   align-items: center;
   background: #3E5FAA;
   border: 1px solid #3E5FAA;
-  border-radius: 4px;
+  border-radius: 10px;
   color: #fff;
   cursor: pointer;
   display: inline-flex;
-  font-size: 1.25rem;
+  font-size: 1.45rem;
   font-weight: 800;
   justify-content: center;
-  min-height: 56px;
-  min-width: 148px;
-  padding: 10px 18px;
+  min-height: 76px;
+  min-width: 230px;
+  padding: 18px 24px;
 }
 
 .photo-table-capture-button:hover {
@@ -782,8 +785,8 @@ a.badge:focus, a.badge:hover {
 .photo-table-selected-file {
   color: #667085;
   display: inline-flex;
-  font-size: 0.95rem;
-  min-height: 28px;
+  font-size: 1.12rem;
+  min-height: 36px;
   padding: 4px 0;
 }
 
@@ -810,11 +813,12 @@ a.badge:focus, a.badge:hover {
 
 .photo-table-row-save,
 .photo-table-row-delete {
-  border-radius: 6px;
+  border-radius: 10px;
+  font-size: 1.08rem;
   font-weight: 800;
-  min-height: 40px;
-  min-width: 64px;
-  padding: 7px 10px;
+  min-height: 58px;
+  min-width: 92px;
+  padding: 12px 16px;
 }
 
 .photo-table-row-save {
@@ -907,15 +911,22 @@ a.badge:focus, a.badge:hover {
   color: #333;
   display: inline-flex;
   flex-direction: column;
-  gap: 6px;
-  max-width: 180px;
+  gap: 10px;
+  max-width: 340px;
 }
 
 .photo-file img {
   border: 1px solid #d8dce2;
-  max-height: 120px;
-  max-width: 180px;
+  aspect-ratio: 4 / 3;
+  max-width: min(340px, 72vw);
   object-fit: cover;
+  width: 100%;
+}
+
+.photo-file span {
+  font-size: 1.15rem;
+  line-height: 1.35;
+  word-break: break-all;
 }
 
 .photo-empty {
@@ -1072,6 +1083,8 @@ a.badge:focus, a.badge:hover {
 
   .photo-record-actions .btn {
     flex: 1 1 calc(50% - 8px);
+    font-size: 1.08rem;
+    min-height: 60px;
     min-width: 0;
   }
 
@@ -1085,6 +1098,41 @@ a.badge:focus, a.badge:hover {
 
   .photo-table-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .photo-detail-table-actions {
+    gap: 12px;
+  }
+
+  .photo-detail-table-actions .btn {
+    flex: 1 1 calc(50% - 6px);
+    min-height: 68px;
+    min-width: 0;
+  }
+
+  .photo-table-file-choice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .photo-table-capture-button {
+    font-size: 1.55rem;
+    min-height: 84px;
+    width: 100%;
+  }
+
+  .photo-table-form-actions .btn,
+  .photo-table-form-actions input[type="submit"] {
+    flex: 1 1 100%;
+    min-height: 70px;
+  }
+
+  .photo-file {
+    max-width: 420px;
+  }
+
+  .photo-file img {
+    max-width: min(420px, 82vw);
   }
 
   .bookmark-page,

@@ -1,4 +1,4 @@
-const CACHE_NAME = "aizawa-photo-v1";
+const CACHE_NAME = "aizawa-photo-v2";
 const STATIC_CACHE_URLS = [
   "/offline.html",
   "/manifest.json",
