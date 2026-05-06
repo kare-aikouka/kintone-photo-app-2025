@@ -559,6 +559,16 @@ a.badge:focus, a.badge:hover {
   padding: 8px 18px 0;
 }
 
+form.photo-detail-table-actions {
+  align-items: center;
+  background: none;
+  border: 0;
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 18px 0;
+}
+
 .photo-detail-table-actions .btn {
   border-radius: 14px;
   border: 0;
@@ -766,8 +776,11 @@ a.badge:focus, a.badge:hover {
   padding: 12px;
 }
 
-.photo-table-capture-button i {
-  font-size: 2.2rem;
+.btn-icon {
+  display: inline-block;
+  font-size: 1.8rem;
+  font-style: normal;
+  line-height: 1;
 }
 
 .photo-table-capture-button:hover {

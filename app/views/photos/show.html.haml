@@ -50,15 +50,11 @@
           - has_row_actions = file_column.present? || memo_column.present?
           .photo-detail-table
             .photo-detail-table-title= detail_table_label(table_code)
-            .photo-detail-table-actions
-              - if has_row_actions
-                = form_with url: table_rows_photo_path(record_id(@record)), method: :post, local: true, style: "display: inline-block; margin: 0;" do
-                  = hidden_field_tag :table_code, table_code
-                  = hidden_field_tag :file_column, file_column
-                  = hidden_field_tag :memo_column, memo_column
-                  = submit_tag "追加", class: "btn photo-table-action-add"
-              - else
-                = button_tag "追加", type: "button", class: "btn photo-table-action-add", disabled: true
+            = form_with url: (has_row_actions ? table_rows_photo_path(record_id(@record)) : "#"), method: :post, local: true, class: "photo-detail-table-actions" do
+              = hidden_field_tag :table_code, table_code
+              = hidden_field_tag :file_column, file_column
+              = hidden_field_tag :memo_column, memo_column
+              = submit_tag "追加", class: "btn photo-table-action-add", disabled: !has_row_actions
               = button_tag "編集", type: "button", class: "btn photo-table-action-edit js-photo-table-edit-save", data: { target: edit_rows_id, save_form: table_save_form_id }, disabled: rows.blank? || !has_row_actions
             - if rows.present? && has_row_actions
               = form_with url: batch_table_rows_photo_path(record_id(@record)), method: :patch, multipart: true, local: true, html: { id: table_save_form_id, class: "photo-table-save-form js-photo-upload-form" } do
@@ -106,19 +102,19 @@
                                       .photo-table-file-choice.js-photo-file-choice
                                         = file_field_tag :photo, accept: "image/*", capture: "environment", id: "#{quick_form_id}-camera", class: "photo-table-hidden-file js-photo-auto-submit"
                                         = label_tag "#{quick_form_id}-camera", class: "btn photo-table-capture-button" do
-                                          %i.fa.fa-camera
+                                          %span.btn-icon 📷
                                         = file_field_tag :photo, accept: "image/*", id: "#{quick_form_id}-gallery", class: "photo-table-hidden-file js-photo-auto-submit"
                                         = label_tag "#{quick_form_id}-gallery", class: "btn photo-table-capture-button photo-table-gallery-button" do
-                                          %i.fa.fa-image
+                                          %span.btn-icon 🖼
                                         %span.photo-table-selected-file.js-photo-selected-file
                                   .photo-table-capture-control.hidden{ class: edit_rows_id }
                                     .photo-table-file-choice.js-photo-file-choice
                                       = file_field_tag "table_rows[#{row["id"]}][photo]", accept: "image/*", capture: "environment", id: "#{edit_form_id}-camera", class: "photo-table-hidden-file", form: table_save_form_id
                                       = label_tag "#{edit_form_id}-camera", class: "btn photo-table-capture-button" do
-                                        %i.fa.fa-camera
+                                        %span.btn-icon 📷
                                       = file_field_tag "table_rows[#{row["id"]}][photo]", accept: "image/*", id: "#{edit_form_id}-gallery", class: "photo-table-hidden-file", form: table_save_form_id
                                       = label_tag "#{edit_form_id}-gallery", class: "btn photo-table-capture-button photo-table-gallery-button" do
-                                        %i.fa.fa-image
+                                        %span.btn-icon 🖼
                                       %span.photo-table-selected-file.js-photo-selected-file
                               - else
                                 - value = detail_cell_value(row, column)
