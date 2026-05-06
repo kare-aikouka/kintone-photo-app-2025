@@ -378,16 +378,14 @@ class PhotosController < ApplicationController
 
   def detail_table_columns(rows, table_code = nil)
     columns = rows.flat_map { |row| row.dig("value")&.keys || [] }.uniq
-    columns = table_subfield_codes(table_code) if columns.blank? && table_code.present?
     columns = fallback_table_columns(table_code) if columns.blank? && table_code.present?
     order_detail_table_columns(rows, columns, table_code)
   end
   helper_method :detail_table_columns
 
-  def detail_file_column(rows, columns, table_code = nil)
-    columns.find do |column|
-      rows.any? { |row| detail_file_cell?(row, column) } || table_subfield_type(table_code, column) == "FILE"
-    end || columns.find { |column| !memo_column?(column) }
+  def detail_file_column(rows, columns, _table_code = nil)
+    columns.find { |column| rows.any? { |row| detail_file_cell?(row, column) } } ||
+      columns.find { |column| !memo_column?(column) }
   end
   helper_method :detail_file_column
 
@@ -547,9 +545,9 @@ class PhotosController < ApplicationController
     field["value"]
   end
 
-  def order_detail_table_columns(rows, columns, table_code)
+  def order_detail_table_columns(rows, columns, _table_code)
     columns.sort_by do |column|
-      file_column = rows.any? { |row| detail_file_cell?(row, column) } || table_subfield_type(table_code, column) == "FILE"
+      file_column = rows.any? { |row| detail_file_cell?(row, column) }
       [
         memo_column?(column) ? 1 : 0,
         file_column ? 0 : 1,
@@ -579,12 +577,17 @@ class PhotosController < ApplicationController
       field&.dig("fields") || {}
     end
   rescue StandardError => e
-    Rails.logger.warn("Kintone table fields lookup skipped: #{e.class}: #{e.message}")
-    {}
+    Rails.logger.warn("Kintone table fields lookup skipped: #{e.class}: #{e.message.to_s.truncate(200)}")
+    @table_subfield_properties[table_code.to_s] = {}
   end
 
   def photos_form_properties
-    @photos_form_properties ||= photos_record_client.properties
+    return @photos_form_properties if defined?(@photos_form_properties)
+
+    @photos_form_properties = photos_record_client.properties
+  rescue StandardError => e
+    Rails.logger.warn("Kintone form fields lookup skipped: #{e.class}: #{e.message.to_s.truncate(200)}")
+    @photos_form_properties = {}
   end
 
   def photos_record_client
