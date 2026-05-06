@@ -918,7 +918,7 @@ a.badge:focus, a.badge:hover {
 .photo-file img {
   border: 1px solid #d8dce2;
   aspect-ratio: 4 / 3;
-  max-width: unquote("min(340px, 72vw)");
+  max-width: min(340px, 72vw);
   object-fit: cover;
   width: 100%;
 }
@@ -1132,7 +1132,7 @@ a.badge:focus, a.badge:hover {
   }
 
   .photo-file img {
-    max-width: unquote("min(420px, 82vw)");
+    max-width: min(420px, 82vw);
   }
 
   .bookmark-page,
