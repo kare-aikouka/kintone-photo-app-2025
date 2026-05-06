@@ -28,7 +28,7 @@
   "scripts": {
     "build": "esbuild app/javascript/machines.js --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets",
     "build:css": "sass ./app/assets/stylesheets/application.scss:./app/assets/builds/application.css --no-source-map --load-path=node_modules",
-    "heroku-postbuild": "npm run build && npm run build:css",
+    "heroku-postbuild": "npm run build:css",
     "watch:css": "sass ./app/assets/stylesheets/application.scss:./app/assets/builds/application.css --watch --no-source-map --load-path=node_modules"
   }
 }
