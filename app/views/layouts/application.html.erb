@@ -5,13 +5,27 @@
 <head>
   <title><%= content_for(:title) || "施工写真アプリ" %></title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#2F6FD6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="施工写真">
   <meta name="google" content="notranslate">
   <meta http-equiv="Content-Language" content="ja">
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
 
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
   <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
   <%= javascript_importmap_tags "machines" %>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/service-worker.js").catch(function () {});
+      });
+    }
+  </script>
 </head>
 <body class="<%= body_css_classes %>">
   <% if show_app_shell? %>

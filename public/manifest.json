@@ -1,8 +1,12 @@
 {
-  "name": "施工写真アプリ",
+  "id": "/",
+  "name": "AIZAWA 施工写真アプリ",
   "short_name": "施工写真",
+  "description": "施工機ごとの施工写真を撮影・登録する現場向けアプリです。",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#2F6FD6",
   "theme_color": "#2F6FD6",
   "icons": [
