@@ -180,7 +180,10 @@
     const PHOTO_MAX_SIZE = 1200;
     const PHOTO_JPEG_QUALITY = 0.90;
     const deleteConfirm = buildDeleteConfirm();
+    const scrollStorageKey = "photo-scroll:" + window.location.pathname;
     let pendingFileInput = null;
+
+    restorePhotoScroll();
 
     document.querySelectorAll(".js-photo-table-toggle").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -263,6 +266,7 @@
           });
 
           if (!response.ok) throw new Error("upload failed");
+          rememberPhotoScroll(form);
           window.location.href = response.url || window.location.href;
         } catch (error) {
           form.dataset.uploading = "false";
@@ -285,6 +289,37 @@
       const inputs = activeInput ? [activeInput] : formFileInputs(form);
       return inputs.flatMap(function (input) {
         return Array.from(input.files || []);
+      });
+    }
+
+    function rememberPhotoScroll(form) {
+      const anchor = form.closest(".photo-detail-table") || form.closest("tr") || form;
+      const anchorTop = anchor ? Math.max(0, Math.round(anchor.getBoundingClientRect().top + window.scrollY - 24)) : window.scrollY;
+      sessionStorage.setItem(scrollStorageKey, JSON.stringify({
+        anchorTop: anchorTop,
+        scrollY: Math.round(window.scrollY)
+      }));
+    }
+
+    function restorePhotoScroll() {
+      const raw = sessionStorage.getItem(scrollStorageKey);
+      if (!raw) return;
+
+      sessionStorage.removeItem(scrollStorageKey);
+      let position;
+      try {
+        position = JSON.parse(raw);
+      } catch (error) {
+        return;
+      }
+
+      const targetY = Number.isFinite(position.anchorTop) ? position.anchorTop : position.scrollY;
+      if (!Number.isFinite(targetY)) return;
+
+      [0, 150, 500].forEach(function (delay) {
+        window.setTimeout(function () {
+          window.scrollTo({ top: targetY, behavior: "auto" });
+        }, delay);
       });
     }
 
