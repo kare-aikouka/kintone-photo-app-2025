@@ -754,16 +754,20 @@ a.badge:focus, a.badge:hover {
   align-items: center;
   background: #3E5FAA;
   border: 1px solid #3E5FAA;
-  border-radius: 10px;
+  border-radius: 12px;
   color: #fff;
   cursor: pointer;
   display: inline-flex;
-  font-size: 1.45rem;
+  font-size: 1.8rem;
   font-weight: 800;
   justify-content: center;
-  min-height: 76px;
-  min-width: 230px;
-  padding: 18px 24px;
+  min-height: 64px;
+  min-width: 64px;
+  padding: 12px;
+}
+
+.photo-table-capture-button i {
+  font-size: 2.2rem;
 }
 
 .photo-table-capture-button:hover {
@@ -912,13 +916,13 @@ a.badge:focus, a.badge:hover {
   display: inline-flex;
   flex-direction: column;
   gap: 10px;
-  max-width: 340px;
+  max-width: 170px;
 }
 
 .photo-file img {
   border: 1px solid #d8dce2;
   aspect-ratio: 4 / 3;
-  max-width: min(340px, 72vw);
+  max-width: min(170px, 72vw);
   object-fit: cover;
   width: 100%;
 }
@@ -1111,14 +1115,16 @@ a.badge:focus, a.badge:hover {
   }
 
   .photo-table-file-choice {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
+    justify-content: flex-start;
   }
 
   .photo-table-capture-button {
-    font-size: 1.55rem;
-    min-height: 84px;
-    width: 100%;
+    font-size: 1.6rem;
+    min-height: 64px;
+    min-width: 64px;
+    width: auto;
   }
 
   .photo-table-form-actions .btn,
@@ -1128,11 +1134,11 @@ a.badge:focus, a.badge:hover {
   }
 
   .photo-file {
-    max-width: 420px;
+    max-width: 170px;
   }
 
   .photo-file img {
-    max-width: min(420px, 82vw);
+    max-width: min(170px, 82vw);
   }
 
   .bookmark-page,

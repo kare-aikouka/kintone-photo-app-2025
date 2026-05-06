@@ -51,7 +51,14 @@
           .photo-detail-table
             .photo-detail-table-title= detail_table_label(table_code)
             .photo-detail-table-actions
-              = button_tag "追加", type: "button", class: "btn photo-table-action-add js-photo-table-toggle", data: { target: add_form_id }, disabled: !has_row_actions
+              - if has_row_actions
+                = form_with url: table_rows_photo_path(record_id(@record)), method: :post, local: true, style: "display: inline-block; margin: 0;" do
+                  = hidden_field_tag :table_code, table_code
+                  = hidden_field_tag :file_column, file_column
+                  = hidden_field_tag :memo_column, memo_column
+                  = submit_tag "追加", class: "btn photo-table-action-add"
+              - else
+                = button_tag "追加", type: "button", class: "btn photo-table-action-add", disabled: true
               = button_tag "編集", type: "button", class: "btn photo-table-action-edit js-photo-table-edit-save", data: { target: edit_rows_id, save_form: table_save_form_id }, disabled: rows.blank? || !has_row_actions
             - if rows.present? && has_row_actions
               = form_with url: batch_table_rows_photo_path(record_id(@record)), method: :patch, multipart: true, local: true, html: { id: table_save_form_id, class: "photo-table-save-form js-photo-upload-form" } do
@@ -98,16 +105,20 @@
                                       = hidden_field_tag :memo_column, memo_column
                                       .photo-table-file-choice.js-photo-file-choice
                                         = file_field_tag :photo, accept: "image/*", capture: "environment", id: "#{quick_form_id}-camera", class: "photo-table-hidden-file js-photo-auto-submit"
-                                        = label_tag "#{quick_form_id}-camera", "カメラで撮影", class: "btn photo-table-capture-button"
+                                        = label_tag "#{quick_form_id}-camera", class: "btn photo-table-capture-button" do
+                                          %i.fa.fa-camera
                                         = file_field_tag :photo, accept: "image/*", id: "#{quick_form_id}-gallery", class: "photo-table-hidden-file js-photo-auto-submit"
-                                        = label_tag "#{quick_form_id}-gallery", "ギャラリーから選択", class: "btn photo-table-capture-button photo-table-gallery-button"
+                                        = label_tag "#{quick_form_id}-gallery", class: "btn photo-table-capture-button photo-table-gallery-button" do
+                                          %i.fa.fa-image
                                         %span.photo-table-selected-file.js-photo-selected-file
                                   .photo-table-capture-control.hidden{ class: edit_rows_id }
                                     .photo-table-file-choice.js-photo-file-choice
                                       = file_field_tag "table_rows[#{row["id"]}][photo]", accept: "image/*", capture: "environment", id: "#{edit_form_id}-camera", class: "photo-table-hidden-file", form: table_save_form_id
-                                      = label_tag "#{edit_form_id}-camera", "カメラで撮影", class: "btn photo-table-capture-button"
+                                      = label_tag "#{edit_form_id}-camera", class: "btn photo-table-capture-button" do
+                                        %i.fa.fa-camera
                                       = file_field_tag "table_rows[#{row["id"]}][photo]", accept: "image/*", id: "#{edit_form_id}-gallery", class: "photo-table-hidden-file", form: table_save_form_id
-                                      = label_tag "#{edit_form_id}-gallery", "ギャラリーから選択", class: "btn photo-table-capture-button photo-table-gallery-button"
+                                      = label_tag "#{edit_form_id}-gallery", class: "btn photo-table-capture-button photo-table-gallery-button" do
+                                        %i.fa.fa-image
                                       %span.photo-table-selected-file.js-photo-selected-file
                               - else
                                 - value = detail_cell_value(row, column)
@@ -130,33 +141,6 @@
                     - else
                       %tr.photo-detail-placeholder-row
                         %td{ colspan: columns.count + (has_row_actions ? 1 : 0) } まだ登録されている行はありません。
-                    - if has_row_actions
-                      %tr.photo-detail-add-row.hidden{ id: add_form_id }
-                        %td{ colspan: columns.count + 1 }
-                          .photo-table-row-editor.photo-table-row-editor-add.photo-table-inline-editor
-                            = form_with url: table_rows_photo_path(record_id(@record)), method: :post, multipart: true, local: true, html: { id: "#{add_form_id}-form", class: "js-photo-upload-form" } do
-                              = hidden_field_tag :table_code, table_code
-                              = hidden_field_tag :file_column, file_column
-                              = hidden_field_tag :memo_column, memo_column
-                              .photo-table-inline-grid{ style: "grid-template-columns: repeat(#{columns.count}, minmax(220px, 1fr)) minmax(96px, 120px);" }
-                                - columns.each do |column|
-                                  .photo-table-inline-cell
-                                    - if column == file_column
-                                      .photo-table-attachment-empty （添付なし）
-                                      .photo-table-file-choice.js-photo-file-choice
-                                        = file_field_tag :photo, accept: "image/*", capture: "environment", id: "#{add_form_id}-camera", class: "photo-table-hidden-file js-photo-auto-submit"
-                                        = label_tag "#{add_form_id}-camera", "カメラで撮影", class: "btn photo-table-capture-button"
-                                        = file_field_tag :photo, accept: "image/*", id: "#{add_form_id}-gallery", class: "photo-table-hidden-file js-photo-auto-submit"
-                                        = label_tag "#{add_form_id}-gallery", "ギャラリーから選択", class: "btn photo-table-capture-button photo-table-gallery-button"
-                                        %span.photo-table-selected-file.js-photo-selected-file 選択されていません
-                                      .photo-table-form-actions.photo-table-inline-actions
-                                        = submit_tag "追加する", class: "btn btn-primary-action photo-table-submit"
-                                        = button_tag "キャンセル", type: "button", class: "btn btn-soft photo-table-cancel js-photo-table-close", data: { target: add_form_id }
-                                    - elsif column == memo_column
-                                      = text_area_tag :memo, nil, rows: 4, class: "photo-table-memo photo-table-inline-memo", placeholder: "メモ"
-                                    - else
-                                      %span.photo-empty -
-                                .photo-table-inline-cell.photo-table-action-column
             - else
               .photo-detail-empty
                 まだ登録されている行はありません。
