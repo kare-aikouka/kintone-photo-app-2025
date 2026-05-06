@@ -177,6 +177,8 @@
 
 :javascript
   document.addEventListener("DOMContentLoaded", function () {
+    const PHOTO_MAX_SIZE = 1200;
+    const PHOTO_JPEG_QUALITY = 0.82;
     const deleteConfirm = buildDeleteConfirm();
     let pendingFileInput = null;
 
@@ -245,9 +247,16 @@
 
         form.dataset.uploading = "true";
         const disabledInputs = disableInactiveChoiceInputs(form);
+        const selectedInput = activeFileInput(form);
+        const selectedChoice = selectedInput && selectedInput.closest(".js-photo-file-choice");
+        const selectedLabel = selectedChoice && selectedChoice.querySelector(".js-photo-selected-file");
         try {
+          if (selectedLabel) selectedLabel.textContent = "写真を圧縮中...";
+          const body = await compressedFormData(form);
+          if (selectedLabel) selectedLabel.textContent = "アップロード中...";
+
           const response = await fetch(form.action, {
-            body: new FormData(form),
+            body: body,
             credentials: "same-origin",
             headers: { "X-Requested-With": "XMLHttpRequest" },
             method: (form.method || "post").toUpperCase()
@@ -313,6 +322,113 @@
       inputs.forEach(function (input) {
         input.disabled = false;
       });
+    }
+
+    async function compressedFormData(form) {
+      const formData = new FormData(form);
+      const input = activeFileInput(form);
+      if (!input || !input.name || !input.files || input.files.length === 0) return formData;
+
+      const file = input.files[0];
+      let uploadFile;
+      try {
+        uploadFile = await compressedImageFile(file);
+      } catch (error) {
+        uploadFile = renamedOriginalFile(file);
+      }
+      formData.set(input.name, uploadFile, uploadFile.name);
+      return formData;
+    }
+
+    async function compressedImageFile(file) {
+      if (!file || !file.type || !file.type.startsWith("image/")) return file;
+
+      const image = await loadImage(file);
+      const size = fittedImageSize(image.width, image.height, PHOTO_MAX_SIZE);
+      const canvas = document.createElement("canvas");
+      canvas.width = size.width;
+      canvas.height = size.height;
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0, size.width, size.height);
+      if (image.close) image.close();
+
+      const blob = await canvasToBlob(canvas, "image/jpeg", PHOTO_JPEG_QUALITY);
+      if (!blob) return new File([file], uploadFileName(file), { lastModified: uploadFileTime(file), type: file.type });
+
+      return new File([blob], uploadFileName(file), {
+        lastModified: uploadFileTime(file),
+        type: "image/jpeg"
+      });
+    }
+
+    function renamedOriginalFile(file) {
+      return new File([file], uploadFileName(file), {
+        lastModified: uploadFileTime(file),
+        type: file.type || "image/jpeg"
+      });
+    }
+
+    async function loadImage(file) {
+      if (window.createImageBitmap) {
+        try {
+          return await createImageBitmap(file, { imageOrientation: "from-image" });
+        } catch (error) {
+          // Android端末によってはcreateImageBitmapが失敗するため、Image要素へフォールバックします。
+        }
+      }
+
+      return new Promise(function (resolve, reject) {
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = function () {
+          URL.revokeObjectURL(url);
+          resolve(image);
+        };
+        image.onerror = function () {
+          URL.revokeObjectURL(url);
+          reject(new Error("image load failed"));
+        };
+        image.src = url;
+      });
+    }
+
+    function fittedImageSize(width, height, maxSize) {
+      const longest = Math.max(width, height);
+      if (!longest || longest <= maxSize) return { width: width, height: height };
+
+      const ratio = maxSize / longest;
+      return {
+        width: Math.round(width * ratio),
+        height: Math.round(height * ratio)
+      };
+    }
+
+    function canvasToBlob(canvas, type, quality) {
+      return new Promise(function (resolve) {
+        canvas.toBlob(resolve, type, quality);
+      });
+    }
+
+    function uploadFileName(file) {
+      const date = new Date(uploadFileTime(file));
+      const stamp = [
+        date.getFullYear(),
+        pad2(date.getMonth() + 1),
+        pad2(date.getDate()),
+        "_",
+        pad2(date.getHours()),
+        pad2(date.getMinutes()),
+        pad2(date.getSeconds())
+      ].join("");
+      return "photo_" + stamp + ".jpg";
+    }
+
+    function uploadFileTime(file) {
+      return file && file.lastModified ? file.lastModified : Date.now();
+    }
+
+    function pad2(value) {
+      return String(value).padStart(2, "0");
     }
 
     function handleFileInput(input) {
