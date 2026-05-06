@@ -50,11 +50,8 @@
           - has_row_actions = file_column.present? || memo_column.present?
           .photo-detail-table
             .photo-detail-table-title= detail_table_label(table_code)
-            = form_with url: (has_row_actions ? table_rows_photo_path(record_id(@record)) : "#"), method: :post, local: true, class: "photo-detail-table-actions" do
-              = hidden_field_tag :table_code, table_code
-              = hidden_field_tag :file_column, file_column
-              = hidden_field_tag :memo_column, memo_column
-              = submit_tag "追加", class: "btn photo-table-action-add", disabled: !has_row_actions
+            .photo-detail-table-actions
+              = button_tag "追加", type: "button", class: "btn photo-table-action-add js-photo-table-toggle", data: { target: add_form_id }, disabled: !has_row_actions
               = button_tag "編集", type: "button", class: "btn photo-table-action-edit js-photo-table-edit-save", data: { target: edit_rows_id, save_form: table_save_form_id }, disabled: rows.blank? || !has_row_actions
             - if rows.present? && has_row_actions
               = form_with url: batch_table_rows_photo_path(record_id(@record)), method: :patch, multipart: true, local: true, html: { id: table_save_form_id, class: "photo-table-save-form js-photo-upload-form" } do
@@ -137,6 +134,34 @@
                     - else
                       %tr.photo-detail-placeholder-row
                         %td{ colspan: columns.count + (has_row_actions ? 1 : 0) } まだ登録されている行はありません。
+                    - if has_row_actions
+                      %tr.photo-detail-add-row.hidden{ id: add_form_id }
+                        %td{ colspan: columns.count + 1 }
+                          .photo-table-row-editor.photo-table-row-editor-add.photo-table-inline-editor
+                            = form_with url: table_rows_photo_path(record_id(@record)), method: :post, multipart: true, local: true, html: { id: "#{add_form_id}-form", class: "js-photo-upload-form" } do
+                              = hidden_field_tag :table_code, table_code
+                              = hidden_field_tag :file_column, file_column
+                              = hidden_field_tag :memo_column, memo_column
+                              .photo-table-inline-grid{ style: "grid-template-columns: repeat(#{columns.count}, minmax(220px, 1fr)) minmax(96px, 120px);" }
+                                - columns.each do |column|
+                                  .photo-table-inline-cell
+                                    - if column == file_column
+                                      .photo-table-attachment-empty （添付なし）
+                                      .photo-table-file-choice.js-photo-file-choice
+                                        = file_field_tag :photo, accept: "image/*", capture: "environment", id: "#{add_form_id}-camera", class: "photo-table-hidden-file js-photo-auto-submit"
+                                        = label_tag "#{add_form_id}-camera", class: "btn photo-table-capture-button" do
+                                          %span.btn-icon 📷
+                                        = file_field_tag :photo, accept: "image/*", id: "#{add_form_id}-gallery", class: "photo-table-hidden-file js-photo-auto-submit"
+                                        = label_tag "#{add_form_id}-gallery", class: "btn photo-table-capture-button photo-table-gallery-button" do
+                                          %span.btn-icon 🖼
+                                        %span.photo-table-selected-file.js-photo-selected-file 選択されていません
+                                      .photo-table-form-actions.photo-table-inline-actions
+                                        = button_tag "キャンセル", type: "button", class: "btn btn-soft photo-table-cancel js-photo-table-close", data: { target: add_form_id }
+                                    - elsif column == memo_column
+                                      = text_area_tag :memo, nil, rows: 4, class: "photo-table-memo photo-table-inline-memo", placeholder: "メモ"
+                                    - else
+                                      %span.photo-empty -
+                                .photo-table-inline-cell.photo-table-action-column
             - else
               .photo-detail-empty
                 まだ登録されている行はありません。
