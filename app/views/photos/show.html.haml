@@ -6,8 +6,6 @@
     .photo-title
       = link_to "← 戻る", back_url
       %span.machine-title= @machine_name.presence || "施工写真詳細"
-    .photo-header-meta
-      %span.header-badge 写真詳細
 
   - if @photo_error
     .alert.alert-danger.photo-alert
@@ -34,10 +32,6 @@
         %span.photo-status-line
           写真：
           %strong{ class: ("is-done" if photo_status(@record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(@record)
-
-    .photo-detail-machine
-      .photo-detail-machine-label 施工機
-      .photo-detail-machine-value= field_value(@record, :machine)
 
     - @detail_sections.each do |section|
       .photo-detail-section
@@ -121,7 +115,7 @@
                           - if has_row_actions
                             %td.photo-table-action-column
                               .photo-table-row-actions
-                                = form_with url: table_rows_photo_path(record_id(@record)), method: :delete, local: true, class: "photo-table-delete-form", data: { turbo_confirm: "この写真・メモを削除します。よろしいですか？" } do
+                                = form_with url: table_rows_photo_path(record_id(@record)), method: :delete, local: true, class: "photo-table-delete-form js-delete-confirm", data: { confirm_message: "この写真・メモを削除しますか？" } do
                                   = hidden_field_tag :table_code, table_code
                                   = hidden_field_tag :row_id, row["id"]
                                   = submit_tag "削除", class: "btn btn-danger-action photo-table-row-delete"
@@ -170,6 +164,8 @@
 
 :javascript
   document.addEventListener("DOMContentLoaded", function () {
+    const deleteConfirm = buildDeleteConfirm();
+
     document.querySelectorAll(".js-photo-table-toggle").forEach(function (button) {
       button.addEventListener("click", function () {
         const target = document.getElementById(button.dataset.target);
@@ -238,6 +234,13 @@
       });
     });
 
+    document.querySelectorAll(".js-delete-confirm").forEach(function (form) {
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        deleteConfirm.open(form, form.dataset.confirmMessage || "削除しますか？");
+      });
+    });
+
     function selectedUploadFiles(form) {
       const inputs = Array.from(form.querySelectorAll("input[type='file']"));
       if (form.id) {
@@ -259,5 +262,52 @@
       window.setTimeout(function () {
         URL.revokeObjectURL(url);
       }, 1000);
+    }
+
+    function buildDeleteConfirm() {
+      const overlay = document.createElement("div");
+      overlay.className = "delete-confirm-overlay hidden";
+      overlay.innerHTML = [
+        '<div class="delete-confirm-dialog" role="dialog" aria-modal="true">',
+        '  <p class="delete-confirm-message"></p>',
+        '  <div class="delete-confirm-actions">',
+        '    <button type="button" class="btn delete-confirm-yes">はい</button>',
+        '    <button type="button" class="btn delete-confirm-back">戻る</button>',
+        '  </div>',
+        '</div>'
+      ].join("");
+      document.body.appendChild(overlay);
+
+      let targetForm = null;
+      const message = overlay.querySelector(".delete-confirm-message");
+      const yes = overlay.querySelector(".delete-confirm-yes");
+      const back = overlay.querySelector(".delete-confirm-back");
+
+      yes.addEventListener("click", function () {
+        if (!targetForm) return;
+        const form = targetForm;
+        targetForm = null;
+        overlay.classList.add("hidden");
+        form.submit();
+      });
+      back.addEventListener("click", function () {
+        targetForm = null;
+        overlay.classList.add("hidden");
+      });
+      overlay.addEventListener("click", function (event) {
+        if (event.target === overlay) {
+          targetForm = null;
+          overlay.classList.add("hidden");
+        }
+      });
+
+      return {
+        open: function (form, text) {
+          targetForm = form;
+          message.textContent = text;
+          overlay.classList.remove("hidden");
+          back.focus();
+        }
+      };
     }
   });

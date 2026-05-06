@@ -518,27 +518,6 @@ a.badge:focus, a.badge:hover {
   margin-bottom: 24px;
 }
 
-.photo-detail-machine {
-  background: #fff;
-  border: 1px solid #d8dce2;
-  border-radius: 20px;
-  box-shadow: 0 14px 28px rgba(41, 74, 131, 0.05);
-  margin: 0 0 28px;
-  padding: 18px 18px;
-}
-
-.photo-detail-machine-label {
-  color: #667085;
-  font-size: 0.92rem;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.photo-detail-machine-value {
-  font-size: 1.35rem;
-  font-weight: 800;
-}
-
 .photo-detail-section {
   background: #fff;
   border: 1px solid #d8dce2;
@@ -915,6 +894,57 @@ a.badge:focus, a.badge:hover {
 
 .photo-empty {
   color: #aaa;
+}
+
+.delete-confirm-overlay {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  left: 0;
+  padding: 24px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 2000;
+}
+
+.delete-confirm-overlay.hidden {
+  display: none;
+}
+
+.delete-confirm-dialog {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.24);
+  max-width: 360px;
+  padding: 24px;
+  width: 100%;
+}
+
+.delete-confirm-message {
+  font-size: 1.08rem;
+  font-weight: 800;
+  margin: 0 0 18px;
+}
+
+.delete-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.delete-confirm-yes {
+  background: #d43535;
+  border: 1px solid #d43535;
+  color: #fff;
+}
+
+.delete-confirm-back {
+  background: #fff;
+  border: 1px solid #cfd8e8;
+  color: #344054;
 }
 
 .bookmark-page,

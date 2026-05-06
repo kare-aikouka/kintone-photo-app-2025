@@ -61,6 +61,15 @@ document.addEventListener('DOMContentLoaded', function () {
     return `/photos?${params.toString()}`;
   }
 
+  function companyPriority(corpName, corpOrder) {
+    const name = String(corpName || "");
+    if (name.includes("會澤高圧コンクリート")) return 1;
+    if (name.includes("苫小牧東京重機")) return 2;
+    if (name === "会社未設定" || name.includes("未設定")) return 99999;
+
+    return Number.isFinite(corpOrder) ? corpOrder : 9999;
+  }
+
   // グループ化+ソート
   function groupAndSort(data, areaName) {
     // areaNameでフィルタ
@@ -90,7 +99,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const companyList = Object.entries(companyMap).map(([corpName, { corpOrder, machines }]) => {
       machines.sort((a, b) => a.machOrder - b.machOrder);
       return { corpName, corpOrder, machines };
-    }).sort((a, b) => a.corpOrder - b.corpOrder);
+    }).sort((a, b) => {
+      const priority = companyPriority(a.corpName, a.corpOrder) - companyPriority(b.corpName, b.corpOrder);
+      if (priority !== 0) return priority;
+      return String(a.corpName).localeCompare(String(b.corpName), 'ja');
+    });
 
     return companyList;
   }
