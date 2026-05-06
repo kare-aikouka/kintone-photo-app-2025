@@ -521,6 +521,9 @@ class PhotosController < ApplicationController
   end
 
   def uploaded_photo_file_key(photo)
+    photo = Array(photo).find do |file|
+      file.present? && (!file.respond_to?(:size) || file.size.to_i.positive?)
+    end
     return if photo.blank?
 
     KintoneSync::File.new(photos_app_id, photos_guest_space_id).upload(

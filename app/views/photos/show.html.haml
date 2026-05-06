@@ -241,6 +241,10 @@
         if (files.length === 0) return;
 
         event.preventDefault();
+        if (form.dataset.uploading === "true") return;
+
+        form.dataset.uploading = "true";
+        const disabledInputs = disableInactiveChoiceInputs(form);
         try {
           const response = await fetch(form.action, {
             body: new FormData(form),
@@ -252,6 +256,8 @@
           if (!response.ok) throw new Error("upload failed");
           window.location.href = response.url || window.location.href;
         } catch (error) {
+          form.dataset.uploading = "false";
+          restoreDisabledInputs(disabledInputs);
           alert("写真を保存できなかったので端末に保存します。");
           files.forEach(downloadLocalFile);
         }
@@ -266,12 +272,46 @@
     });
 
     function selectedUploadFiles(form) {
+      const activeInput = activeFileInput(form);
+      const inputs = activeInput ? [activeInput] : formFileInputs(form);
+      return inputs.flatMap(function (input) {
+        return Array.from(input.files || []);
+      });
+    }
+
+    function formFileInputs(form) {
       const inputs = Array.from(form.querySelectorAll("input[type='file']"));
       if (form.id) {
         inputs.push.apply(inputs, Array.from(document.querySelectorAll("input[type='file'][form='" + form.id + "']")));
       }
-      return inputs.flatMap(function (input) {
-        return Array.from(input.files || []);
+      return inputs;
+    }
+
+    function activeFileInput(form) {
+      if (!form || !form.dataset.activeFileInput) return null;
+
+      const input = document.getElementById(form.dataset.activeFileInput);
+      return input && input.files && input.files.length > 0 ? input : null;
+    }
+
+    function disableInactiveChoiceInputs(form) {
+      const activeInput = activeFileInput(form);
+      if (!activeInput) return [];
+
+      const choice = activeInput.closest(".js-photo-file-choice");
+      if (!choice) return [];
+
+      return Array.from(choice.querySelectorAll("input[type='file']")).filter(function (input) {
+        return input !== activeInput && !input.disabled;
+      }).map(function (input) {
+        input.disabled = true;
+        return input;
+      });
+    }
+
+    function restoreDisabledInputs(inputs) {
+      inputs.forEach(function (input) {
+        input.disabled = false;
       });
     }
 
@@ -283,9 +323,8 @@
       if (!input.classList.contains("js-photo-auto-submit")) return;
 
       const form = input.form;
-      if (!form || form.dataset.submitting === "true") return;
+      if (!form || form.dataset.uploading === "true") return;
 
-      form.dataset.submitting = "true";
       form.requestSubmit ? form.requestSubmit() : form.submit();
     }
 
@@ -312,6 +351,8 @@
 
       const file = input.files && input.files[0];
       selectedFile.textContent = file ? file.name : "選択されていません";
+
+      if (file && input.form) input.form.dataset.activeFileInput = input.id;
     }
 
     function downloadLocalFile(file) {
