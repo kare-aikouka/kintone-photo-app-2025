@@ -144,9 +144,9 @@
                                     - if column == file_column
                                       .photo-table-attachment-empty （添付なし）
                                       .photo-table-file-choice.js-photo-file-choice
-                                        = file_field_tag :photo, accept: "image/*", capture: "environment", id: "#{add_form_id}-camera", class: "photo-table-hidden-file"
+                                        = file_field_tag :photo, accept: "image/*", capture: "environment", id: "#{add_form_id}-camera", class: "photo-table-hidden-file js-photo-auto-submit"
                                         = label_tag "#{add_form_id}-camera", "カメラで撮影", class: "btn photo-table-capture-button"
-                                        = file_field_tag :photo, accept: "image/*", id: "#{add_form_id}-gallery", class: "photo-table-hidden-file"
+                                        = file_field_tag :photo, accept: "image/*", id: "#{add_form_id}-gallery", class: "photo-table-hidden-file js-photo-auto-submit"
                                         = label_tag "#{add_form_id}-gallery", "ギャラリーから選択", class: "btn photo-table-capture-button photo-table-gallery-button"
                                         %span.photo-table-selected-file.js-photo-selected-file 選択されていません
                                       .photo-table-form-actions.photo-table-inline-actions
@@ -178,6 +178,7 @@
 :javascript
   document.addEventListener("DOMContentLoaded", function () {
     const deleteConfirm = buildDeleteConfirm();
+    let pendingFileInput = null;
 
     document.querySelectorAll(".js-photo-table-toggle").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -215,20 +216,23 @@
       });
     });
 
-    document.querySelectorAll(".js-photo-auto-submit").forEach(function (input) {
+    document.querySelectorAll(".js-photo-file-choice input[type='file']").forEach(function (input) {
+      input.addEventListener("click", function () {
+        input.value = "";
+        pendingFileInput = input;
+      });
+      input.addEventListener("input", function () {
+        handleFileInput(input);
+      });
       input.addEventListener("change", function () {
-        syncFileChoice(input);
-        if (!input.files || input.files.length === 0) return;
-
-        const form = input.form;
-        if (form) form.requestSubmit ? form.requestSubmit() : form.submit();
+        handleFileInput(input);
       });
     });
 
-    document.querySelectorAll(".js-photo-file-choice input[type='file']:not(.js-photo-auto-submit)").forEach(function (input) {
-      input.addEventListener("change", function () {
-        syncFileChoice(input);
-      });
+    window.addEventListener("focus", retryPendingFileInput);
+    window.addEventListener("pageshow", retryPendingFileInput);
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") retryPendingFileInput();
     });
 
     document.querySelectorAll(".js-photo-upload-form").forEach(function (form) {
@@ -268,6 +272,30 @@
       }
       return inputs.flatMap(function (input) {
         return Array.from(input.files || []);
+      });
+    }
+
+    function handleFileInput(input) {
+      syncFileChoice(input);
+      if (!input.files || input.files.length === 0) return;
+
+      pendingFileInput = null;
+      if (!input.classList.contains("js-photo-auto-submit")) return;
+
+      const form = input.form;
+      if (!form || form.dataset.submitting === "true") return;
+
+      form.dataset.submitting = "true";
+      form.requestSubmit ? form.requestSubmit() : form.submit();
+    }
+
+    function retryPendingFileInput() {
+      if (!pendingFileInput) return;
+
+      [300, 800, 1500].forEach(function (delay) {
+        window.setTimeout(function () {
+          if (pendingFileInput) handleFileInput(pendingFileInput);
+        }, delay);
       });
     }
 
