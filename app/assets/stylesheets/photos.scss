@@ -732,6 +732,13 @@ a.badge:focus, a.badge:hover {
   margin-top: 14px;
 }
 
+.photo-table-file-choice {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .photo-table-hidden-file {
   height: 1px;
   opacity: 0;
@@ -759,6 +766,25 @@ a.badge:focus, a.badge:hover {
 .photo-table-capture-button:hover {
   background: #304a85;
   color: #fff;
+}
+
+.photo-table-gallery-button {
+  background: #fff;
+  border-color: #3E5FAA;
+  color: #3E5FAA;
+}
+
+.photo-table-gallery-button:hover {
+  background: #eef4ff;
+  color: #304a85;
+}
+
+.photo-table-selected-file {
+  color: #667085;
+  display: inline-flex;
+  font-size: 0.95rem;
+  min-height: 28px;
+  padding: 4px 0;
 }
 
 .photo-table-row-memo {

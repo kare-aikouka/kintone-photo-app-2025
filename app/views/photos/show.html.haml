@@ -96,11 +96,19 @@
                                       = hidden_field_tag :row_id, row["id"]
                                       = hidden_field_tag :file_column, file_column
                                       = hidden_field_tag :memo_column, memo_column
-                                      = file_field_tag :photo, accept: "image/*", id: "#{quick_form_id}-photo", class: "photo-table-hidden-file js-photo-auto-submit"
-                                      = label_tag "#{quick_form_id}-photo", "撮影(変更)", class: "btn photo-table-capture-button"
+                                      .photo-table-file-choice.js-photo-file-choice
+                                        = file_field_tag :photo, accept: "image/*", capture: "environment", id: "#{quick_form_id}-camera", class: "photo-table-hidden-file js-photo-auto-submit"
+                                        = label_tag "#{quick_form_id}-camera", "カメラで撮影", class: "btn photo-table-capture-button"
+                                        = file_field_tag :photo, accept: "image/*", id: "#{quick_form_id}-gallery", class: "photo-table-hidden-file js-photo-auto-submit"
+                                        = label_tag "#{quick_form_id}-gallery", "ギャラリーから選択", class: "btn photo-table-capture-button photo-table-gallery-button"
+                                        %span.photo-table-selected-file.js-photo-selected-file
                                   .photo-table-capture-control.hidden{ class: edit_rows_id }
-                                    = file_field_tag "table_rows[#{row["id"]}][photo]", accept: "image/*", id: "#{edit_form_id}-photo", class: "photo-table-hidden-file", form: table_save_form_id
-                                    = label_tag "#{edit_form_id}-photo", "撮影(変更)", class: "btn photo-table-capture-button"
+                                    .photo-table-file-choice.js-photo-file-choice
+                                      = file_field_tag "table_rows[#{row["id"]}][photo]", accept: "image/*", capture: "environment", id: "#{edit_form_id}-camera", class: "photo-table-hidden-file", form: table_save_form_id
+                                      = label_tag "#{edit_form_id}-camera", "カメラで撮影", class: "btn photo-table-capture-button"
+                                      = file_field_tag "table_rows[#{row["id"]}][photo]", accept: "image/*", id: "#{edit_form_id}-gallery", class: "photo-table-hidden-file", form: table_save_form_id
+                                      = label_tag "#{edit_form_id}-gallery", "ギャラリーから選択", class: "btn photo-table-capture-button photo-table-gallery-button"
+                                      %span.photo-table-selected-file.js-photo-selected-file
                               - else
                                 - value = detail_cell_value(row, column)
                                 - if column == memo_column
@@ -135,7 +143,12 @@
                                   .photo-table-inline-cell
                                     - if column == file_column
                                       .photo-table-attachment-empty （添付なし）
-                                      = file_field_tag :photo, accept: "image/*", class: "photo-table-file photo-table-file-large"
+                                      .photo-table-file-choice.js-photo-file-choice
+                                        = file_field_tag :photo, accept: "image/*", capture: "environment", id: "#{add_form_id}-camera", class: "photo-table-hidden-file"
+                                        = label_tag "#{add_form_id}-camera", "カメラで撮影", class: "btn photo-table-capture-button"
+                                        = file_field_tag :photo, accept: "image/*", id: "#{add_form_id}-gallery", class: "photo-table-hidden-file"
+                                        = label_tag "#{add_form_id}-gallery", "ギャラリーから選択", class: "btn photo-table-capture-button photo-table-gallery-button"
+                                        %span.photo-table-selected-file.js-photo-selected-file 選択されていません
                                       .photo-table-form-actions.photo-table-inline-actions
                                         = submit_tag "追加する", class: "btn btn-primary-action photo-table-submit"
                                         = button_tag "キャンセル", type: "button", class: "btn btn-soft photo-table-cancel js-photo-table-close", data: { target: add_form_id }
@@ -204,10 +217,17 @@
 
     document.querySelectorAll(".js-photo-auto-submit").forEach(function (input) {
       input.addEventListener("change", function () {
+        syncFileChoice(input);
         if (!input.files || input.files.length === 0) return;
 
         const form = input.form;
         if (form) form.requestSubmit ? form.requestSubmit() : form.submit();
+      });
+    });
+
+    document.querySelectorAll(".js-photo-file-choice input[type='file']:not(.js-photo-auto-submit)").forEach(function (input) {
+      input.addEventListener("change", function () {
+        syncFileChoice(input);
       });
     });
 
@@ -249,6 +269,21 @@
       return inputs.flatMap(function (input) {
         return Array.from(input.files || []);
       });
+    }
+
+    function syncFileChoice(input) {
+      const choice = input.closest(".js-photo-file-choice");
+      if (!choice) return;
+
+      choice.querySelectorAll("input[type='file']").forEach(function (otherInput) {
+        if (otherInput !== input) otherInput.value = "";
+      });
+
+      const selectedFile = choice.querySelector(".js-photo-selected-file");
+      if (!selectedFile) return;
+
+      const file = input.files && input.files[0];
+      selectedFile.textContent = file ? file.name : "選択されていません";
     }
 
     function downloadLocalFile(file) {
