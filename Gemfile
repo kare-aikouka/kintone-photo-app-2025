@@ -15,7 +15,6 @@ gem "cssbundling-rails"
 gem "jbuilder"
 gem "bootsnap", require: false
 gem "tzinfo-data", platforms: %i[ windows jruby ]
-gem 'sassc-rails'
 gem "importmap-rails"
 
 # === ここから、古いアプリで使われていた重要なgemを追加 ===
