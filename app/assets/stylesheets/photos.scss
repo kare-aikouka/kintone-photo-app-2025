@@ -614,6 +614,16 @@ a.badge:focus, a.badge:hover {
   color: #fff;
 }
 
+.photo-table-action-edit.is-save {
+  background: #43a047;
+  box-shadow: 0 8px 18px rgba(67, 160, 71, 0.24);
+}
+
+.photo-table-action-edit.is-save:hover {
+  background: #36843a;
+  color: #fff;
+}
+
 .photo-table-form {
   background: #f8fafc;
   border: 1px solid #d8dce2;

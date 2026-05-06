@@ -182,6 +182,25 @@ class PhotosController < ApplicationController
     redirect_to photo_path(params[:id]), alert: "写真・メモの編集に失敗しました。"
   end
 
+  def update_table_rows_batch
+    record = photo_record(params[:id])
+    table_code = table_row_params[:table_code]
+    submitted_rows = params.fetch(:table_rows, {})
+    rows = detail_table_rows(record, table_code).map do |row|
+      payload = kintone_table_row_payload(row)
+      row_params = submitted_rows[row["id"].to_s] || {}
+      apply_table_row_params(payload, row_params)
+      payload
+    end
+    update_table_rows(params[:id], table_code, rows)
+
+    redirect_to photo_path(params[:id])
+  rescue StandardError => e
+    Rails.logger.error("Photo table rows batch update failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    redirect_to photo_path(params[:id]), alert: "写真・メモの保存に失敗しました。"
+  end
+
   def delete_table_row
     record = photo_record(params[:id])
     table_code = table_row_params[:table_code]
@@ -360,6 +379,7 @@ class PhotosController < ApplicationController
   def detail_table_columns(rows, table_code = nil)
     columns = rows.flat_map { |row| row.dig("value")&.keys || [] }.uniq
     columns = table_subfield_codes(table_code) if columns.blank? && table_code.present?
+    columns = fallback_table_columns(table_code) if columns.blank? && table_code.present?
     order_detail_table_columns(rows, columns, table_code)
   end
   helper_method :detail_table_columns
@@ -371,8 +391,8 @@ class PhotosController < ApplicationController
   end
   helper_method :detail_file_column
 
-  def detail_memo_column(columns)
-    columns.find { |column| memo_column?(column) }
+  def detail_memo_column(columns, table_code = nil)
+    columns.find { |column| memo_column?(column) } || fallback_memo_column(table_code, columns)
   end
   helper_method :detail_memo_column
 
@@ -481,30 +501,28 @@ class PhotosController < ApplicationController
     payload
   end
 
-  def apply_table_row_params(payload)
+  def apply_table_row_params(payload, row_params = table_row_params)
     file_column = table_row_params[:file_column].presence
     memo_column = table_row_params[:memo_column].presence
     payload[:value] ||= {}
 
-    if file_column.present? && uploaded_photo_file_key.present?
-      payload[:value][file_column] = { value: [{ fileKey: uploaded_photo_file_key }] }
+    photo_file_key = uploaded_photo_file_key(row_params[:photo])
+    if file_column.present? && photo_file_key.present?
+      payload[:value][file_column] = { value: [{ fileKey: photo_file_key }] }
     end
 
-    payload[:value][memo_column] = { value: table_row_params[:memo].to_s } if memo_column.present?
+    payload[:value][memo_column] = { value: row_params[:memo].to_s } if memo_column.present?
     payload
   end
 
-  def uploaded_photo_file_key
-    return @uploaded_photo_file_key if defined?(@uploaded_photo_file_key)
+  def uploaded_photo_file_key(photo)
+    return if photo.blank?
 
-    photo = table_row_params[:photo]
-    @uploaded_photo_file_key = if photo.present?
-                                 KintoneSync::File.new(photos_app_id, photos_guest_space_id).upload(
-                                   data: photo.read,
-                                   content_type: photo.content_type,
-                                   filename: photo.original_filename
-                                 )
-                               end
+    KintoneSync::File.new(photos_app_id, photos_guest_space_id).upload(
+      data: photo.read,
+      content_type: photo.content_type,
+      filename: photo.original_filename
+    )
   end
 
   def kintone_table_row_payload(row)
@@ -556,6 +574,21 @@ class PhotosController < ApplicationController
   rescue StandardError => e
     Rails.logger.warn("Kintone table fields lookup skipped: #{e.class}: #{e.message}")
     {}
+  end
+
+  def fallback_table_columns(table_code)
+    label = detail_table_label(table_code)
+    [label, fallback_memo_column(table_code, [])].compact_blank
+  end
+
+  def fallback_memo_column(table_code, columns)
+    return if table_code.blank?
+
+    label = detail_table_label(table_code)
+    return "メモ（その他）" if label == "その他"
+
+    preferred = "メモ#{label}"
+    columns.include?(preferred) ? preferred : preferred
   end
 
   def record_field_keys(records)
