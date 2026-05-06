@@ -511,8 +511,15 @@ class PhotosController < ApplicationController
       payload[:value][file_column] = { value: [{ fileKey: photo_file_key }] }
     end
 
-    payload[:value][memo_column] = { value: row_params[:memo].to_s } if memo_column.present?
+    if memo_column.present? && param_present_key?(row_params, :memo)
+      payload[:value][memo_column] = { value: row_params[:memo].to_s }
+    end
     payload
+  end
+
+  def param_present_key?(params_hash, key)
+    params_hash.respond_to?(:key?) &&
+      (params_hash.key?(key) || params_hash.key?(key.to_s))
   end
 
   def uploaded_photo_file_key(photo)
