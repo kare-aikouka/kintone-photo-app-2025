@@ -222,7 +222,7 @@ class PhotosController < ApplicationController
   private
 
   def photo_record(id)
-    response = KintoneSync::Record.new(photos_app_id, photos_guest_space_id).find(id)
+    response = photos_record_client.find(id)
     response["record"]
   end
 
@@ -489,7 +489,7 @@ class PhotosController < ApplicationController
   end
 
   def update_table_rows(record_id, table_code, rows)
-    KintoneSync::Record.new(photos_app_id, photos_guest_space_id).update(
+    photos_record_client.update(
       record_id,
       table_code => { value: rows }
     )
@@ -575,12 +575,20 @@ class PhotosController < ApplicationController
 
     @table_subfield_properties ||= {}
     @table_subfield_properties[table_code.to_s] ||= begin
-      field = KintoneSync::Record.new(photos_app_id, photos_guest_space_id).properties[table_code.to_s]
+      field = photos_form_properties[table_code.to_s]
       field&.dig("fields") || {}
     end
   rescue StandardError => e
     Rails.logger.warn("Kintone table fields lookup skipped: #{e.class}: #{e.message}")
     {}
+  end
+
+  def photos_form_properties
+    @photos_form_properties ||= photos_record_client.properties
+  end
+
+  def photos_record_client
+    @photos_record_client ||= KintoneSync::Record.new(photos_app_id, photos_guest_space_id)
   end
 
   def fallback_table_columns(table_code)
