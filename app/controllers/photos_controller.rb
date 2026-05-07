@@ -151,7 +151,8 @@ class PhotosController < ApplicationController
   end
 
   def warm_cache
-    fetched_photo_records([])
+    record_client = KintoneSync::Record.new(photos_app_id, photos_guest_space_id)
+    available_field_codes(record_client)
     head :no_content
   rescue StandardError => e
     Rails.logger.warn("Photo summary cache warm failed: #{e.class}: #{e.message}")
@@ -242,26 +243,56 @@ class PhotosController < ApplicationController
   end
 
   def fetched_photo_records(_machine_values)
+    machine_values = machine_search_values(_machine_values)
+    if machine_values.present?
+      Rails.cache.fetch(photo_summary_cache_key(machine_values), expires_in: SUMMARY_CACHE_TTL) do
+        fetch_photo_summary_records_for_machine(machine_values)
+      end
+    else
+      Rails.cache.fetch(photo_summary_cache_key, expires_in: SUMMARY_CACHE_TTL) do
+        fetch_photo_summary_records
+      end
+    end
+  end
+
+  def fetch_photo_summary_records_for_machine(machine_values)
+    started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    record_client = KintoneSync::Record.new(photos_app_id, photos_guest_space_id)
+    fields = summary_field_codes(record_client)
+    records = fetch_all_photo_records(photo_summary_query(machine_values, record_client), record_client: record_client, fields: fields)
+    elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round
+    Rails.logger.info("Photo summary fetch by machine completed: #{records.count} records in #{elapsed_ms}ms")
+    records
+  rescue StandardError => e
+    Rails.logger.warn("Photo summary fetch by machine failed: #{e.class}: #{e.message}")
     Rails.cache.fetch(photo_summary_cache_key, expires_in: SUMMARY_CACHE_TTL) do
       fetch_photo_summary_records
     end
   end
 
   def fetch_photo_summary_records
+    started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     record_client = KintoneSync::Record.new(photos_app_id, photos_guest_space_id)
     fields = summary_field_codes(record_client)
-    fetch_all_photo_records(photo_summary_query, record_client: record_client, fields: fields)
+    records = fetch_all_photo_records(photo_summary_query, record_client: record_client, fields: fields)
+    elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round
+    Rails.logger.info("Photo summary fetch all completed: #{records.count} records in #{elapsed_ms}ms")
+    records
   rescue StandardError => e
     Rails.logger.warn("Photo summary fetch with limited fields failed: #{e.class}: #{e.message}")
     fetch_all_photo_records(photo_summary_query)
   end
 
-  def photo_summary_query
-    # Avoid querying the kintone drop-down field with values that may not exist
-    # in its option list. Fetch only the bounded summary range, then filter locally.
+  def photo_summary_query(machine_values = nil, record_client = nil)
+    machine_clause = machine_values.present? && record_client ? machine_query_clause(machine_values, record_client) : nil
+    conditions = [
+      "施工予定日 > FROM_TODAY(-2, MONTHS)",
+      "施工予定日 < FROM_TODAY(6, MONTHS)",
+      machine_clause
+    ].compact
+
     <<~QUERY.squish
-      施工予定日 > FROM_TODAY(-2, MONTHS) and
-      施工予定日 < FROM_TODAY(6, MONTHS)
+      #{conditions.join(" and ")}
       order by レコード番号 asc
     QUERY
   end
@@ -474,20 +505,50 @@ class PhotosController < ApplicationController
     end
   end
 
-  def photo_summary_cache_key
-    [
+  def photo_summary_cache_key(machine_values = nil)
+    key_parts = [
       "photos-summary",
       SUMMARY_CACHE_VERSION,
       photos_app_id,
       photos_guest_space_id
-    ].join(":")
+    ]
+    if machine_values.present?
+      key_parts << "machine"
+      key_parts << Digest::SHA1.hexdigest(machine_values.sort.join("\0"))
+    end
+    key_parts.join(":")
   end
 
   def summary_field_codes(record_client)
-    available_codes = record_client.properties.keys
+    available_codes = available_field_codes(record_client)
     (FIELD_ALIASES.values.flatten + SUMMARY_SYSTEM_FIELDS).uniq.select do |field_code|
       field_code.start_with?("$") || available_codes.include?(field_code)
     end
+  end
+
+  def machine_query_clause(machine_values, record_client)
+    machine_fields = FIELD_ALIASES[:machine].select { |field_code| available_field_codes(record_client).include?(field_code) }
+    return nil if machine_fields.blank?
+
+    clauses = machine_fields.product(machine_search_values(machine_values)).map do |field_code, value|
+      "#{field_code} = \"#{kintone_query_value(value)}\""
+    end
+    "(#{clauses.join(' or ')})"
+  end
+
+  def available_field_codes(record_client)
+    Rails.cache.fetch(photo_fields_cache_key, expires_in: 1.hour) do
+      record_client.properties.keys
+    end
+  end
+
+  def photo_fields_cache_key
+    [
+      "photos-fields",
+      SUMMARY_CACHE_VERSION,
+      photos_app_id,
+      photos_guest_space_id
+    ].join(":")
   end
 
   def table_row_params
