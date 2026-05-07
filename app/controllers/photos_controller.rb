@@ -389,7 +389,7 @@ class PhotosController < ApplicationController
   helper_method :field_raw_value
 
   def record_title(record)
-    [field_value(record, :company), field_value(record, :branch), field_value(record, :site), field_value(record, :detail)].compact_blank.join("　")
+    [field_value(record, :company), field_value(record, :site), field_value(record, :detail)].compact_blank.join("　")
   end
   helper_method :record_title
 

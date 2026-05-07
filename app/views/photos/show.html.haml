@@ -17,7 +17,7 @@
       .photo-record-main
         .photo-record-date
           - if record_date(@record)
-            = "#{record_date(@record).month}/#{record_date(@record).day}(#{weekdays[record_date(@record).wday]}) 00:00"
+            = "#{record_date(@record).month}/#{record_date(@record).day}(#{weekdays[record_date(@record).wday]})"
           - else
             = field_value(@record, :date)
         .photo-record-site= record_title(@record)
