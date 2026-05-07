@@ -514,12 +514,36 @@ class PhotosController < ApplicationController
 
     DETAIL_SECTIONS.filter_map do |section|
       tables = section[:tables].select do |table_code|
+        label = detail_table_label(table_code)
         rows = detail_table_rows(record, table_code)
-        enabled.include?(detail_table_label(table_code)) || rows.present? || table_code == "その他"
+        if enabled.present?
+          enabled.include?(label) || table_code == "その他"
+        else
+          table_has_visible_content?(rows) || table_code == "その他"
+        end
       end
       next if tables.blank?
 
       section.merge(tables: tables)
+    end
+  end
+
+  def table_has_visible_content?(rows)
+    Array(rows).any? do |row|
+      row.fetch("value", {}).values.any? do |field|
+        visible_field_value?(field["value"])
+      end
+    end
+  end
+
+  def visible_field_value?(value)
+    case value
+    when Array
+      value.any? do |item|
+        item.is_a?(Hash) ? item["fileKey"].present? || item["name"].present? : item.present?
+      end
+    else
+      value.present?
     end
   end
 

@@ -377,6 +377,12 @@ html.app-navigation-loading::after {
   padding: 8px 12px;
 }
 
+.photo-detail-page > .photo-header {
+  position: sticky;
+  top: 88px;
+  z-index: 900;
+}
+
 .photo-header a,
 .photo-header a:hover {
   color: #fff;
@@ -1297,6 +1303,10 @@ form.photo-detail-table-actions {
 }
 
 @media (max-width: 820px) {
+  .photo-detail-page > .photo-header {
+    top: 64px;
+  }
+
   .photo-header {
     align-items: center;
     flex-direction: row;
