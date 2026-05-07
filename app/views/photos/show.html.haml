@@ -189,17 +189,14 @@
     const photoPreview = buildPhotoPreview();
     const scrollStorageKey = "photo-scroll:" + window.location.pathname;
     let pendingFileInput = null;
+    let addRowSequence = 0;
 
     restorePhotoScroll();
 
     document.querySelectorAll(".js-photo-table-toggle").forEach(function (button) {
       button.addEventListener("click", function () {
         const target = document.getElementById(button.dataset.target);
-        const groupedTargets = document.querySelectorAll("." + button.dataset.target);
-        if (target) target.classList.toggle("hidden");
-        groupedTargets.forEach(function (element) {
-          element.classList.toggle("hidden");
-        });
+        if (target) addPhotoTableRow(target);
       });
     });
 
@@ -221,25 +218,9 @@
       });
     });
 
-    document.querySelectorAll(".js-photo-table-close").forEach(function (button) {
-      button.addEventListener("click", function () {
-        const target = document.getElementById(button.dataset.target);
-        if (target) target.classList.add("hidden");
-      });
-    });
+    document.querySelectorAll(".js-photo-table-close").forEach(bindPhotoTableClose);
 
-    document.querySelectorAll(".js-photo-file-choice input[type='file']").forEach(function (input) {
-      input.addEventListener("click", function () {
-        input.value = "";
-        pendingFileInput = input;
-      });
-      input.addEventListener("input", function () {
-        handleFileInput(input);
-      });
-      input.addEventListener("change", function () {
-        handleFileInput(input);
-      });
-    });
+    document.querySelectorAll(".js-photo-file-choice input[type='file']").forEach(bindPhotoFileInput);
 
     document.querySelectorAll(".js-photo-preview").forEach(function (link) {
       link.addEventListener("click", function (event) {
@@ -254,7 +235,111 @@
       if (document.visibilityState === "visible") retryPendingFileInput();
     });
 
-    document.querySelectorAll(".js-photo-upload-form").forEach(function (form) {
+    document.querySelectorAll(".js-photo-upload-form").forEach(bindPhotoUploadForm);
+
+    document.querySelectorAll(".js-delete-confirm").forEach(function (form) {
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        deleteConfirm.open(form, form.dataset.confirmMessage || "削除しますか？");
+      });
+    });
+
+    function addPhotoTableRow(target) {
+      if (target.classList.contains("hidden")) {
+        target.classList.remove("hidden");
+        return;
+      }
+
+      addRowSequence += 1;
+      const clone = target.cloneNode(true);
+      const cloneId = target.id + "-copy-" + addRowSequence;
+      clone.id = cloneId;
+      clone.dataset.addSource = target.id;
+      clone.classList.remove("hidden");
+      resetClonedAddRow(clone, target.id, cloneId);
+
+      const siblings = Array.from(target.parentNode.querySelectorAll("[data-add-source='" + target.id + "']"));
+      const reference = siblings[siblings.length - 1] || target;
+      reference.insertAdjacentElement("afterend", clone);
+      bindDynamicPhotoControls(clone);
+    }
+
+    function resetClonedAddRow(row, sourceId, cloneId) {
+      row.querySelectorAll("[id]").forEach(function (element) {
+        element.id = element.id.replace(sourceId, cloneId);
+      });
+
+      row.querySelectorAll("label[for]").forEach(function (label) {
+        label.htmlFor = label.htmlFor.replace(sourceId, cloneId);
+      });
+
+      row.querySelectorAll(".js-photo-table-close").forEach(function (button) {
+        button.dataset.target = cloneId;
+      });
+
+      row.querySelectorAll("form").forEach(function (form) {
+        form.dataset.uploading = "false";
+        delete form.dataset.activeFileInput;
+        form.removeAttribute("data-photo-upload-bound");
+      });
+
+      row.querySelectorAll("input[type='file']").forEach(function (input) {
+        input.value = "";
+        input.removeAttribute("data-photo-file-bound");
+      });
+
+      row.querySelectorAll("textarea").forEach(function (textarea) {
+        textarea.value = "";
+      });
+
+      row.querySelectorAll(".js-photo-selected-file").forEach(function (label) {
+        label.textContent = "選択されていません";
+      });
+
+      row.querySelectorAll(".js-photo-table-close").forEach(function (button) {
+        button.removeAttribute("data-photo-close-bound");
+      });
+    }
+
+    function bindDynamicPhotoControls(container) {
+      container.querySelectorAll(".js-photo-table-close").forEach(bindPhotoTableClose);
+      container.querySelectorAll(".js-photo-file-choice input[type='file']").forEach(bindPhotoFileInput);
+      container.querySelectorAll(".js-photo-upload-form").forEach(bindPhotoUploadForm);
+    }
+
+    function bindPhotoTableClose(button) {
+      if (button.dataset.photoCloseBound === "true") return;
+      button.dataset.photoCloseBound = "true";
+      button.addEventListener("click", function () {
+        const target = document.getElementById(button.dataset.target);
+        if (!target) return;
+
+        if (target.dataset.addSource) {
+          target.remove();
+        } else {
+          target.classList.add("hidden");
+        }
+      });
+    }
+
+    function bindPhotoFileInput(input) {
+      if (input.dataset.photoFileBound === "true") return;
+      input.dataset.photoFileBound = "true";
+      input.addEventListener("click", function () {
+        input.value = "";
+        pendingFileInput = input;
+      });
+      input.addEventListener("input", function () {
+        handleFileInput(input);
+      });
+      input.addEventListener("change", function () {
+        handleFileInput(input);
+      });
+    }
+
+    function bindPhotoUploadForm(form) {
+      if (form.dataset.photoUploadBound === "true") return;
+      form.dataset.photoUploadBound = "true";
       form.addEventListener("submit", async function (event) {
         const files = selectedUploadFiles(form);
         if (files.length === 0) return;
@@ -289,14 +374,7 @@
           files.forEach(downloadLocalFile);
         }
       });
-    });
-
-    document.querySelectorAll(".js-delete-confirm").forEach(function (form) {
-      form.addEventListener("submit", function (event) {
-        event.preventDefault();
-        deleteConfirm.open(form, form.dataset.confirmMessage || "削除しますか？");
-      });
-    });
+    }
 
     function selectedUploadFiles(form) {
       const activeInput = activeFileInput(form);

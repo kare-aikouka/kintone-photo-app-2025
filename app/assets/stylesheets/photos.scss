@@ -938,11 +938,25 @@ form.photo-detail-table-actions {
 }
 
 .photo-file {
+  -webkit-tap-highlight-color: transparent;
   color: #333;
   display: inline-flex;
   flex-direction: column;
   gap: 10px;
   max-width: 170px;
+  outline: none;
+  user-select: none;
+}
+
+.photo-file:active,
+.photo-file:focus {
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+.photo-file * {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .photo-file img {
