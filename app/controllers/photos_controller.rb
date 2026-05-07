@@ -7,6 +7,10 @@ class PhotosController < ApplicationController
   SUMMARY_CACHE_VERSION = "v2"
   SUMMARY_CACHE_TTL = 10.minutes
   SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
+  NUMBER_MEMO_TABLE_PATTERNS = [
+    /杭長/,
+    /杭材検寸.*(下端|頭端|上端)/
+  ].freeze
 
   DETAIL_SECTIONS = [
     {
@@ -176,7 +180,7 @@ class PhotosController < ApplicationController
     target_row_id = table_row_params[:row_id].to_s
     rows = detail_table_rows(record, table_code).map do |row|
       payload = kintone_table_row_payload(row)
-      apply_table_row_params(payload) if row["id"].to_s == target_row_id
+      apply_table_row_params(payload, source_row: row) if row["id"].to_s == target_row_id
       payload
     end
     update_table_rows(params[:id], table_code, rows)
@@ -195,7 +199,7 @@ class PhotosController < ApplicationController
     rows = detail_table_rows(record, table_code).map do |row|
       payload = kintone_table_row_payload(row)
       row_params = submitted_rows[row["id"].to_s] || {}
-      apply_table_row_params(payload, row_params)
+      apply_table_row_params(payload, row_params, source_row: row)
       payload
     end
     update_table_rows(params[:id], table_code, rows)
@@ -443,6 +447,23 @@ class PhotosController < ApplicationController
   end
   helper_method :detail_cell_value
 
+  def number_memo_column?(rows, table_code, column)
+    return false if column.blank?
+
+    Array(rows).any? { |row| detail_cell(row, column)&.dig("type") == "NUMBER" } ||
+      numeric_memo_hint?(table_code, column)
+  end
+  helper_method :number_memo_column?
+
+  def detail_memo_display(value, rows, table_code, column)
+    memo_value = value.is_a?(Array) ? value.join(", ") : value.to_s
+    return memo_value.presence || "-" unless number_memo_column?(rows, table_code, column)
+
+    numeric_value = normalize_numeric_memo_value(memo_value)
+    numeric_value.present? ? "L=#{numeric_value}m" : "-"
+  end
+  helper_method :detail_memo_display
+
   def detail_file_cell?(row, column)
     detail_cell(row, column)&.dig("type") == "FILE"
   end
@@ -565,18 +586,23 @@ class PhotosController < ApplicationController
     payload
   end
 
-  def apply_table_row_params(payload, row_params = table_row_params)
+  def apply_table_row_params(payload, row_params = table_row_params, source_row: nil)
     file_column = table_row_params[:file_column].presence
     memo_column = table_row_params[:memo_column].presence
+    table_code = table_row_params[:table_code].presence
     payload[:value] ||= {}
 
-    photo_file_key = uploaded_photo_file_key(row_params[:photo])
+    photo_file_key = uploaded_photo_file_key(param_value(row_params, :photo))
     if file_column.present? && photo_file_key.present?
       payload[:value][file_column] = { value: [{ fileKey: photo_file_key }] }
     end
 
     if memo_column.present? && param_present_key?(row_params, :memo)
-      payload[:value][memo_column] = { value: row_params[:memo].to_s }
+      memo_value = param_value(row_params, :memo).to_s
+      if numeric_memo_field?(table_code, memo_column, source_row)
+        memo_value = normalize_numeric_memo_value(memo_value)
+      end
+      payload[:value][memo_column] = { value: memo_value }
     end
     payload
   end
@@ -584,6 +610,29 @@ class PhotosController < ApplicationController
   def param_present_key?(params_hash, key)
     params_hash.respond_to?(:key?) &&
       (params_hash.key?(key) || params_hash.key?(key.to_s))
+  end
+
+  def param_value(params_hash, key)
+    return params_hash[key] if params_hash.respond_to?(:key?) && params_hash.key?(key)
+    return params_hash[key.to_s] if params_hash.respond_to?(:key?) && params_hash.key?(key.to_s)
+
+    nil
+  end
+
+  def numeric_memo_field?(table_code, memo_column, source_row = nil)
+    (source_row.present? && detail_cell(source_row, memo_column)&.dig("type") == "NUMBER") ||
+      numeric_memo_hint?(table_code, memo_column)
+  end
+
+  def numeric_memo_hint?(table_code, column)
+    text = [detail_table_label(table_code), column].compact.join(" ")
+    NUMBER_MEMO_TABLE_PATTERNS.any? { |pattern| text.match?(pattern) }
+  end
+
+  def normalize_numeric_memo_value(value)
+    normalized = value.to_s.tr("０-９．，－", "0-9.,-")
+    match = normalized.match(/-?\d+(?:[.,]\d+)?/)
+    match ? match[0].tr(",", ".") : ""
   end
 
   def uploaded_photo_file_key(photo)

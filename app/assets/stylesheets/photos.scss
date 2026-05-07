@@ -269,7 +269,7 @@ a.badge:focus, a.badge:hover {
 }
 
 html.app-navigation-loading::before {
-  animation: app-navigation-progress 900ms linear infinite;
+  animation: app-navigation-progress 3600ms linear infinite;
   background: linear-gradient(90deg, #1f4fb8 0%, #38bdf8 40%, #fff 55%, #1f4fb8 100%);
   background-size: 220% 100%;
   box-shadow: 0 4px 14px rgba(31, 79, 184, 0.36);
@@ -745,6 +745,25 @@ form.photo-detail-table-actions {
   min-height: 112px;
 }
 
+.photo-table-number-memo {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.photo-table-number-memo-unit {
+  color: #344054;
+  font-size: 1.2rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.photo-table-number-input {
+  min-height: 62px;
+  text-align: center;
+}
+
 .photo-table-inline-actions {
   margin-top: 14px;
 }
@@ -950,6 +969,11 @@ form.photo-detail-table-actions {
   background: #43a047;
   border: 1px solid #43a047;
   color: #fff;
+}
+
+.photo-table-add-submit {
+  min-width: 132px;
+  width: 100%;
 }
 
 .btn-danger-action,

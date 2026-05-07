@@ -118,9 +118,16 @@
                                 - value = detail_cell_value(row, column)
                                 - if column == memo_column
                                   - memo_value = value.is_a?(Array) ? value.join(", ") : value
+                                  - memo_is_number = number_memo_column?(rows, table_code, column)
                                   .photo-table-memo-display{ class: edit_rows_id }
-                                    = memo_value.presence || "-"
-                                  = text_area_tag "table_rows[#{row["id"]}][memo]", memo_value, rows: 5, class: "photo-table-memo photo-table-row-memo hidden #{edit_rows_id}", form: table_save_form_id
+                                    = detail_memo_display(memo_value, rows, table_code, column)
+                                  - if memo_is_number
+                                    .photo-table-number-memo.hidden{ class: edit_rows_id }
+                                      %span.photo-table-number-memo-unit L=
+                                      = number_field_tag "table_rows[#{row["id"]}][memo]", memo_value, step: "any", inputmode: "decimal", class: "photo-table-memo photo-table-row-memo photo-table-number-input", form: table_save_form_id
+                                      %span.photo-table-number-memo-unit m
+                                  - else
+                                    = text_area_tag "table_rows[#{row["id"]}][memo]", memo_value, rows: 5, class: "photo-table-memo photo-table-row-memo hidden #{edit_rows_id}", form: table_save_form_id
                                 - elsif value.is_a?(Array)
                                   = value.join(", ")
                                 - else
@@ -149,20 +156,27 @@
                                     - if column == file_column
                                       .photo-table-attachment-empty （添付なし）
                                       .photo-table-file-choice.js-photo-file-choice
-                                        = file_field_tag :photo, accept: "image/*", capture: "environment", id: "#{add_form_id}-camera", class: "photo-table-hidden-file js-photo-auto-submit"
+                                        = file_field_tag :photo, accept: "image/*", capture: "environment", id: "#{add_form_id}-camera", class: "photo-table-hidden-file"
                                         = label_tag "#{add_form_id}-camera", class: "btn photo-table-capture-button" do
                                           %span.btn-icon 📷
-                                        = file_field_tag :photo, accept: "image/*", id: "#{add_form_id}-gallery", class: "photo-table-hidden-file js-photo-auto-submit"
+                                        = file_field_tag :photo, accept: "image/*", id: "#{add_form_id}-gallery", class: "photo-table-hidden-file"
                                         = label_tag "#{add_form_id}-gallery", class: "btn photo-table-capture-button photo-table-gallery-button" do
                                           %span.btn-icon 🖼
                                         %span.photo-table-selected-file.js-photo-selected-file 選択されていません
                                       .photo-table-form-actions.photo-table-inline-actions
                                         = button_tag "キャンセル", type: "button", class: "btn btn-soft photo-table-cancel js-photo-table-close", data: { target: add_form_id }
                                     - elsif column == memo_column
-                                      = text_area_tag :memo, nil, rows: 4, class: "photo-table-memo photo-table-inline-memo", placeholder: "メモ"
+                                      - if number_memo_column?(rows, table_code, column)
+                                        .photo-table-number-memo
+                                          %span.photo-table-number-memo-unit L=
+                                          = number_field_tag :memo, nil, step: "any", inputmode: "decimal", class: "photo-table-memo photo-table-inline-memo photo-table-number-input", placeholder: "数値"
+                                          %span.photo-table-number-memo-unit m
+                                      - else
+                                        = text_area_tag :memo, nil, rows: 4, class: "photo-table-memo photo-table-inline-memo", placeholder: "メモ"
                                     - else
                                       %span.photo-empty -
                                 .photo-table-inline-cell.photo-table-action-column
+                                  = submit_tag "追加する", class: "btn photo-table-row-save photo-table-add-submit"
             - else
               .photo-detail-empty
                 まだ登録されている行はありません。
