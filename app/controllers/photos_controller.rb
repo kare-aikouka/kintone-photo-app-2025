@@ -4,7 +4,7 @@ class PhotosController < ApplicationController
   before_action :authentication
 
   PICTURE_FLAG_DONE = "完了"
-  SUMMARY_CACHE_VERSION = "v2"
+  SUMMARY_CACHE_VERSION = "v3"
   SUMMARY_CACHE_TTL = 10.minutes
   SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
   NUMBER_MEMO_TABLE_PATTERNS = [
@@ -287,7 +287,7 @@ class PhotosController < ApplicationController
   def photo_summary_query(machine_values = nil, record_client = nil)
     machine_clause = machine_values.present? && record_client ? machine_query_clause(machine_values, record_client) : nil
     conditions = [
-      "施工予定日 > FROM_TODAY(-2, MONTHS)",
+      "施工予定日 > FROM_TODAY(-1, MONTHS)",
       "施工予定日 < FROM_TODAY(6, MONTHS)",
       machine_clause
     ].compact
