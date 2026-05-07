@@ -268,6 +268,19 @@ a.badge:focus, a.badge:hover {
   opacity: .3;
 }
 
+.turbo-progress-bar {
+  background: #1f4fb8;
+  height: 8px;
+}
+
+.progress {
+  height: 2rem;
+}
+
+.progress-bar {
+  height: 2rem;
+}
+
 .error-image {
   opacity: .4;
 }
@@ -948,6 +961,85 @@ form.photo-detail-table-actions {
 
 .photo-empty {
   color: #aaa;
+}
+
+.photo-preview-open {
+  overflow: hidden;
+}
+
+.photo-preview-overlay {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.88);
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  left: 0;
+  padding: 14px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 3000;
+}
+
+.photo-preview-dialog {
+  background: #0f172a;
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  max-height: 96vh;
+  max-width: 96vw;
+  overflow: hidden;
+  width: 96vw;
+}
+
+.photo-preview-toolbar {
+  align-items: center;
+  background: #fff;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.photo-preview-title {
+  color: #1f2937;
+  font-size: 0.95rem;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-preview-close {
+  background: #3E5FAA;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  flex: 0 0 auto;
+  font-size: 1.05rem;
+  font-weight: 800;
+  min-height: 48px;
+  min-width: 112px;
+  padding: 10px 18px;
+}
+
+.photo-preview-frame {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  max-height: calc(96vh - 68px);
+  overflow: auto;
+  padding: 10px;
+}
+
+.photo-preview-image {
+  display: block;
+  height: auto;
+  max-height: calc(96vh - 88px);
+  max-width: 100%;
+  object-fit: contain;
 }
 
 .delete-confirm-overlay {

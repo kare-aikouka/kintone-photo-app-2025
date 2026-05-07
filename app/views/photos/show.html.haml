@@ -82,9 +82,11 @@
                                       - file_key = file["fileKey"]
                                       - content_type = file["contentType"].presence || "image/jpeg"
                                       - if file_key.present?
-                                        = link_to files_path(key: file_key, type: content_type), target: "_blank", rel: "noopener", class: "photo-file" do
+                                        - file_url = files_path(key: file_key, type: content_type)
+                                        - previewable = content_type.start_with?("image/")
+                                        = link_to file_url, class: ["photo-file", ("js-photo-preview" if previewable)].compact.join(" "), data: { preview_src: file_url, preview_name: file["name"].presence || "ファイル" } do
                                           - if content_type.start_with?("image/")
-                                            = image_tag files_path(key: file_key, type: content_type), alt: file["name"]
+                                            = image_tag file_url, alt: file["name"]
                                           %span= file["name"].presence || "ファイル"
                                 - else
                                   %span.photo-empty{ class: edit_rows_id } 未登録
@@ -184,6 +186,7 @@
     const PHOTO_MAX_SIZE = 1200;
     const PHOTO_JPEG_QUALITY = 0.90;
     const deleteConfirm = buildDeleteConfirm();
+    const photoPreview = buildPhotoPreview();
     const scrollStorageKey = "photo-scroll:" + window.location.pathname;
     let pendingFileInput = null;
 
@@ -235,6 +238,13 @@
       });
       input.addEventListener("change", function () {
         handleFileInput(input);
+      });
+    });
+
+    document.querySelectorAll(".js-photo-preview").forEach(function (link) {
+      link.addEventListener("click", function (event) {
+        event.preventDefault();
+        photoPreview.open(link.dataset.previewSrc || link.href, link.dataset.previewName || "写真");
       });
     });
 
@@ -566,6 +576,79 @@
           message.textContent = text;
           overlay.classList.remove("hidden");
           back.focus();
+        }
+      };
+    }
+
+    function buildPhotoPreview() {
+      const overlay = document.createElement("div");
+      overlay.className = "photo-preview-overlay hidden";
+      overlay.innerHTML = [
+        '<div class="photo-preview-dialog" role="dialog" aria-modal="true" aria-label="写真プレビュー">',
+        '  <div class="photo-preview-toolbar">',
+        '    <div class="photo-preview-title"></div>',
+        '    <button type="button" class="photo-preview-close">閉じる</button>',
+        '  </div>',
+        '  <div class="photo-preview-frame">',
+        '    <img class="photo-preview-image" alt="">',
+        '  </div>',
+        '</div>'
+      ].join("");
+      document.body.appendChild(overlay);
+
+      const image = overlay.querySelector(".photo-preview-image");
+      const title = overlay.querySelector(".photo-preview-title");
+      const closeButton = overlay.querySelector(".photo-preview-close");
+      let open = false;
+      let closingFromHistory = false;
+
+      function close(pushHistoryBack) {
+        if (!open) return;
+        open = false;
+        overlay.classList.add("hidden");
+        image.removeAttribute("src");
+        document.body.classList.remove("photo-preview-open");
+
+        if (pushHistoryBack && history.state && history.state.photoPreview) {
+          closingFromHistory = true;
+          history.back();
+        }
+      }
+
+      closeButton.addEventListener("click", function () {
+        close(true);
+      });
+
+      overlay.addEventListener("click", function (event) {
+        if (event.target === overlay) close(true);
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") close(true);
+      });
+
+      window.addEventListener("popstate", function () {
+        if (closingFromHistory) {
+          closingFromHistory = false;
+          return;
+        }
+        close(false);
+      });
+
+      return {
+        open: function (src, name) {
+          if (!src) return;
+          open = true;
+          image.src = src;
+          image.alt = name || "写真";
+          title.textContent = name || "写真";
+          document.body.classList.add("photo-preview-open");
+          overlay.classList.remove("hidden");
+          closeButton.focus();
+
+          if (!history.state || !history.state.photoPreview) {
+            history.pushState({ photoPreview: true }, "", window.location.href);
+          }
         }
       };
     }
