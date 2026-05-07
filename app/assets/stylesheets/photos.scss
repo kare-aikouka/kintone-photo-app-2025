@@ -270,15 +270,15 @@ a.badge:focus, a.badge:hover {
 
 .turbo-progress-bar {
   background: #1f4fb8;
-  height: 16px;
+  height: 80px;
 }
 
 .progress {
-  height: 4rem;
+  height: 20rem;
 }
 
 .progress-bar {
-  height: 4rem;
+  height: 20rem;
 }
 
 .error-image {
@@ -818,6 +818,14 @@ form.photo-detail-table-actions {
   font-size: 1.12rem;
   min-height: 36px;
   padding: 4px 0;
+}
+
+.photo-table-selected-file.is-upload-error {
+  color: #d92d20;
+  cursor: pointer;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 .photo-table-row-memo {

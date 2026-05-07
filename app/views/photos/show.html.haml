@@ -221,6 +221,7 @@
     document.querySelectorAll(".js-photo-table-close").forEach(bindPhotoTableClose);
 
     document.querySelectorAll(".js-photo-file-choice input[type='file']").forEach(bindPhotoFileInput);
+    document.querySelectorAll(".js-photo-selected-file").forEach(bindUploadRetryLabel);
 
     document.querySelectorAll(".js-photo-preview").forEach(function (link) {
       link.addEventListener("click", function (event) {
@@ -293,6 +294,8 @@
       });
 
       row.querySelectorAll(".js-photo-selected-file").forEach(function (label) {
+        clearUploadError(label);
+        label.removeAttribute("data-photo-retry-bound");
         label.textContent = "選択されていません";
       });
 
@@ -304,6 +307,7 @@
     function bindDynamicPhotoControls(container) {
       container.querySelectorAll(".js-photo-table-close").forEach(bindPhotoTableClose);
       container.querySelectorAll(".js-photo-file-choice input[type='file']").forEach(bindPhotoFileInput);
+      container.querySelectorAll(".js-photo-selected-file").forEach(bindUploadRetryLabel);
       container.querySelectorAll(".js-photo-upload-form").forEach(bindPhotoUploadForm);
     }
 
@@ -354,6 +358,7 @@
         const selectedLabel = selectedChoice && selectedChoice.querySelector(".js-photo-selected-file");
         try {
           if (selectedLabel) selectedLabel.textContent = "写真を圧縮中...";
+          clearUploadError(selectedLabel);
           const body = await compressedFormData(form);
           if (selectedLabel) selectedLabel.textContent = "アップロード中...";
 
@@ -370,10 +375,61 @@
         } catch (error) {
           form.dataset.uploading = "false";
           restoreDisabledInputs(disabledInputs);
+          showUploadError(form, selectedInput, selectedLabel);
           alert("写真を保存できなかったので端末に保存します。");
           files.forEach(downloadLocalFile);
         }
       });
+    }
+
+    function bindUploadRetryLabel(label) {
+      if (label.dataset.photoRetryBound === "true") return;
+      label.dataset.photoRetryBound = "true";
+      label.addEventListener("click", function () {
+        retryUploadFromLabel(label);
+      });
+      label.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        retryUploadFromLabel(label);
+      });
+    }
+
+    function retryUploadFromLabel(label) {
+      if (!label.classList.contains("is-upload-error")) return;
+
+      const input = document.getElementById(label.dataset.retryInput || "");
+      if (!input) return;
+
+      const form = input.form;
+      if (form && input.files && input.files.length > 0) {
+        form.dataset.activeFileInput = input.id;
+        form.requestSubmit ? form.requestSubmit() : form.submit();
+      } else {
+        input.click();
+      }
+    }
+
+    function showUploadError(form, input, label) {
+      if (!label) return;
+
+      label.textContent = "貼り付けエラー（タップで再アップロード）";
+      label.classList.add("is-upload-error");
+      label.setAttribute("role", "button");
+      label.setAttribute("tabindex", "0");
+      if (input && input.id) {
+        label.dataset.retryInput = input.id;
+        if (form) form.dataset.activeFileInput = input.id;
+      }
+    }
+
+    function clearUploadError(label) {
+      if (!label) return;
+
+      label.classList.remove("is-upload-error");
+      label.removeAttribute("role");
+      label.removeAttribute("tabindex");
+      delete label.dataset.retryInput;
     }
 
     function selectedUploadFiles(form) {
@@ -593,6 +649,7 @@
       if (!selectedFile) return;
 
       const file = input.files && input.files[0];
+      clearUploadError(selectedFile);
       selectedFile.textContent = file ? file.name : "選択されていません";
 
       if (file && input.form) input.form.dataset.activeFileInput = input.id;
