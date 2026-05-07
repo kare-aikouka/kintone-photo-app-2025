@@ -11,7 +11,6 @@ class PhotosController < ApplicationController
   DETAIL_SECTIONS = [
     {
       title: "☆施工前状況",
-      note: "大和様案件は、施工前敷地状況項目の中で「施工前全景」写真も撮影して下さい。",
       tables: %w[
         テーブル施工前敷地状況
         テーブル施工前_前面道路
@@ -26,7 +25,6 @@ class PhotosController < ApplicationController
     },
     {
       title: "☆配置確認",
-      note: "大和案件は、配置写真各項目3か所づつ撮影して下さい。",
       tables: %w[
         テーブル配置確認追い出し
         テーブル配置確認平行
@@ -72,7 +70,6 @@ class PhotosController < ApplicationController
     },
     {
       title: "☆施工終了",
-      note: "大和様案件の場合、施工後敷地状況の項目の中で「施工後全景」写真も撮影して下さい。",
       tables: %w[
         テーブル清掃状況
         テーブル杭天端仕上げ確認
