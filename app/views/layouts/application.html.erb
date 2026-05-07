@@ -27,11 +27,17 @@
     }
 
     (function () {
+      let navigationLoaderTimer = null;
+
       function showNavigationLoader() {
         document.documentElement.classList.add("app-navigation-loading");
+        window.clearTimeout(navigationLoaderTimer);
+        navigationLoaderTimer = window.setTimeout(hideNavigationLoader, 20000);
       }
 
       function hideNavigationLoader() {
+        window.clearTimeout(navigationLoaderTimer);
+        navigationLoaderTimer = null;
         document.documentElement.classList.remove("app-navigation-loading");
       }
 
@@ -55,7 +61,12 @@
         showNavigationLoader();
       }, true);
 
+      window.addEventListener("load", hideNavigationLoader);
       window.addEventListener("pageshow", hideNavigationLoader);
+      window.addEventListener("pagehide", hideNavigationLoader);
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible") hideNavigationLoader();
+      });
     })();
   </script>
 </head>
