@@ -269,9 +269,7 @@ a.badge:focus, a.badge:hover {
 }
 
 html.app-navigation-loading::before {
-  animation: app-navigation-progress 3600ms linear infinite;
-  background: linear-gradient(90deg, #1f4fb8 0%, #38bdf8 40%, #fff 55%, #1f4fb8 100%);
-  background-size: 220% 100%;
+  background: #1f4fb8;
   box-shadow: 0 4px 14px rgba(31, 79, 184, 0.36);
   content: "";
   height: 28px;
@@ -282,13 +280,28 @@ html.app-navigation-loading::before {
   z-index: 2147483647;
 }
 
+html.app-navigation-loading::after {
+  -webkit-animation: app-navigation-progress 3600ms linear infinite;
+  animation: app-navigation-progress 3600ms linear infinite;
+  background: linear-gradient(90deg, transparent 0%, #38bdf8 24%, #fff 50%, #38bdf8 76%, transparent 100%);
+  content: "";
+  height: 28px;
+  left: 0;
+  position: fixed;
+  top: 0;
+  width: 46vw;
+  z-index: 2147483647;
+}
+
 @keyframes app-navigation-progress {
   from {
-    background-position: 220% 0;
+    -webkit-transform: translate3d(-52vw, 0, 0);
+    transform: translate3d(-52vw, 0, 0);
   }
 
   to {
-    background-position: -220% 0;
+    -webkit-transform: translate3d(106vw, 0, 0);
+    transform: translate3d(106vw, 0, 0);
   }
 }
 
