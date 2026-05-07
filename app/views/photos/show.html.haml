@@ -187,6 +187,7 @@
     const PHOTO_JPEG_QUALITY = 0.90;
     const deleteConfirm = buildDeleteConfirm();
     const photoPreview = buildPhotoPreview();
+    const uploadIndicator = buildUploadIndicator();
     const scrollStorageKey = "photo-scroll:" + window.location.pathname;
     let pendingFileInput = null;
     let addRowSequence = 0;
@@ -358,9 +359,11 @@
         const selectedLabel = selectedChoice && selectedChoice.querySelector(".js-photo-selected-file");
         try {
           if (selectedLabel) selectedLabel.textContent = "写真を圧縮中...";
+          uploadIndicator.show("写真を圧縮中...", "保存完了までそのままお待ちください");
           clearUploadError(selectedLabel);
           const body = await compressedFormData(form);
           if (selectedLabel) selectedLabel.textContent = "アップロード中...";
+          uploadIndicator.show("アップロード中...", "通信状況により時間がかかる場合があります");
 
           const response = await fetch(form.action, {
             body: body,
@@ -375,6 +378,7 @@
         } catch (error) {
           form.dataset.uploading = "false";
           restoreDisabledInputs(disabledInputs);
+          uploadIndicator.hide();
           showUploadError(form, selectedInput, selectedLabel);
           alert("写真を保存できなかったので端末に保存します。");
           files.forEach(downloadLocalFile);
@@ -666,6 +670,35 @@
       window.setTimeout(function () {
         URL.revokeObjectURL(url);
       }, 1000);
+    }
+
+    function buildUploadIndicator() {
+      const overlay = document.createElement("div");
+      overlay.className = "photo-upload-overlay hidden";
+      overlay.setAttribute("role", "status");
+      overlay.setAttribute("aria-live", "polite");
+      overlay.innerHTML = [
+        '<div class="photo-upload-dialog">',
+        '  <div class="photo-upload-spinner" aria-hidden="true"></div>',
+        '  <div class="photo-upload-message">アップロード中...</div>',
+        '  <div class="photo-upload-submessage">保存完了までそのままお待ちください</div>',
+        '</div>'
+      ].join("");
+      document.body.appendChild(overlay);
+
+      const message = overlay.querySelector(".photo-upload-message");
+      const submessage = overlay.querySelector(".photo-upload-submessage");
+
+      return {
+        show: function (text, subtext) {
+          message.textContent = text || "アップロード中...";
+          submessage.textContent = subtext || "保存完了までそのままお待ちください";
+          overlay.classList.remove("hidden");
+        },
+        hide: function () {
+          overlay.classList.add("hidden");
+        }
+      };
     }
 
     function buildDeleteConfirm() {

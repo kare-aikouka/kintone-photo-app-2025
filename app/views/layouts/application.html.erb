@@ -25,6 +25,38 @@
         navigator.serviceWorker.register("/service-worker.js").catch(function () {});
       });
     }
+
+    (function () {
+      function showNavigationLoader() {
+        document.documentElement.classList.add("app-navigation-loading");
+      }
+
+      function hideNavigationLoader() {
+        document.documentElement.classList.remove("app-navigation-loading");
+      }
+
+      document.addEventListener("click", function (event) {
+        const link = event.target.closest && event.target.closest("a[href]");
+        if (!link) return;
+        if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        if (link.target && link.target !== "_self") return;
+        if (link.hasAttribute("download")) return;
+
+        const href = link.getAttribute("href") || "";
+        if (href === "" || href[0] === "#" || href.startsWith("javascript:")) return;
+
+        showNavigationLoader();
+      }, true);
+
+      document.addEventListener("submit", function (event) {
+        if (event.defaultPrevented) return;
+        if (event.target && event.target.classList && event.target.classList.contains("js-photo-upload-form")) return;
+        if (event.target && event.target.classList && event.target.classList.contains("js-delete-confirm")) return;
+        showNavigationLoader();
+      }, true);
+
+      window.addEventListener("pageshow", hideNavigationLoader);
+    })();
   </script>
 </head>
 <body class="<%= body_css_classes %>">
