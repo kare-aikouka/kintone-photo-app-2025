@@ -138,23 +138,54 @@
 
 @media (max-width: 760px) {
   .app-main-with-shell {
-    padding-top: 116px;
+    padding-top: 64px;
   }
 
   .app-shell-inner {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 12px 14px;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+    padding: 6px 8px;
+  }
+
+  .app-shell-brand {
+    flex: 1 1 auto;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .app-shell-logo {
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+  }
+
+  .app-shell-primary {
+    font-size: 0.78rem;
+    line-height: 1.05;
+  }
+
+  .app-shell-secondary {
+    font-size: 1rem;
+    line-height: 1.05;
   }
 
   .app-shell-actions {
-    flex-wrap: wrap;
-    width: 100%;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+    min-width: 0;
+    width: auto;
+  }
+
+  .app-shell-context {
+    font-size: 0.78rem;
+    margin-right: 0;
   }
 
   .app-shell-link,
   .app-shell-button {
-    min-height: 58px;
-    padding: 14px 20px;
+    font-size: 0.78rem;
+    min-height: 38px;
+    padding: 8px 9px;
   }
 }

@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const companyListDiv = document.getElementById('company-list');
   if (!btnHokkaido || !btnHonshu || !companyListDiv) return;
 
+  warmPhotoSummaryCache();
+
   let area = "北海道"; // 初期値
 
   const fieldAliases = {
@@ -59,6 +61,28 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     return `/photos?${params.toString()}`;
+  }
+
+  function warmPhotoSummaryCache() {
+    if (!window.fetch || !window.sessionStorage) return;
+
+    try {
+      const key = 'aizawaPhotoSummaryWarmAt';
+      const now = Date.now();
+      const lastWarmedAt = Number(window.sessionStorage.getItem(key) || 0);
+      if (now - lastWarmedAt < 5 * 60 * 1000) return;
+
+      window.sessionStorage.setItem(key, String(now));
+      window.fetch('/photos/warm_cache', {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        keepalive: true
+      }).catch(() => {
+        window.sessionStorage.removeItem(key);
+      });
+    } catch (_error) {
+      // ストレージが無効な端末では、表示操作を優先して何もしない。
+    }
   }
 
   function companyPriority(corpName, corpOrder) {

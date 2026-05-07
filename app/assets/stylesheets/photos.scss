@@ -935,7 +935,7 @@ form.photo-detail-table-actions {
 .photo-file img {
   border: 1px solid #d8dce2;
   aspect-ratio: 4 / 3;
-  max-width: min(170px, 72vw);
+  max-width: 170px;
   object-fit: cover;
   width: 100%;
 }
@@ -1151,7 +1151,7 @@ form.photo-detail-table-actions {
   }
 
   .photo-file img {
-    max-width: min(170px, 82vw);
+    max-width: 100%;
   }
 
   .bookmark-page,

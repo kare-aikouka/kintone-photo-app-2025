@@ -5,7 +5,7 @@ class PhotosController < ApplicationController
 
   PICTURE_FLAG_DONE = "完了"
   SUMMARY_CACHE_VERSION = "v2"
-  SUMMARY_CACHE_TTL = 3.minutes
+  SUMMARY_CACHE_TTL = 10.minutes
   SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
 
   DETAIL_SECTIONS = [
@@ -148,6 +148,14 @@ class PhotosController < ApplicationController
     @photo_error = e
     @record = nil
     @detail_sections = []
+  end
+
+  def warm_cache
+    fetched_photo_records([])
+    head :no_content
+  rescue StandardError => e
+    Rails.logger.warn("Photo summary cache warm failed: #{e.class}: #{e.message}")
+    head :no_content
   end
 
   def add_table_row

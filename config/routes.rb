@@ -1,6 +1,10 @@
 Rails.application.routes.draw do
   resources :machines, only: %i[index show]
   resources :photos, only: %i[index show] do
+    collection do
+      get 'warm_cache'
+    end
+
     member do
       post 'table_rows', action: :add_table_row
       patch 'table_rows', action: :update_table_row
