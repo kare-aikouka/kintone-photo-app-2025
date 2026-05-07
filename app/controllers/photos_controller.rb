@@ -110,7 +110,7 @@ class PhotosController < ApplicationController
     @default_records = default_records(@records)
     @incomplete_records = @default_records.select { |record| incomplete?(record) }
     @date_tabs = date_tabs
-    @records_by_date = @default_records.group_by { |record| record_date(record) || Date.current }
+    @records_by_date = @default_records.group_by { |record| schedule_bucket_date(record) }
     @completed_records = completed_records(@default_records)
     @future_records = future_records(@default_records, @date_tabs)
     @future_incomplete_count = @future_records.count { |record| incomplete?(record) }
@@ -320,7 +320,7 @@ class PhotosController < ApplicationController
   end
 
   def completed_records(records)
-    records.select { |record| record_date(record).present? && record_date(record) < Date.current }
+    records.select { |record| record_date(record).present? && record_date(record) < Date.current && !incomplete?(record) }
            .sort_by { |record| [record_date(record) || Date.new(1, 1, 1), record_id(record).to_i] }
            .reverse
   end
@@ -357,6 +357,14 @@ class PhotosController < ApplicationController
     else
       @records_by_date.fetch(@selected_date, [])
     end
+  end
+
+  def schedule_bucket_date(record)
+    date = record_date(record)
+    return Date.current if date.blank?
+    return Date.current if date < Date.current && incomplete?(record)
+
+    date
   end
 
   def record_date(record)
