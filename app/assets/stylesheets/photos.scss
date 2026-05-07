@@ -270,15 +270,15 @@ a.badge:focus, a.badge:hover {
 
 .turbo-progress-bar {
   background: #1f4fb8;
-  height: 8px;
+  height: 16px;
 }
 
 .progress {
-  height: 2rem;
+  height: 4rem;
 }
 
 .progress-bar {
-  height: 2rem;
+  height: 4rem;
 }
 
 .error-image {
@@ -979,6 +979,10 @@ form.photo-detail-table-actions {
   right: 0;
   top: 0;
   z-index: 3000;
+}
+
+.photo-preview-overlay.hidden {
+  display: none;
 }
 
 .photo-preview-dialog {
