@@ -33,6 +33,51 @@
           写真：
           %strong{ class: ("is-done" if photo_status(@record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(@record)
 
+    - blackboard_date = record_date(@record) ? "#{record_date(@record).year}年#{record_date(@record).month}月#{record_date(@record).day}日" : field_value(@record, :date).to_s
+    - blackboard_project = field_value(@record, :site).presence || record_title(@record)
+    - blackboard_maker = field_value(@record, :company).presence || ""
+    - blackboard_place = record_address(@record).presence || ""
+    - blackboard_piles = field_value(@record, :detail).presence || ""
+    .photo-blackboard.js-photo-blackboard-config{ data: { record_id: record_id(@record) } }
+      .photo-blackboard-head
+        .photo-blackboard-title 電子黒板
+        .photo-blackboard-summary 写真に白黒板を焼き込んで保存します
+      .photo-blackboard-options
+        %label.photo-blackboard-option
+          = radio_button_tag :photo_blackboard_enabled, "1", true, class: "js-blackboard-enabled"
+          %span 黒板あり
+        %label.photo-blackboard-option
+          = radio_button_tag :photo_blackboard_enabled, "0", false, class: "js-blackboard-enabled"
+          %span 黒板なし
+        %label.photo-blackboard-option
+          = radio_button_tag :photo_blackboard_position, "left", true, class: "js-blackboard-position"
+          %span 左下
+        %label.photo-blackboard-option
+          = radio_button_tag :photo_blackboard_position, "right", false, class: "js-blackboard-position"
+          %span 右下
+      .photo-blackboard-grid
+        .photo-blackboard-field
+          %label 工事名
+          = text_field_tag :photo_blackboard_project, blackboard_project, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "project" }
+        .photo-blackboard-field
+          %label 工事年月日
+          = text_field_tag :photo_blackboard_date, blackboard_date, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "date" }
+        .photo-blackboard-field
+          %label メーカー名
+          = text_field_tag :photo_blackboard_maker, blackboard_maker, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "maker" }
+        .photo-blackboard-field
+          %label 工事場所
+          = text_field_tag :photo_blackboard_place, blackboard_place, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "place" }
+        .photo-blackboard-field
+          %label 杭長×本数
+          = text_field_tag :photo_blackboard_piles, blackboard_piles, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "piles" }
+        .photo-blackboard-field
+          %label 右上表記
+          = text_field_tag :photo_blackboard_kind, "様邸新築工事", class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "kind" }
+        .photo-blackboard-field.photo-blackboard-field-wide
+          %label 下部表記
+          = text_field_tag :photo_blackboard_footer, "會澤高圧コンクリート(株)", class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "footer" }
+
     - @detail_sections.each do |section|
       .photo-detail-section
         - if section[:note].present?
@@ -192,6 +237,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     const PHOTO_MAX_SIZE = 1200;
     const PHOTO_JPEG_QUALITY = 0.90;
+    const BLACKBOARD_STORAGE_KEY = "photo-blackboard:" + window.location.pathname;
     const deleteConfirm = buildDeleteConfirm();
     const photoPreview = buildPhotoPreview();
     const uploadIndicator = buildUploadIndicator();
@@ -200,6 +246,8 @@
     let addRowSequence = 0;
 
     restorePhotoScroll();
+    restoreBlackboardConfig();
+    bindBlackboardConfig();
 
     document.querySelectorAll(".js-photo-table-toggle").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -545,6 +593,7 @@
       const context = canvas.getContext("2d");
       context.drawImage(image, 0, 0, size.width, size.height);
       if (image.close) image.close();
+      drawBlackboardIfNeeded(context, canvas);
 
       const blob = await canvasToBlob(canvas, "image/jpeg", PHOTO_JPEG_QUALITY);
       if (!blob) return new File([file], uploadFileName(file), { lastModified: uploadFileTime(file), type: file.type });
@@ -553,6 +602,181 @@
         lastModified: uploadFileTime(file),
         type: "image/jpeg"
       });
+    }
+
+    function drawBlackboardIfNeeded(context, canvas) {
+      const config = currentBlackboardConfig();
+      if (!config.enabled) return;
+
+      drawBlackboard(context, canvas, config);
+    }
+
+    function currentBlackboardConfig() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root) return { enabled: false };
+
+      const enabledInput = root.querySelector(".js-blackboard-enabled:checked");
+      const positionInput = root.querySelector(".js-blackboard-position:checked");
+      const values = {};
+      root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
+        values[input.dataset.blackboardKey] = input.value || "";
+      });
+
+      return {
+        enabled: !enabledInput || enabledInput.value === "1",
+        position: positionInput ? positionInput.value : "left",
+        values: values
+      };
+    }
+
+    function drawBlackboard(context, canvas, config) {
+      const width = canvas.width;
+      const height = canvas.height;
+      const boardWidth = Math.round(Math.min(width * 0.58, Math.max(width * 0.46, 760)));
+      const boardHeight = Math.round(Math.min(height * 0.48, boardWidth * 0.62));
+      const margin = Math.round(Math.max(width, height) * 0.025);
+      const x = config.position === "right" ? width - boardWidth - margin : margin;
+      const y = height - boardHeight - margin;
+      const lineWidth = Math.max(3, Math.round(boardWidth / 180));
+      const headerRows = 5;
+      const rowHeight = Math.round(boardHeight * 0.13);
+      const labelWidth = Math.round(boardWidth * 0.22);
+      const kindWidth = Math.round(boardWidth * 0.30);
+      const footerHeight = Math.round(boardHeight * 0.13);
+      const values = config.values || {};
+
+      context.save();
+      context.fillStyle = "rgba(255, 255, 255, 0.96)";
+      context.fillRect(x, y, boardWidth, boardHeight);
+      context.strokeStyle = "#111";
+      context.lineWidth = lineWidth;
+      context.strokeRect(x, y, boardWidth, boardHeight);
+
+      context.fillStyle = "#fffec9";
+      context.fillRect(x + boardWidth - kindWidth, y, kindWidth, rowHeight);
+
+      context.beginPath();
+      for (let index = 1; index <= headerRows; index += 1) {
+        const lineY = y + rowHeight * index;
+        context.moveTo(x, lineY);
+        context.lineTo(x + boardWidth, lineY);
+      }
+      context.moveTo(x + labelWidth, y);
+      context.lineTo(x + labelWidth, y + rowHeight * headerRows);
+      context.moveTo(x + boardWidth - kindWidth, y);
+      context.lineTo(x + boardWidth - kindWidth, y + rowHeight);
+      context.moveTo(x, y + boardHeight - footerHeight);
+      context.lineTo(x + boardWidth, y + boardHeight - footerHeight);
+      context.stroke();
+
+      const labels = ["工事名", "工事年月日", "メーカー名", "工事場所", "杭長×本数"];
+      const keys = ["project", "date", "maker", "place", "piles"];
+      const pad = Math.round(boardWidth * 0.012);
+      const labelFont = Math.max(20, Math.round(rowHeight * 0.44));
+      const valueFont = Math.max(18, Math.round(rowHeight * 0.42));
+      const footerFont = Math.max(20, Math.round(footerHeight * 0.48));
+
+      labels.forEach(function (label, index) {
+        const rowY = y + rowHeight * index;
+        drawTextFit(context, label, x + pad, rowY + rowHeight * 0.68, labelWidth - pad * 2, labelFont, "bold");
+        if (index === 0) {
+          drawTextFit(context, values.project || "", x + labelWidth + pad, rowY + rowHeight * 0.68, boardWidth - labelWidth - kindWidth - pad * 2, valueFont, "bold");
+          drawTextFit(context, values.kind || "", x + boardWidth - kindWidth + pad, rowY + rowHeight * 0.68, kindWidth - pad * 2, valueFont, "bold");
+        } else {
+          drawTextFit(context, values[keys[index]] || "", x + labelWidth + pad, rowY + rowHeight * 0.68, boardWidth - labelWidth - pad * 2, valueFont, "bold");
+        }
+      });
+
+      drawTextFit(
+        context,
+        values.footer || "",
+        x + labelWidth + pad,
+        y + boardHeight - footerHeight * 0.32,
+        boardWidth - labelWidth - pad * 2,
+        footerFont,
+        "bold",
+        "right"
+      );
+      context.restore();
+    }
+
+    function drawTextFit(context, text, x, baselineY, maxWidth, fontSize, weight, align) {
+      const family = '"Yu Gothic", "Meiryo", sans-serif';
+      let size = fontSize;
+      const safeText = String(text || "");
+      context.textBaseline = "alphabetic";
+      context.textAlign = align || "left";
+      context.fillStyle = "#000";
+      while (size > 12) {
+        context.font = (weight || "normal") + " " + size + "px " + family;
+        if (context.measureText(safeText).width <= maxWidth) break;
+        size -= 1;
+      }
+      context.fillText(safeText, align === "right" ? x + maxWidth : x, baselineY);
+    }
+
+    function bindBlackboardConfig() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root) return;
+
+      root.querySelectorAll("input").forEach(function (input) {
+        input.addEventListener("change", saveBlackboardConfig);
+        input.addEventListener("input", saveBlackboardConfig);
+      });
+    }
+
+    function saveBlackboardConfig() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root || !window.localStorage) return;
+
+      const enabledInput = root.querySelector(".js-blackboard-enabled:checked");
+      const positionInput = root.querySelector(".js-blackboard-position:checked");
+      const data = {
+        enabled: enabledInput ? enabledInput.value : "1",
+        position: positionInput ? positionInput.value : "left",
+        fields: {}
+      };
+      root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
+        data.fields[input.dataset.blackboardKey] = input.value || "";
+      });
+      try {
+        localStorage.setItem(BLACKBOARD_STORAGE_KEY, JSON.stringify(data));
+      } catch (error) {
+        // iPadのプライベートブラウズ等では保存できない場合がありますが、撮影処理は継続します。
+      }
+    }
+
+    function restoreBlackboardConfig() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root || !window.localStorage) return;
+
+      let raw;
+      try {
+        raw = localStorage.getItem(BLACKBOARD_STORAGE_KEY);
+      } catch (error) {
+        return;
+      }
+      if (!raw) return;
+
+      try {
+        const data = JSON.parse(raw);
+        root.querySelectorAll(".js-blackboard-enabled").forEach(function (input) {
+          input.checked = input.value === data.enabled;
+        });
+        root.querySelectorAll(".js-blackboard-position").forEach(function (input) {
+          input.checked = input.value === data.position;
+        });
+        Object.keys(data.fields || {}).forEach(function (key) {
+          const input = root.querySelector(".js-blackboard-field[data-blackboard-key='" + key + "']");
+          if (input) input.value = data.fields[key];
+        });
+      } catch (error) {
+        try {
+          localStorage.removeItem(BLACKBOARD_STORAGE_KEY);
+        } catch (storageError) {
+          // 保存領域に触れない環境では何もしません。
+        }
+      }
     }
 
     function renamedOriginalFile(file) {
