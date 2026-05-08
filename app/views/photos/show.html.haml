@@ -80,6 +80,16 @@
       .photo-blackboard-preview
         .photo-blackboard-preview-title 焼き付けプレビュー
         %canvas.js-blackboard-preview-canvas{ width: 800, height: 600 }
+        .photo-blackboard-adjustments
+          .photo-blackboard-adjustment
+            %label サイズ
+            = range_field_tag :photo_blackboard_scale, 100, min: 70, max: 140, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
+          .photo-blackboard-adjustment
+            %label 横位置
+            = range_field_tag :photo_blackboard_offset_x, 0, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetX" }
+          .photo-blackboard-adjustment
+            %label 縦位置
+            = range_field_tag :photo_blackboard_offset_y, 0, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetY" }
 
     - @detail_sections.each do |section|
       .photo-detail-section
@@ -264,7 +274,7 @@
       button.addEventListener("click", function () {
         const saveForm = document.getElementById(button.dataset.saveForm);
         if (button.dataset.mode === "save") {
-          if (saveForm) saveForm.requestSubmit ? saveForm.requestSubmit() : saveForm.submit();
+          if (saveForm) submitRememberingScroll(saveForm);
           return;
         }
 
@@ -297,6 +307,7 @@
     });
 
     document.querySelectorAll(".js-photo-upload-form").forEach(bindPhotoUploadForm);
+    document.querySelectorAll("form").forEach(bindPhotoScrollMemory);
 
     document.querySelectorAll(".js-delete-confirm").forEach(function (form) {
       form.addEventListener("submit", function (event) {
@@ -369,6 +380,7 @@
       container.querySelectorAll(".js-photo-file-choice input[type='file']").forEach(bindPhotoFileInput);
       container.querySelectorAll(".js-photo-selected-file").forEach(bindUploadRetryLabel);
       container.querySelectorAll(".js-photo-upload-form").forEach(bindPhotoUploadForm);
+      container.querySelectorAll("form").forEach(bindPhotoScrollMemory);
     }
 
     function bindPhotoTableClose(button) {
@@ -467,7 +479,7 @@
       const form = input.form;
       if (form && input.files && input.files.length > 0) {
         form.dataset.activeFileInput = input.id;
-        form.requestSubmit ? form.requestSubmit() : form.submit();
+        submitRememberingScroll(form);
       } else {
         input.click();
       }
@@ -510,6 +522,19 @@
         anchorTop: anchorTop,
         scrollY: Math.round(window.scrollY)
       }));
+    }
+
+    function bindPhotoScrollMemory(form) {
+      if (form.dataset.photoScrollBound === "true") return;
+      form.dataset.photoScrollBound = "true";
+      form.addEventListener("submit", function () {
+        rememberPhotoScroll(form);
+      }, true);
+    }
+
+    function submitRememberingScroll(form) {
+      rememberPhotoScroll(form);
+      form.requestSubmit ? form.requestSubmit() : form.submit();
     }
 
     function restorePhotoScroll() {
@@ -625,10 +650,16 @@
       root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
         values[input.dataset.blackboardKey] = input.value || "";
       });
+      const scaleInput = root.querySelector(".js-blackboard-adjust[data-blackboard-key='scale']");
+      const offsetXInput = root.querySelector(".js-blackboard-adjust[data-blackboard-key='offsetX']");
+      const offsetYInput = root.querySelector(".js-blackboard-adjust[data-blackboard-key='offsetY']");
 
       return {
         enabled: !enabledInput || enabledInput.value === "1",
         position: positionInput ? positionInput.value : "left",
+        scale: scaleInput ? numberInRange(scaleInput.value, 70, 140, 100) / 100 : 1,
+        offsetX: offsetXInput ? numberInRange(offsetXInput.value, -120, 120, 0) : 0,
+        offsetY: offsetYInput ? numberInRange(offsetYInput.value, -120, 120, 0) : 0,
         values: values
       };
     }
@@ -636,13 +667,18 @@
     function drawBlackboard(context, canvas, config) {
       const width = canvas.width;
       const height = canvas.height;
-      const boardWidth = Math.round(Math.min(width * 0.30, Math.max(width * 0.26, 360)));
-      const dataRowHeight = Math.round(boardWidth * 0.075);
-      const blankHeight = Math.round(boardWidth * 0.07);
-      const footerHeight = Math.round(boardWidth * 0.075);
+      const scale = config.scale || 1;
+      const boardWidth = Math.round(Math.min(width * 0.45, Math.max(width * 0.39, 540)) * scale);
+      const dataRowHeight = Math.round(boardWidth * 0.09);
+      const blankHeight = Math.round(boardWidth * 0.084);
+      const footerHeight = Math.round(boardWidth * 0.09);
       const boardHeight = dataRowHeight * 5 + blankHeight + footerHeight;
-      const x = config.position === "right" ? width - boardWidth : 0;
-      const y = height - boardHeight;
+      const maxOffset = Math.max(width, height);
+      const offsetX = Math.round((config.offsetX || 0) / 120 * maxOffset * 0.08);
+      const offsetY = Math.round((config.offsetY || 0) / 120 * maxOffset * 0.08);
+      const baseX = config.position === "right" ? width - boardWidth : 0;
+      const x = Math.max(0, Math.min(width - boardWidth, baseX + offsetX));
+      const y = Math.max(0, Math.min(height - boardHeight, height - boardHeight + offsetY));
       const lineWidth = Math.max(2, Math.round(boardWidth / 260));
       const headerRows = 5;
       const rowHeight = dataRowHeight;
@@ -665,8 +701,6 @@
       }
       context.moveTo(x + labelWidth, y);
       context.lineTo(x + labelWidth, y + rowHeight * headerRows);
-      context.moveTo(x + boardWidth - kindWidth, y);
-      context.lineTo(x + boardWidth - kindWidth, y + rowHeight);
       context.stroke();
 
       const labels = ["工事名", "工事年月日", "メーカー名", "工事場所", "杭長×本数"];
@@ -681,7 +715,7 @@
         drawTextFit(context, label, x + pad, rowY + rowHeight * 0.68, labelWidth - pad * 2, labelFont, "bold");
         if (index === 0) {
           drawTextFit(context, values.project || "", x + labelWidth + pad, rowY + rowHeight * 0.68, boardWidth - labelWidth - kindWidth - pad * 2, valueFont, "bold");
-          drawTextFit(context, values.kind || "", x + boardWidth - kindWidth + pad, rowY + rowHeight * 0.68, kindWidth - pad * 2, valueFont, "bold");
+          drawTextFit(context, values.kind || "", x + boardWidth - kindWidth + pad, rowY + rowHeight * 0.68, kindWidth - pad * 2, valueFont, "bold", "right");
         } else {
           drawTextFit(context, values[keys[index]] || "", x + labelWidth + pad, rowY + rowHeight * 0.68, boardWidth - labelWidth - pad * 2, valueFont, "bold");
         }
@@ -700,18 +734,29 @@
     }
 
     function drawTextFit(context, text, x, baselineY, maxWidth, fontSize, weight, align) {
-      const family = '"Yu Gothic", "Meiryo", sans-serif';
+      const family = '"Noto Sans CJK JP", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
       let size = fontSize;
       const safeText = String(text || "");
       context.textBaseline = "alphabetic";
       context.textAlign = align || "left";
       context.fillStyle = "#000";
-      while (size > 12) {
+      while (size > 8) {
         context.font = (weight || "normal") + " " + size + "px " + family;
         if (context.measureText(safeText).width <= maxWidth) break;
         size -= 1;
       }
+      context.save();
+      context.beginPath();
+      context.rect(x, baselineY - size * 1.15, maxWidth, size * 1.6);
+      context.clip();
       context.fillText(safeText, align === "right" ? x + maxWidth : x, baselineY);
+      context.restore();
+    }
+
+    function numberInRange(value, min, max, fallback) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return fallback;
+      return Math.max(min, Math.min(max, number));
     }
 
     function bindBlackboardConfig() {
@@ -733,10 +778,14 @@
       const data = {
         enabled: enabledInput ? enabledInput.value : "1",
         position: positionInput ? positionInput.value : "left",
+        adjustments: {},
         fields: {}
       };
       root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
         data.fields[input.dataset.blackboardKey] = input.value || "";
+      });
+      root.querySelectorAll(".js-blackboard-adjust").forEach(function (input) {
+        data.adjustments[input.dataset.blackboardKey] = input.value || "";
       });
       try {
         localStorage.setItem(BLACKBOARD_STORAGE_KEY, JSON.stringify(data));
@@ -769,6 +818,10 @@
         Object.keys(data.fields || {}).forEach(function (key) {
           const input = root.querySelector(".js-blackboard-field[data-blackboard-key='" + key + "']");
           if (input) input.value = data.fields[key];
+        });
+        Object.keys(data.adjustments || {}).forEach(function (key) {
+          const input = root.querySelector(".js-blackboard-adjust[data-blackboard-key='" + key + "']");
+          if (input) input.value = data.adjustments[key];
         });
       } catch (error) {
         try {
@@ -876,7 +929,7 @@
       const form = input.form;
       if (!form || form.dataset.uploading === "true") return;
 
-      form.requestSubmit ? form.requestSubmit() : form.submit();
+      submitRememberingScroll(form);
     }
 
     function retryPendingFileInput() {
@@ -973,6 +1026,7 @@
         const form = targetForm;
         targetForm = null;
         overlay.classList.add("hidden");
+        rememberPhotoScroll(form);
         form.submit();
       });
       back.addEventListener("click", function () {

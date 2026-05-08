@@ -697,6 +697,36 @@ html.app-navigation-loading::after {
   width: 100%;
 }
 
+.photo-blackboard-adjustments {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 10px;
+  max-width: 520px;
+}
+
+.photo-blackboard-adjustment {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.photo-blackboard-adjustment label {
+  color: #475467;
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+  font-weight: 900;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.photo-blackboard-adjustment input[type="range"] {
+  accent-color: #3E5FAA;
+  min-width: 0;
+  width: 100%;
+}
+
 .photo-detail-section {
   background: #fff;
   border: 1px solid #d8dce2;
@@ -1461,6 +1491,10 @@ form.photo-detail-table-actions {
 
   .photo-blackboard-preview canvas {
     max-width: 100%;
+  }
+
+  .photo-blackboard-adjustments {
+    grid-template-columns: 1fr;
   }
 
   .photo-record-status {
