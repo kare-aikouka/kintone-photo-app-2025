@@ -583,15 +583,15 @@ html.app-navigation-loading::after {
   border-radius: 22px;
   box-shadow: 0 14px 28px rgba(41, 74, 131, 0.05);
   margin: 0 0 24px;
-  padding: 18px;
+  padding: 14px;
 }
 
 .photo-blackboard-head {
-  align-items: flex-start;
+  align-items: center;
   display: flex;
   gap: 12px;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .photo-blackboard-title {
@@ -609,8 +609,8 @@ html.app-navigation-loading::after {
 .photo-blackboard-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .photo-blackboard-option {
@@ -621,48 +621,50 @@ html.app-navigation-loading::after {
   color: #344054;
   display: inline-flex;
   font-weight: 900;
-  gap: 8px;
-  min-height: 48px;
-  padding: 10px 16px;
+  gap: 6px;
+  min-height: 38px;
+  padding: 7px 12px;
 }
 
 .photo-blackboard-option input {
   accent-color: #3f63b5;
-  height: 20px;
-  width: 20px;
+  height: 18px;
+  width: 18px;
 }
 
 .photo-blackboard-grid {
   display: grid;
-  gap: 12px;
+  gap: 8px 12px;
   grid-template-columns: repeat(2, minmax(240px, 1fr));
 }
 
 .photo-blackboard-field {
+  align-items: center;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.photo-blackboard-field-wide {
-  grid-column: 1 / -1;
+  gap: 8px;
+  min-width: 0;
 }
 
 .photo-blackboard-field label {
   color: #475467;
   font-size: 0.9rem;
   font-weight: 900;
+  flex: 0 0 88px;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .photo-blackboard-input {
   background: #fff;
   border: 1px solid #cfd8e8;
-  border-radius: 12px;
+  border-radius: 10px;
   color: #1f2937;
-  font-size: 1rem;
+  flex: 1 1 auto;
+  font-size: 0.95rem;
   font-weight: 800;
-  min-height: 48px;
-  padding: 10px 12px;
+  min-height: 38px;
+  min-width: 0;
+  padding: 7px 10px;
   width: 100%;
 }
 
@@ -670,6 +672,29 @@ html.app-navigation-loading::after {
   border-color: #3f63b5;
   box-shadow: 0 0 0 3px rgba(63, 99, 181, 0.14);
   outline: none;
+}
+
+.photo-blackboard-preview {
+  border-top: 1px solid #eef2f7;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.photo-blackboard-preview-title {
+  color: #475467;
+  font-size: 0.88rem;
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.photo-blackboard-preview canvas {
+  background: linear-gradient(135deg, #e5e7eb 0%, #f8fafc 52%, #d8dee8 100%);
+  border: 1px solid #d8dce2;
+  border-radius: 10px;
+  display: block;
+  height: auto;
+  max-width: 360px;
+  width: 100%;
 }
 
 .photo-detail-section {
@@ -1434,6 +1459,10 @@ form.photo-detail-table-actions {
     grid-template-columns: 1fr;
   }
 
+  .photo-blackboard-preview canvas {
+    max-width: 100%;
+  }
+
   .photo-record-status {
     min-width: 0;
     text-align: left;
@@ -1463,19 +1492,24 @@ form.photo-detail-table-actions {
   .photo-blackboard-option {
     flex: 1 1 calc(50% - 6px);
     justify-content: center;
-    min-height: 56px;
+    min-height: 48px;
   }
 
   .photo-blackboard-input {
     font-size: 1.06rem;
-    min-height: 56px;
+    min-height: 48px;
+  }
+
+  .photo-blackboard-field label {
+    flex-basis: 96px;
   }
 
   .photo-record-actions .btn {
-    flex: 1 1 calc(50% - 8px);
-    font-size: 1.08rem;
-    min-height: 60px;
+    flex: 1 1 calc(25% - 6px);
+    font-size: 0.9rem;
+    min-height: 46px;
     min-width: 0;
+    padding: 8px 4px;
   }
 
   .photo-detail-table {

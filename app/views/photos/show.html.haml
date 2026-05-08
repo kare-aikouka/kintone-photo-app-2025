@@ -60,6 +60,9 @@
           %label 工事名
           = text_field_tag :photo_blackboard_project, blackboard_project, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "project" }
         .photo-blackboard-field
+          %label 右上表記
+          = text_field_tag :photo_blackboard_kind, "様邸新築工事", class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "kind" }
+        .photo-blackboard-field
           %label 工事年月日
           = text_field_tag :photo_blackboard_date, blackboard_date, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "date" }
         .photo-blackboard-field
@@ -72,11 +75,11 @@
           %label 杭長×本数
           = text_field_tag :photo_blackboard_piles, blackboard_piles, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "piles" }
         .photo-blackboard-field
-          %label 右上表記
-          = text_field_tag :photo_blackboard_kind, "様邸新築工事", class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "kind" }
-        .photo-blackboard-field.photo-blackboard-field-wide
           %label 下部表記
           = text_field_tag :photo_blackboard_footer, "會澤高圧コンクリート(株)", class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "footer" }
+      .photo-blackboard-preview
+        .photo-blackboard-preview-title 焼き付けプレビュー
+        %canvas.js-blackboard-preview-canvas{ width: 800, height: 600 }
 
     - @detail_sections.each do |section|
       .photo-detail-section
@@ -248,6 +251,7 @@
     restorePhotoScroll();
     restoreBlackboardConfig();
     bindBlackboardConfig();
+    updateBlackboardPreview();
 
     document.querySelectorAll(".js-photo-table-toggle").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -632,17 +636,18 @@
     function drawBlackboard(context, canvas, config) {
       const width = canvas.width;
       const height = canvas.height;
-      const boardWidth = Math.round(Math.min(width * 0.58, Math.max(width * 0.46, 760)));
-      const boardHeight = Math.round(Math.min(height * 0.48, boardWidth * 0.62));
-      const margin = Math.round(Math.max(width, height) * 0.025);
-      const x = config.position === "right" ? width - boardWidth - margin : margin;
-      const y = height - boardHeight - margin;
-      const lineWidth = Math.max(3, Math.round(boardWidth / 180));
+      const boardWidth = Math.round(Math.min(width * 0.30, Math.max(width * 0.26, 360)));
+      const dataRowHeight = Math.round(boardWidth * 0.075);
+      const blankHeight = Math.round(boardWidth * 0.07);
+      const footerHeight = Math.round(boardWidth * 0.075);
+      const boardHeight = dataRowHeight * 5 + blankHeight + footerHeight;
+      const x = config.position === "right" ? width - boardWidth : 0;
+      const y = height - boardHeight;
+      const lineWidth = Math.max(2, Math.round(boardWidth / 260));
       const headerRows = 5;
-      const rowHeight = Math.round(boardHeight * 0.13);
+      const rowHeight = dataRowHeight;
       const labelWidth = Math.round(boardWidth * 0.22);
       const kindWidth = Math.round(boardWidth * 0.30);
-      const footerHeight = Math.round(boardHeight * 0.13);
       const values = config.values || {};
 
       context.save();
@@ -651,9 +656,6 @@
       context.strokeStyle = "#111";
       context.lineWidth = lineWidth;
       context.strokeRect(x, y, boardWidth, boardHeight);
-
-      context.fillStyle = "#fffec9";
-      context.fillRect(x + boardWidth - kindWidth, y, kindWidth, rowHeight);
 
       context.beginPath();
       for (let index = 1; index <= headerRows; index += 1) {
@@ -665,16 +667,14 @@
       context.lineTo(x + labelWidth, y + rowHeight * headerRows);
       context.moveTo(x + boardWidth - kindWidth, y);
       context.lineTo(x + boardWidth - kindWidth, y + rowHeight);
-      context.moveTo(x, y + boardHeight - footerHeight);
-      context.lineTo(x + boardWidth, y + boardHeight - footerHeight);
       context.stroke();
 
       const labels = ["工事名", "工事年月日", "メーカー名", "工事場所", "杭長×本数"];
       const keys = ["project", "date", "maker", "place", "piles"];
       const pad = Math.round(boardWidth * 0.012);
-      const labelFont = Math.max(20, Math.round(rowHeight * 0.44));
-      const valueFont = Math.max(18, Math.round(rowHeight * 0.42));
-      const footerFont = Math.max(20, Math.round(footerHeight * 0.48));
+      const labelFont = Math.max(14, Math.round(rowHeight * 0.42));
+      const valueFont = Math.max(13, Math.round(rowHeight * 0.40));
+      const footerFont = Math.max(14, Math.round(footerHeight * 0.46));
 
       labels.forEach(function (label, index) {
         const rowY = y + rowHeight * index;
@@ -686,13 +686,12 @@
           drawTextFit(context, values[keys[index]] || "", x + labelWidth + pad, rowY + rowHeight * 0.68, boardWidth - labelWidth - pad * 2, valueFont, "bold");
         }
       });
-
       drawTextFit(
         context,
         values.footer || "",
-        x + labelWidth + pad,
-        y + boardHeight - footerHeight * 0.32,
-        boardWidth - labelWidth - pad * 2,
+        x + pad,
+        y + boardHeight - footerHeight * 0.28,
+        boardWidth - pad * 2,
         footerFont,
         "bold",
         "right"
@@ -744,6 +743,7 @@
       } catch (error) {
         // iPadのプライベートブラウズ等では保存できない場合がありますが、撮影処理は継続します。
       }
+      updateBlackboardPreview();
     }
 
     function restoreBlackboardConfig() {
@@ -777,6 +777,23 @@
           // 保存領域に触れない環境では何もしません。
         }
       }
+    }
+
+    function updateBlackboardPreview() {
+      const canvas = document.querySelector(".js-blackboard-preview-canvas");
+      if (!canvas) return;
+
+      const context = canvas.getContext("2d");
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, "#dbe3ee");
+      gradient.addColorStop(0.52, "#f8fafc");
+      gradient.addColorStop(1, "#cbd5e1");
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      const config = currentBlackboardConfig();
+      if (config.enabled) drawBlackboard(context, canvas, config);
     }
 
     function renamedOriginalFile(file) {
