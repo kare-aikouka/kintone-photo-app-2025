@@ -67,13 +67,13 @@
           %label 工事年月日
           = text_field_tag :photo_blackboard_date, blackboard_date, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "date" }
         .photo-blackboard-field
-          %label メーカー名
+          %label 施工者
           = text_field_tag :photo_blackboard_maker, blackboard_maker, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "maker" }
         .photo-blackboard-field
           %label 工事場所
           = text_field_tag :photo_blackboard_place, blackboard_place, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "place" }
         .photo-blackboard-field
-          %label 杭長×本数
+          %label 施工明細
           = text_field_tag :photo_blackboard_piles, blackboard_piles, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "piles" }
         .photo-blackboard-field
           %label 下部表記
@@ -256,6 +256,7 @@
     const PHOTO_MAX_SIZE = 1200;
     const PHOTO_JPEG_QUALITY = 0.90;
     const BLACKBOARD_STORAGE_KEY = "photo-blackboard:" + window.location.pathname;
+    const BLACKBOARD_FONT_FAMILY = '"Noto Sans CJK JP", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
     const deleteConfirm = buildDeleteConfirm();
     const photoPreview = buildPhotoPreview();
     const uploadIndicator = buildUploadIndicator();
@@ -682,19 +683,36 @@
       const dataRowHeight = Math.round(boardWidth * 0.09);
       const blankHeight = Math.round(boardWidth * 0.084);
       const footerHeight = Math.round(boardWidth * 0.09);
-      const boardHeight = dataRowHeight * 5 + blankHeight + footerHeight;
       const maxOffset = Math.max(width, height);
       const offsetX = Math.round((config.offsetX || 0) / 120 * maxOffset * 0.08);
       const offsetY = Math.round((config.offsetY || 0) / 120 * maxOffset * 0.08);
-      const baseX = config.position === "right" ? width - boardWidth : 0;
-      const x = Math.max(0, Math.min(width - boardWidth, baseX + offsetX));
-      const y = Math.max(0, Math.min(height - boardHeight, height - boardHeight + offsetY));
       const lineWidth = Math.max(2, Math.round(boardWidth / 260));
       const headerRows = 5;
-      const rowHeight = dataRowHeight;
       const labelWidth = Math.round(boardWidth * 0.22);
       const kindWidth = Math.round(boardWidth * 0.30);
       const values = config.values || {};
+      const labels = ["工事名", "工事年月日", "施工者", "工事場所", "施工明細"];
+      const keys = ["project", "date", "maker", "place", "piles"];
+      const pad = Math.round(boardWidth * 0.012);
+      const labelFont = Math.max(14, Math.round(dataRowHeight * 0.42));
+      const valueFont = Math.max(13, Math.round(dataRowHeight * 0.40));
+      const footerFont = Math.max(14, Math.round(footerHeight * 0.46));
+      const rowLayouts = labels.map(function (_label, index) {
+        const valueWidth = index === 0 ? boardWidth - labelWidth - kindWidth - pad * 2 : boardWidth - labelWidth - pad * 2;
+        const projectLines = index === 0 ? textLineCount(context, values.project || "", valueWidth, valueFont, "bold", 2) : 1;
+        const kindLines = index === 0 ? textLineCount(context, values.kind || "", kindWidth - pad * 2, valueFont, "bold", 2) : 1;
+        const valueLines = index === 0 ? Math.max(projectLines, kindLines) : textLineCount(context, values[keys[index]] || "", valueWidth, valueFont, "bold", index === 1 ? 1 : 2);
+        const lineHeight = Math.round(valueFont * 1.18);
+        return {
+          height: Math.max(dataRowHeight, valueLines * lineHeight + pad * 2),
+          valueLines: valueLines
+        };
+      });
+      const rowsHeight = rowLayouts.reduce(function (sum, row) { return sum + row.height; }, 0);
+      const boardHeight = rowsHeight + blankHeight + footerHeight;
+      const baseX = config.position === "right" ? width - boardWidth : 0;
+      const x = Math.max(0, Math.min(width - boardWidth, baseX + offsetX));
+      const y = Math.max(0, Math.min(height - boardHeight, height - boardHeight + offsetY));
 
       context.save();
       context.fillStyle = "rgba(255, 255, 255, 0.96)";
@@ -704,31 +722,30 @@
       context.strokeRect(x, y, boardWidth, boardHeight);
 
       context.beginPath();
-      for (let index = 1; index <= headerRows; index += 1) {
-        const lineY = y + rowHeight * index;
-        context.moveTo(x, lineY);
-        context.lineTo(x + boardWidth, lineY);
-      }
+      let cursorY = y;
+      rowLayouts.forEach(function (row, index) {
+        cursorY += row.height;
+        if (index < headerRows) {
+          context.moveTo(x, cursorY);
+          context.lineTo(x + boardWidth, cursorY);
+        }
+      });
       context.moveTo(x + labelWidth, y);
-      context.lineTo(x + labelWidth, y + rowHeight * headerRows);
+      context.lineTo(x + labelWidth, y + rowsHeight);
       context.stroke();
 
-      const labels = ["工事名", "工事年月日", "メーカー名", "工事場所", "杭長×本数"];
-      const keys = ["project", "date", "maker", "place", "piles"];
-      const pad = Math.round(boardWidth * 0.012);
-      const labelFont = Math.max(14, Math.round(rowHeight * 0.42));
-      const valueFont = Math.max(13, Math.round(rowHeight * 0.40));
-      const footerFont = Math.max(14, Math.round(footerHeight * 0.46));
-
+      cursorY = y;
       labels.forEach(function (label, index) {
-        const rowY = y + rowHeight * index;
-        drawTextFit(context, label, x + pad, rowY + rowHeight * 0.68, labelWidth - pad * 2, labelFont, "bold");
+        const rowHeight = rowLayouts[index].height;
+        const rowY = cursorY;
+        drawTextFit(context, label, x + pad, rowY + rowHeight * 0.66, labelWidth - pad * 2, labelFont, "bold");
         if (index === 0) {
-          drawTextFit(context, values.project || "", x + labelWidth + pad, rowY + rowHeight * 0.68, boardWidth - labelWidth - kindWidth - pad * 2, valueFont, "bold");
-          drawTextFit(context, values.kind || "", x + boardWidth - kindWidth + pad, rowY + rowHeight * 0.68, kindWidth - pad * 2, valueFont, "bold", "right");
+          drawTextFitMultiline(context, values.project || "", x + labelWidth + pad, rowY, boardWidth - labelWidth - kindWidth - pad * 2, rowHeight, valueFont, "bold", "left", 2);
+          drawTextFitMultiline(context, values.kind || "", x + boardWidth - kindWidth + pad, rowY, kindWidth - pad * 2, rowHeight, valueFont, "bold", "right", 2);
         } else {
-          drawTextFit(context, values[keys[index]] || "", x + labelWidth + pad, rowY + rowHeight * 0.68, boardWidth - labelWidth - pad * 2, valueFont, "bold");
+          drawTextFitMultiline(context, values[keys[index]] || "", x + labelWidth + pad, rowY, boardWidth - labelWidth - pad * 2, rowHeight, valueFont, "bold", "left", index === 1 ? 1 : 2);
         }
+        cursorY += rowHeight;
       });
       drawTextFit(
         context,
@@ -744,14 +761,13 @@
     }
 
     function drawTextFit(context, text, x, baselineY, maxWidth, fontSize, weight, align) {
-      const family = '"Noto Sans CJK JP", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
       let size = fontSize;
       const safeText = String(text || "");
       context.textBaseline = "alphabetic";
       context.textAlign = align || "left";
       context.fillStyle = "#000";
       while (size > 8) {
-        context.font = (weight || "normal") + " " + size + "px " + family;
+        context.font = (weight || "normal") + " " + size + "px " + BLACKBOARD_FONT_FAMILY;
         if (context.measureText(safeText).width <= maxWidth) break;
         size -= 1;
       }
@@ -761,6 +777,75 @@
       context.clip();
       context.fillText(safeText, align === "right" ? x + maxWidth : x, baselineY);
       context.restore();
+    }
+
+    function drawTextFitMultiline(context, text, x, y, maxWidth, maxHeight, fontSize, weight, align, maxLines) {
+      let size = fontSize;
+      let lines = [];
+      const limit = maxLines || 2;
+      const safeText = String(text || "");
+      context.textBaseline = "alphabetic";
+      context.textAlign = align || "left";
+      context.fillStyle = "#000";
+      while (size > 8) {
+        context.font = (weight || "normal") + " " + size + "px " + BLACKBOARD_FONT_FAMILY;
+        lines = wrapTextLines(context, safeText, maxWidth);
+        const lineHeight = Math.round(size * 1.18);
+        if (lines.length <= limit && lines.length * lineHeight <= maxHeight * 0.86) break;
+        size -= 1;
+      }
+      context.font = (weight || "normal") + " " + size + "px " + BLACKBOARD_FONT_FAMILY;
+      lines = wrapTextLines(context, safeText, maxWidth);
+      if (lines.length > limit) {
+        lines = lines.slice(0, limit);
+        lines[limit - 1] = truncateTextLine(context, lines[limit - 1], maxWidth);
+      }
+      const lineHeight = Math.round(size * 1.18);
+      const totalHeight = lines.length * lineHeight;
+      const firstBaseline = y + Math.max(size, (maxHeight - totalHeight) / 2 + size);
+      const textX = align === "right" ? x + maxWidth : x;
+
+      context.save();
+      context.beginPath();
+      context.rect(x, y, maxWidth, maxHeight);
+      context.clip();
+      lines.forEach(function (line, index) {
+        context.fillText(line, textX, firstBaseline + index * lineHeight);
+      });
+      context.restore();
+    }
+
+    function textLineCount(context, text, maxWidth, fontSize, weight, maxLines) {
+      context.font = (weight || "normal") + " " + fontSize + "px " + BLACKBOARD_FONT_FAMILY;
+      const lines = wrapTextLines(context, String(text || ""), maxWidth);
+      return Math.max(1, Math.min(lines.length, maxLines || 1));
+    }
+
+    function wrapTextLines(context, text, maxWidth) {
+      const safeText = String(text || "");
+      if (!safeText) return [""];
+
+      const lines = [];
+      let line = "";
+      Array.from(safeText).forEach(function (char) {
+        const candidate = line + char;
+        if (line && context.measureText(candidate).width > maxWidth) {
+          lines.push(line);
+          line = char;
+        } else {
+          line = candidate;
+        }
+      });
+      lines.push(line);
+      return lines;
+    }
+
+    function truncateTextLine(context, text, maxWidth) {
+      let line = String(text || "");
+      while (line.length > 0 && context.measureText(line + "…").width > maxWidth) {
+        line = line.slice(0, -1);
+      }
+      return line ? line + "…" : "…";
     }
 
     function numberInRange(value, min, max, fallback) {
