@@ -37,7 +37,8 @@
     - blackboard_project = field_value(@record, :site).presence || record_title(@record)
     - blackboard_maker = field_value(@record, :company).presence || ""
     - blackboard_place = record_address(@record).presence || ""
-    - blackboard_piles = field_value(@record, :detail).presence || ""
+    - blackboard_piles_parts = field_value(@record, :detail).to_s.split(/[、,]/).map(&:strip).reject(&:blank?)
+    - blackboard_piles = blackboard_piles_parts.take_while { |part| !part.match?(/\A(?:JIS\b|カーボン|キュア|.*材)/i) && (part.match?(/[0-9０-９]/) || part.match?(/\A(?:本体|付帯|看板)/)) }.join(",")
     .photo-blackboard.js-photo-blackboard-config{ data: { record_id: record_id(@record) } }
       .photo-blackboard-head
         .photo-blackboard-title 電子黒板
@@ -84,6 +85,8 @@
           .photo-blackboard-adjustment
             %label サイズ
             = range_field_tag :photo_blackboard_scale, 100, min: 70, max: 140, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
+        .photo-blackboard-position-adjustments
+          .photo-blackboard-position-adjustments-title 位置微調整
           .photo-blackboard-adjustment
             %label 横位置
             = range_field_tag :photo_blackboard_offset_x, 0, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetX" }
@@ -260,6 +263,7 @@
 
     restorePhotoScroll();
     restoreBlackboardConfig();
+    sanitizeBlackboardPilesInput();
     bindBlackboardConfig();
     updateBlackboardPreview();
 
@@ -650,6 +654,9 @@
       root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
         values[input.dataset.blackboardKey] = input.value || "";
       });
+      if (Object.prototype.hasOwnProperty.call(values, "piles")) {
+        values.piles = sanitizeBlackboardPilesValue(values.piles);
+      }
       const scaleInput = root.querySelector(".js-blackboard-adjust[data-blackboard-key='scale']");
       const offsetXInput = root.querySelector(".js-blackboard-adjust[data-blackboard-key='offsetX']");
       const offsetYInput = root.querySelector(".js-blackboard-adjust[data-blackboard-key='offsetY']");
@@ -782,7 +789,8 @@
         fields: {}
       };
       root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
-        data.fields[input.dataset.blackboardKey] = input.value || "";
+        const key = input.dataset.blackboardKey;
+        data.fields[key] = key === "piles" ? sanitizeBlackboardPilesValue(input.value) : (input.value || "");
       });
       root.querySelectorAll(".js-blackboard-adjust").forEach(function (input) {
         data.adjustments[input.dataset.blackboardKey] = input.value || "";
@@ -830,6 +838,34 @@
           // 保存領域に触れない環境では何もしません。
         }
       }
+    }
+
+    function sanitizeBlackboardPilesInput() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root) return;
+
+      const input = root.querySelector(".js-blackboard-field[data-blackboard-key='piles']");
+      if (input) input.value = sanitizeBlackboardPilesValue(input.value);
+    }
+
+    function sanitizeBlackboardPilesValue(value) {
+      const parts = String(value || "").split(/[、,]/).map(function (part) {
+        return part.trim();
+      }).filter(Boolean);
+      const kept = [];
+      parts.some(function (part) {
+        if (isBlackboardPilesExcludedPart(part)) return true;
+        if (/[0-9０-９]/.test(part) || /^(本体|付帯|看板)/.test(part)) {
+          kept.push(part);
+          return false;
+        }
+        return kept.length > 0;
+      });
+      return kept.join(",");
+    }
+
+    function isBlackboardPilesExcludedPart(part) {
+      return /^(JIS\b|カーボン|キュア|.*材)/i.test(part || "");
     }
 
     function updateBlackboardPreview() {
