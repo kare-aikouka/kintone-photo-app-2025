@@ -722,6 +722,32 @@ html.app-navigation-loading::after {
   letter-spacing: 0.02em;
 }
 
+.photo-blackboard-reset-area {
+  border-top: 1px solid #eef2f7;
+  margin-top: 18px;
+  padding-top: 12px;
+  text-align: right;
+}
+
+.photo-blackboard-reset {
+  background: #fff;
+  border: 1px solid #d8dce2;
+  border-radius: 999px;
+  color: #667085;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 900;
+  min-height: 34px;
+  padding: 7px 14px;
+}
+
+.photo-blackboard-reset:focus,
+.photo-blackboard-reset:hover {
+  border-color: #f59e0b;
+  color: #92400e;
+  outline: none;
+}
+
 .photo-blackboard-adjustment {
   align-items: center;
   display: flex;

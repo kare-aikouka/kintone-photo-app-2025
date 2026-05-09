@@ -93,6 +93,8 @@
           .photo-blackboard-adjustment
             %label 縦位置
             = range_field_tag :photo_blackboard_offset_y, 0, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetY" }
+        .photo-blackboard-reset-area
+          %button.photo-blackboard-reset.js-blackboard-reset{ type: "button" } kintone値に戻す
 
     - @detail_sections.each do |section|
       .photo-detail-section
@@ -264,6 +266,7 @@
     restorePhotoScroll();
     restoreBlackboardConfig();
     sanitizeBlackboardPilesInput();
+    syncBlackboardFieldDefaults();
     bindBlackboardConfig();
     updateBlackboardPreview();
 
@@ -774,6 +777,10 @@
         input.addEventListener("change", saveBlackboardConfig);
         input.addEventListener("input", saveBlackboardConfig);
       });
+      const resetButton = root.querySelector(".js-blackboard-reset");
+      if (resetButton) {
+        resetButton.addEventListener("click", resetBlackboardFieldsToDefaults);
+      }
     }
 
     function saveBlackboardConfig() {
@@ -790,7 +797,9 @@
       };
       root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
         const key = input.dataset.blackboardKey;
-        data.fields[key] = key === "piles" ? sanitizeBlackboardPilesValue(input.value) : (input.value || "");
+        const value = normalizedBlackboardFieldValue(input);
+        const defaultValue = normalizedBlackboardFieldDefault(input);
+        if (value !== defaultValue) data.fields[key] = value;
       });
       root.querySelectorAll(".js-blackboard-adjust").forEach(function (input) {
         data.adjustments[input.dataset.blackboardKey] = input.value || "";
@@ -846,6 +855,36 @@
 
       const input = root.querySelector(".js-blackboard-field[data-blackboard-key='piles']");
       if (input) input.value = sanitizeBlackboardPilesValue(input.value);
+    }
+
+    function syncBlackboardFieldDefaults() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root) return;
+
+      root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
+        input.dataset.blackboardDefault = normalizedBlackboardFieldDefault(input);
+      });
+    }
+
+    function resetBlackboardFieldsToDefaults() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root) return;
+      if (!window.confirm("電子黒板の入力内容をkintone初期値に戻します。よろしいですか？")) return;
+
+      root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
+        input.value = normalizedBlackboardFieldDefault(input);
+      });
+      saveBlackboardConfig();
+    }
+
+    function normalizedBlackboardFieldValue(input) {
+      const value = input.value || "";
+      return input.dataset.blackboardKey === "piles" ? sanitizeBlackboardPilesValue(value) : value;
+    }
+
+    function normalizedBlackboardFieldDefault(input) {
+      const fallback = input.dataset.blackboardDefault != null ? input.dataset.blackboardDefault : input.defaultValue;
+      return input.dataset.blackboardKey === "piles" ? sanitizeBlackboardPilesValue(fallback) : (fallback || "");
     }
 
     function sanitizeBlackboardPilesValue(value) {
