@@ -782,7 +782,7 @@
       return {
         enabled: true,
         position: (saved && saved.position) || current.position || "left",
-        scale: baseScale * 1.05,
+        scale: baseScale * 1.02,
         offsetX: baseOffsetX,
         offsetY: baseOffsetY,
         values: current.values || {}
@@ -821,7 +821,7 @@
         fileName: button.dataset.fileName || "",
         enabled: true,
         position: overwriteConfig.position || "left",
-        scale: (overwriteConfig.scale || 1.05) / 1.05,
+        scale: (overwriteConfig.scale || 1.02) / 1.02,
         offsetX: overwriteConfig.offsetX || 0,
         offsetY: overwriteConfig.offsetY || 0,
         values: overwriteConfig.values || {},
@@ -914,7 +914,7 @@
       const y = Math.max(0, Math.min(height - boardHeight, height - boardHeight + offsetY));
 
       context.save();
-      context.fillStyle = "rgba(255, 255, 255, 0.96)";
+      context.fillStyle = "#fff";
       context.fillRect(x, y, boardWidth, boardHeight);
       context.strokeStyle = "#111";
       context.lineWidth = lineWidth;

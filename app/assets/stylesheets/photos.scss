@@ -1047,6 +1047,10 @@ form.photo-detail-table-actions {
   padding: 12px;
 }
 
+.photo-table-capture-button:not(.photo-table-gallery-button) {
+  min-width: 126px;
+}
+
 .btn-icon {
   display: inline-block;
   font-size: 1.8rem;
@@ -1656,6 +1660,10 @@ form.photo-detail-table-actions {
     min-height: 64px;
     min-width: 84px;
     width: auto;
+  }
+
+  .photo-table-capture-button:not(.photo-table-gallery-button) {
+    min-width: 126px;
   }
 
   .photo-table-form-actions .btn,
