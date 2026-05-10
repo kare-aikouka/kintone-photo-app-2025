@@ -1043,7 +1043,7 @@ form.photo-detail-table-actions {
   font-weight: 800;
   justify-content: center;
   min-height: 64px;
-  min-width: 64px;
+  min-width: 84px;
   padding: 12px;
 }
 
@@ -1201,6 +1201,10 @@ form.photo-detail-table-actions {
   flex-direction: column;
   gap: 10px;
   max-width: 190px;
+}
+
+.photo-blackboard-overwrite-list.hidden {
+  display: none;
 }
 
 .photo-table-row-save {
@@ -1650,7 +1654,7 @@ form.photo-detail-table-actions {
   .photo-table-capture-button {
     font-size: 1.6rem;
     min-height: 64px;
-    min-width: 64px;
+    min-width: 84px;
     width: auto;
   }
 

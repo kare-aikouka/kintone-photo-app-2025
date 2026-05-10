@@ -89,10 +89,10 @@
           .photo-blackboard-position-adjustments-title 位置微調整
           .photo-blackboard-adjustment
             %label 横位置
-            = range_field_tag :photo_blackboard_offset_x, 0, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetX" }
+            = range_field_tag :photo_blackboard_offset_x, -120, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetX" }
           .photo-blackboard-adjustment
             %label 縦位置
-            = range_field_tag :photo_blackboard_offset_y, 0, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetY" }
+            = range_field_tag :photo_blackboard_offset_y, 120, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetY" }
         .photo-blackboard-reset-area
           %button.photo-blackboard-reset.js-blackboard-reset{ type: "button" } kintone値に戻す
 
@@ -1065,6 +1065,22 @@
       if (resetButton) {
         resetButton.addEventListener("click", resetBlackboardFieldsToDefaults);
       }
+      root.querySelectorAll(".js-blackboard-position").forEach(function (input) {
+        input.addEventListener("change", function () {
+          resetBlackboardOffsetToCorner(input.value);
+        });
+      });
+    }
+
+    function resetBlackboardOffsetToCorner(position) {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root) return;
+
+      const offsetXInput = root.querySelector(".js-blackboard-adjust[data-blackboard-key='offsetX']");
+      const offsetYInput = root.querySelector(".js-blackboard-adjust[data-blackboard-key='offsetY']");
+      if (offsetXInput) offsetXInput.value = position === "right" ? 120 : -120;
+      if (offsetYInput) offsetYInput.value = 120;
+      saveBlackboardConfig();
     }
 
     function saveBlackboardConfig() {
