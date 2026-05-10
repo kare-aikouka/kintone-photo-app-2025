@@ -151,6 +151,14 @@
                                           - if content_type.start_with?("image/")
                                             = image_tag file_url, alt: file["name"]
                                           %span= file["name"].presence || "ファイル"
+                                  - if column == file_column
+                                    .photo-blackboard-overwrite-list.hidden{ class: edit_rows_id }
+                                      - files.each do |file|
+                                        - file_key = file["fileKey"]
+                                        - content_type = file["contentType"].presence || "image/jpeg"
+                                        - if file_key.present? && content_type.start_with?("image/")
+                                          - file_url = files_path(key: file_key, type: content_type)
+                                          = button_tag "黒板を修正", type: "button", class: "btn photo-blackboard-overwrite js-blackboard-overwrite", data: { src: file_url, file_name: file["name"].presence || "photo.jpg", table_code: table_code, row_id: row["id"], file_column: file_column, memo_column: memo_column, update_url: table_rows_photo_path(record_id(@record)) }
                                 - else
                                   %span.photo-empty{ class: edit_rows_id } 未登録
                                 - if column == file_column
@@ -256,6 +264,7 @@
     const PHOTO_MAX_SIZE = 1200;
     const PHOTO_JPEG_QUALITY = 0.90;
     const BLACKBOARD_STORAGE_KEY = "photo-blackboard:" + window.location.pathname;
+    const BLACKBOARD_PHOTO_STORAGE_KEY = "photo-blackboard-photos:" + window.location.pathname;
     const BLACKBOARD_FONT_FAMILY = '"Noto Sans CJK JP", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
     const deleteConfirm = buildDeleteConfirm();
     const photoPreview = buildPhotoPreview();
@@ -307,6 +316,7 @@
         photoPreview.open(link.dataset.previewSrc || link.href, link.dataset.previewName || "写真");
       });
     });
+    document.querySelectorAll(".js-blackboard-overwrite").forEach(bindBlackboardOverwriteButton);
 
     window.addEventListener("focus", retryPendingFileInput);
     window.addEventListener("pageshow", retryPendingFileInput);
@@ -387,6 +397,7 @@
       container.querySelectorAll(".js-photo-table-close").forEach(bindPhotoTableClose);
       container.querySelectorAll(".js-photo-file-choice input[type='file']").forEach(bindPhotoFileInput);
       container.querySelectorAll(".js-photo-selected-file").forEach(bindUploadRetryLabel);
+      container.querySelectorAll(".js-blackboard-overwrite").forEach(bindBlackboardOverwriteButton);
       container.querySelectorAll(".js-photo-upload-form").forEach(bindPhotoUploadForm);
       container.querySelectorAll("form").forEach(bindPhotoScrollMemory);
     }
@@ -452,6 +463,7 @@
           });
 
           if (!response.ok) throw new Error("upload failed");
+          saveUploadedBlackboardPhotoConfig(form, body);
           rememberPhotoScroll(form);
           window.location.href = response.url || window.location.href;
         } catch (error) {
@@ -525,6 +537,15 @@
 
     function rememberPhotoScroll(form) {
       const anchor = form.closest(".photo-detail-table") || form.closest("tr") || form;
+      const anchorTop = anchor ? Math.max(0, Math.round(anchor.getBoundingClientRect().top + window.scrollY - 24)) : window.scrollY;
+      sessionStorage.setItem(scrollStorageKey, JSON.stringify({
+        anchorTop: anchorTop,
+        scrollY: Math.round(window.scrollY)
+      }));
+    }
+
+    function rememberElementScroll(element) {
+      const anchor = element.closest(".photo-detail-table") || element.closest("tr") || element;
       const anchorTop = anchor ? Math.max(0, Math.round(anchor.getBoundingClientRect().top + window.scrollY - 24)) : window.scrollY;
       sessionStorage.setItem(scrollStorageKey, JSON.stringify({
         anchorTop: anchorTop,
@@ -641,6 +662,83 @@
       });
     }
 
+    async function blackboardOverwriteFile(blob, fileName, config) {
+      const sourceFile = new File([blob], fileName || "photo.jpg", {
+        lastModified: Date.now(),
+        type: blob.type || "image/jpeg"
+      });
+      const image = await loadImage(sourceFile);
+      const size = fittedImageSize(image.width, image.height, PHOTO_MAX_SIZE);
+      const canvas = document.createElement("canvas");
+      canvas.width = size.width;
+      canvas.height = size.height;
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0, size.width, size.height);
+      if (image.close) image.close();
+      drawBlackboard(context, canvas, config);
+
+      const result = await canvasToBlob(canvas, "image/jpeg", PHOTO_JPEG_QUALITY);
+      if (!result) throw new Error("blackboard overwrite failed");
+
+      return new File([result], fileName || uploadFileName(sourceFile), {
+        lastModified: Date.now(),
+        type: "image/jpeg"
+      });
+    }
+
+    function bindBlackboardOverwriteButton(button) {
+      if (button.dataset.blackboardOverwriteBound === "true") return;
+      button.dataset.blackboardOverwriteBound = "true";
+      button.addEventListener("click", function () {
+        overwritePhotoBlackboard(button);
+      });
+    }
+
+    async function overwritePhotoBlackboard(button) {
+      if (!button || button.dataset.overwriting === "true") return;
+      if (!window.confirm("現在の電子黒板内容で、この写真の黒板を上書きします。元画像には戻せません。よろしいですか？")) return;
+
+      button.dataset.overwriting = "true";
+      button.disabled = true;
+      uploadIndicator.show("黒板を修正中...", "既存写真へ黒板を再焼き付けしています");
+      try {
+        const response = await fetch(button.dataset.src, {
+          credentials: "same-origin"
+        });
+        if (!response.ok) throw new Error("photo download failed");
+
+        const blob = await response.blob();
+        const config = blackboardOverwriteConfig(button);
+        const file = await blackboardOverwriteFile(blob, button.dataset.fileName || "photo.jpg", config);
+        const formData = new FormData();
+        formData.append("_method", "patch");
+        const token = csrfToken();
+        if (token) formData.append("authenticity_token", token);
+        formData.append("table_code", button.dataset.tableCode || "");
+        formData.append("row_id", button.dataset.rowId || "");
+        formData.append("file_column", button.dataset.fileColumn || "");
+        formData.append("memo_column", button.dataset.memoColumn || "");
+        formData.append("photo", file, file.name);
+
+        const uploadResponse = await fetch(button.dataset.updateUrl, {
+          body: formData,
+          credentials: "same-origin",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+          method: "POST"
+        });
+        if (!uploadResponse.ok) throw new Error("photo overwrite upload failed");
+
+        ensureBlackboardPhotoConfig(button, config);
+        rememberElementScroll(button);
+        window.location.href = uploadResponse.url || window.location.href;
+      } catch (error) {
+        uploadIndicator.hide();
+        alert("黒板の上書き修正に失敗しました。通信状況を確認して、もう一度お試しください。");
+        button.dataset.overwriting = "false";
+        button.disabled = false;
+      }
+    }
+
     function drawBlackboardIfNeeded(context, canvas) {
       const config = currentBlackboardConfig();
       if (!config.enabled) return;
@@ -673,6 +771,107 @@
         offsetY: offsetYInput ? numberInRange(offsetYInput.value, -120, 120, 0) : 0,
         values: values
       };
+    }
+
+    function blackboardOverwriteConfig(button) {
+      const current = currentBlackboardConfig();
+      const saved = blackboardPhotoConfig(button);
+      const baseScale = numericValue(saved && saved.scale, current.scale || 1);
+      const baseOffsetX = numericValue(saved && saved.offsetX, current.offsetX || 0);
+      const baseOffsetY = numericValue(saved && saved.offsetY, current.offsetY || 0);
+      return {
+        enabled: true,
+        position: (saved && saved.position) || current.position || "left",
+        scale: baseScale * 1.05,
+        offsetX: baseOffsetX,
+        offsetY: baseOffsetY,
+        values: current.values || {}
+      };
+    }
+
+    function saveUploadedBlackboardPhotoConfig(form, formData) {
+      const input = activeFileInput(form);
+      if (!input) return;
+
+      const uploaded = formData.get(input.name);
+      if (!uploaded || !uploaded.name) return;
+
+      const rowId = formData.get("row_id") || rowIdFromPhotoInput(input);
+      const config = currentBlackboardConfig();
+      writeBlackboardPhotoConfig({
+        tableCode: formData.get("table_code") || "",
+        rowId: rowId || "",
+        fileName: uploaded.name,
+        enabled: config.enabled,
+        position: config.position || "left",
+        scale: config.scale || 1,
+        offsetX: config.offsetX || 0,
+        offsetY: config.offsetY || 0,
+        values: config.values || {},
+        capturedAt: Date.now()
+      });
+    }
+
+    function ensureBlackboardPhotoConfig(button, overwriteConfig) {
+      if (blackboardPhotoConfig(button)) return;
+
+      writeBlackboardPhotoConfig({
+        tableCode: button.dataset.tableCode || "",
+        rowId: button.dataset.rowId || "",
+        fileName: button.dataset.fileName || "",
+        enabled: true,
+        position: overwriteConfig.position || "left",
+        scale: (overwriteConfig.scale || 1.05) / 1.05,
+        offsetX: overwriteConfig.offsetX || 0,
+        offsetY: overwriteConfig.offsetY || 0,
+        values: overwriteConfig.values || {},
+        capturedAt: Date.now()
+      });
+    }
+
+    function blackboardPhotoConfig(button) {
+      const storage = readBlackboardPhotoStorage();
+      const tableCode = button.dataset.tableCode || "";
+      const rowId = button.dataset.rowId || "";
+      const fileName = button.dataset.fileName || "";
+      return storage[blackboardPhotoKey(tableCode, rowId, fileName)] || storage[blackboardPhotoKey(tableCode, "", fileName)] || null;
+    }
+
+    function writeBlackboardPhotoConfig(config) {
+      if (!window.localStorage || !config.fileName) return;
+
+      const storage = readBlackboardPhotoStorage();
+      storage[blackboardPhotoKey(config.tableCode, config.rowId, config.fileName)] = config;
+      if (!config.rowId) storage[blackboardPhotoKey(config.tableCode, "", config.fileName)] = config;
+      try {
+        localStorage.setItem(BLACKBOARD_PHOTO_STORAGE_KEY, JSON.stringify(storage));
+      } catch (error) {
+        // 保存できない環境でも撮影・アップロード自体は継続します。
+      }
+    }
+
+    function readBlackboardPhotoStorage() {
+      if (!window.localStorage) return {};
+
+      try {
+        return JSON.parse(localStorage.getItem(BLACKBOARD_PHOTO_STORAGE_KEY) || "{}") || {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function blackboardPhotoKey(tableCode, rowId, fileName) {
+      return [tableCode || "", rowId || "", fileName || ""].join("::");
+    }
+
+    function rowIdFromPhotoInput(input) {
+      const match = String(input.name || "").match(/table_rows\[([^\]]+)\]\[photo\]/);
+      return match ? match[1] : "";
+    }
+
+    function numericValue(value, fallback) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
     }
 
     function drawBlackboard(context, canvas, config) {
@@ -1077,6 +1276,11 @@
 
     function pad2(value) {
       return String(value).padStart(2, "0");
+    }
+
+    function csrfToken() {
+      const meta = document.querySelector("meta[name='csrf-token']");
+      return meta ? meta.content : "";
     }
 
     function handleFileInput(input) {

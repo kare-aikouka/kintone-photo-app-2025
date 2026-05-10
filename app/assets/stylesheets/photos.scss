@@ -1168,13 +1168,39 @@ form.photo-detail-table-actions {
 }
 
 .photo-table-row-save,
-.photo-table-row-delete {
+.photo-table-row-delete,
+.photo-blackboard-overwrite {
   border-radius: 10px;
   font-size: 1.08rem;
   font-weight: 800;
   min-height: 58px;
   min-width: 92px;
   padding: 12px 16px;
+}
+
+.photo-blackboard-overwrite {
+  background: #fff7ed;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  cursor: pointer;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.photo-blackboard-overwrite:hover {
+  background: #ffedd5;
+}
+
+.photo-blackboard-overwrite:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.photo-blackboard-overwrite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 190px;
 }
 
 .photo-table-row-save {
