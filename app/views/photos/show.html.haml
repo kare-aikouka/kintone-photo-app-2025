@@ -39,6 +39,7 @@
     - blackboard_place = record_address(@record).presence || ""
     - blackboard_piles_parts = field_value(@record, :detail).to_s.split(/[、,]/).map(&:strip).reject(&:blank?)
     - blackboard_piles = blackboard_piles_parts.take_while { |part| !part.match?(/\A(?:JIS\b|カーボン|キュア|.*材)/i) && (part.match?(/[0-9０-９]/) || part.match?(/\A(?:本体|付帯|看板)/)) }.join(",")
+    - blackboard_piles = "" unless blackboard_piles.match?(/[mMｍＭ]/)
     .photo-blackboard.js-photo-blackboard-config{ data: { record_id: record_id(@record) } }
       .photo-blackboard-head
         .photo-blackboard-title 電子黒板
@@ -279,6 +280,7 @@
     sanitizeBlackboardPilesInput();
     syncBlackboardFieldDefaults();
     bindBlackboardConfig();
+    updateBlackboardRequiredHighlights();
     updateBlackboardPreview();
 
     document.querySelectorAll(".js-photo-table-toggle").forEach(function (button) {
@@ -1212,6 +1214,7 @@
       } catch (error) {
         // iPadのプライベートブラウズ等では保存できない場合がありますが、撮影処理は継続します。
       }
+      updateBlackboardRequiredHighlights();
       updateBlackboardPreview();
     }
 
@@ -1260,6 +1263,16 @@
       if (input) input.value = sanitizeBlackboardPilesValue(input.value);
     }
 
+    function updateBlackboardRequiredHighlights() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root) return;
+
+      root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
+        const value = String(input.value || "").trim();
+        input.classList.toggle("is-blackboard-empty", value.length === 0);
+      });
+    }
+
     function syncBlackboardFieldDefaults() {
       const root = document.querySelector(".js-photo-blackboard-config");
       if (!root) return;
@@ -1277,6 +1290,7 @@
       root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
         input.value = normalizedBlackboardFieldDefault(input);
       });
+      updateBlackboardRequiredHighlights();
       saveBlackboardConfig();
     }
 
@@ -1303,7 +1317,8 @@
         }
         return kept.length > 0;
       });
-      return kept.join(",");
+      const sanitized = kept.join(",");
+      return /[mMｍＭ]/.test(sanitized) ? sanitized : "";
     }
 
     function isBlackboardPilesExcludedPart(part) {
