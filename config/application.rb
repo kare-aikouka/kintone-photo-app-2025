@@ -21,7 +21,8 @@ module KintonePhotoApp2025
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
-    # config.time_zone = "Central Time (US & Canada)"
+    # 現場の施工予定日・TODAY判定は日本時間で扱う。
+    config.time_zone = "Tokyo"
     # config.eager_load_paths << Rails.root.join("extras")
   end
 end
