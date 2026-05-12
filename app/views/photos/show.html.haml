@@ -942,37 +942,35 @@
       const width = canvas.width;
       const height = canvas.height;
       const scale = config.scale || 1;
-      const boardWidth = Math.round(Math.min(width * 0.45, Math.max(width * 0.39, 540)) * scale);
-      const dataRowHeight = Math.round(boardWidth * 0.09);
-      const blankHeight = Math.round(boardWidth * 0.084);
-      const footerHeight = Math.round(boardWidth * 0.09);
+      const baseBoardWidth = Math.min(width * 0.45, Math.max(width * 0.39, 540));
+      const minBoardWidth = Math.round(baseBoardWidth * 0.7);
+      let boardWidth = Math.round(baseBoardWidth * scale);
       const maxOffset = Math.max(width, height);
       const offsetX = Math.round((config.offsetX || 0) / 120 * maxOffset * 0.08);
       const offsetY = Math.round((config.offsetY || 0) / 120 * maxOffset * 0.08);
-      const lineWidth = Math.max(2, Math.round(boardWidth / 260));
       const headerRows = 5;
-      const labelWidth = Math.round(boardWidth * 0.22);
-      const kindWidth = Math.round(boardWidth * 0.30);
       const values = config.values || {};
       const labels = ["工事名", "工事年月日", "施工者", "工事場所", "施工明細"];
       const keys = ["project", "date", "maker", "place", "piles"];
-      const pad = Math.round(boardWidth * 0.012);
-      const labelFont = Math.max(14, Math.round(dataRowHeight * 0.42));
-      const valueFont = Math.max(13, Math.round(dataRowHeight * 0.40));
-      const footerFont = Math.max(14, Math.round(footerHeight * 0.46));
-      const rowLayouts = labels.map(function (_label, index) {
-        const valueWidth = index === 0 ? boardWidth - labelWidth - kindWidth - pad * 2 : boardWidth - labelWidth - pad * 2;
-        const projectLines = index === 0 ? textLineCount(context, values.project || "", valueWidth, valueFont, "bold", 2) : 1;
-        const kindLines = index === 0 ? textLineCount(context, values.kind || "", kindWidth - pad * 2, valueFont, "bold", 2) : 1;
-        const valueLines = index === 0 ? Math.max(projectLines, kindLines) : textLineCount(context, values[keys[index]] || "", valueWidth, valueFont, "bold", index === 1 ? 1 : 2);
-        const lineHeight = Math.round(valueFont * 1.18);
-        return {
-          height: Math.max(dataRowHeight, valueLines * lineHeight + pad * 2),
-          valueLines: valueLines
-        };
-      });
-      const rowsHeight = rowLayouts.reduce(function (sum, row) { return sum + row.height; }, 0);
-      const boardHeight = rowsHeight + blankHeight + footerHeight;
+      let metrics = blackboardMetrics(context, boardWidth, values, labels, keys);
+      const maxBoardArea = width * height * 0.25;
+      for (let i = 0; i < 5 && boardWidth * metrics.boardHeight > maxBoardArea && boardWidth > minBoardWidth; i += 1) {
+        const areaRatio = Math.sqrt(maxBoardArea / (boardWidth * metrics.boardHeight));
+        boardWidth = Math.max(minBoardWidth, Math.floor(boardWidth * areaRatio * 0.98));
+        metrics = blackboardMetrics(context, boardWidth, values, labels, keys);
+      }
+      const lineWidth = metrics.lineWidth;
+      const blankHeight = metrics.blankHeight;
+      const footerHeight = metrics.footerHeight;
+      const labelWidth = metrics.labelWidth;
+      const kindWidth = metrics.kindWidth;
+      const pad = metrics.pad;
+      const labelFont = metrics.labelFont;
+      const valueFont = metrics.valueFont;
+      const footerFont = metrics.footerFont;
+      const rowLayouts = metrics.rowLayouts;
+      const rowsHeight = metrics.rowsHeight;
+      const boardHeight = metrics.boardHeight;
       const baseX = config.position === "right" ? width - boardWidth : 0;
       const x = Math.max(0, Math.min(width - boardWidth, baseX + offsetX));
       const y = Math.max(0, Math.min(height - boardHeight, height - boardHeight + offsetY));
@@ -1021,6 +1019,47 @@
         "right"
       );
       context.restore();
+    }
+
+    function blackboardMetrics(context, boardWidth, values, labels, keys) {
+      const dataRowHeight = Math.round(boardWidth * 0.09);
+      const blankHeight = Math.round(boardWidth * 0.084);
+      const footerHeight = Math.round(boardWidth * 0.09);
+      const lineWidth = Math.max(2, Math.round(boardWidth / 260));
+      const labelWidth = Math.round(boardWidth * 0.22);
+      const kindWidth = Math.round(boardWidth * 0.30);
+      const pad = Math.round(boardWidth * 0.012);
+      const labelFont = Math.max(14, Math.round(dataRowHeight * 0.42));
+      const valueFont = Math.max(13, Math.round(dataRowHeight * 0.40));
+      const footerFont = Math.max(14, Math.round(footerHeight * 0.46));
+      const rowLayouts = labels.map(function (_label, index) {
+        const valueWidth = index === 0 ? boardWidth - labelWidth - kindWidth - pad * 2 : boardWidth - labelWidth - pad * 2;
+        const projectLines = index === 0 ? textLineCount(context, values.project || "", valueWidth, valueFont, "bold", 2) : 1;
+        const kindLines = index === 0 ? textLineCount(context, values.kind || "", kindWidth - pad * 2, valueFont, "bold", 2) : 1;
+        const valueLines = index === 0 ? Math.max(projectLines, kindLines) : textLineCount(context, values[keys[index]] || "", valueWidth, valueFont, "bold", index === 1 ? 1 : 2);
+        const lineHeight = Math.round(valueFont * 1.18);
+        return {
+          height: Math.max(dataRowHeight, valueLines * lineHeight + pad * 2),
+          valueLines: valueLines
+        };
+      });
+      const rowsHeight = rowLayouts.reduce(function (sum, row) { return sum + row.height; }, 0);
+      const boardHeight = rowsHeight + blankHeight + footerHeight;
+
+      return {
+        blankHeight: blankHeight,
+        boardHeight: boardHeight,
+        footerFont: footerFont,
+        footerHeight: footerHeight,
+        kindWidth: kindWidth,
+        labelFont: labelFont,
+        labelWidth: labelWidth,
+        lineWidth: lineWidth,
+        pad: pad,
+        rowLayouts: rowLayouts,
+        rowsHeight: rowsHeight,
+        valueFont: valueFont
+      };
     }
 
     function drawTextFit(context, text, x, baselineY, maxWidth, fontSize, weight, align) {
