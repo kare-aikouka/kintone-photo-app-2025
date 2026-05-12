@@ -852,9 +852,19 @@ form.photo-detail-table-actions {
   box-shadow: 0 8px 18px rgba(240, 163, 58, 0.24);
 }
 
-.photo-table-action-edit:hover {
+.photo-table-action-edit:hover,
+.photo-table-action-cancel:hover {
   background: #d8891e;
   color: #fff;
+}
+
+.photo-table-action-cancel {
+  background: #f0a33a;
+  box-shadow: 0 8px 18px rgba(240, 163, 58, 0.24);
+}
+
+.photo-table-action-cancel.hidden {
+  display: none;
 }
 
 .photo-table-action-edit.is-save {

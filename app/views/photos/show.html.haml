@@ -115,6 +115,7 @@
             .photo-detail-table-actions
               = button_tag "追加", type: "button", class: "btn photo-table-action-add js-photo-table-toggle", data: { target: add_form_id }, disabled: !has_row_actions
               = button_tag "編集", type: "button", class: "btn photo-table-action-edit js-photo-table-edit-save", data: { target: edit_rows_id, save_form: table_save_form_id }, disabled: rows.blank? || !has_row_actions
+              = button_tag "キャンセル", type: "button", class: "btn photo-table-action-cancel hidden js-photo-table-edit-cancel", data: { target: edit_rows_id, edit_button_target: ".js-photo-table-edit-save[data-target='#{edit_rows_id}']", save_form: table_save_form_id }
             - if rows.present? && has_row_actions
               = form_with url: batch_table_rows_photo_path(record_id(@record)), method: :patch, multipart: true, local: true, html: { id: table_save_form_id, class: "photo-table-save-form js-photo-upload-form" } do
                 = hidden_field_tag :table_code, table_code
@@ -302,6 +303,14 @@
         button.dataset.mode = "save";
         button.textContent = "保存";
         button.classList.add("is-save");
+        const cancelButton = document.querySelector(".js-photo-table-edit-cancel[data-target='" + button.dataset.target + "']");
+        if (cancelButton) cancelButton.classList.remove("hidden");
+      });
+    });
+
+    document.querySelectorAll(".js-photo-table-edit-cancel").forEach(function (button) {
+      button.addEventListener("click", function () {
+        cancelPhotoTableEdit(button);
       });
     });
 
@@ -400,6 +409,24 @@
       container.querySelectorAll(".js-blackboard-overwrite").forEach(bindBlackboardOverwriteButton);
       container.querySelectorAll(".js-photo-upload-form").forEach(bindPhotoUploadForm);
       container.querySelectorAll("form").forEach(bindPhotoScrollMemory);
+    }
+
+    function cancelPhotoTableEdit(button) {
+      const groupedTargets = document.querySelectorAll("." + button.dataset.target);
+      groupedTargets.forEach(function (element) {
+        if (!element.classList.contains("hidden")) element.classList.add("hidden");
+      });
+
+      const saveForm = document.getElementById(button.dataset.saveForm);
+      if (saveForm) saveForm.reset();
+
+      const editButton = document.querySelector(button.dataset.editButtonTarget || "");
+      if (editButton) {
+        editButton.dataset.mode = "edit";
+        editButton.textContent = "編集";
+        editButton.classList.remove("is-save");
+      }
+      button.classList.add("hidden");
     }
 
     function bindPhotoTableClose(button) {
@@ -776,12 +803,14 @@
     function blackboardOverwriteConfig(button) {
       const current = currentBlackboardConfig();
       const saved = blackboardPhotoConfig(button);
-      const baseScale = numericValue(saved && saved.scale, current.scale || 1);
-      const baseOffsetX = numericValue(saved && saved.offsetX, current.offsetX || 0);
-      const baseOffsetY = numericValue(saved && saved.offsetY, current.offsetY || 0);
+      const savedHasBurnedBoard = saved && saved.enabled !== false;
+      const source = savedHasBurnedBoard ? saved : current;
+      const baseScale = numericValue(source && source.scale, current.scale || 1);
+      const baseOffsetX = numericValue(source && source.offsetX, current.offsetX || 0);
+      const baseOffsetY = numericValue(source && source.offsetY, current.offsetY || 0);
       return {
         enabled: true,
-        position: (saved && saved.position) || current.position || "left",
+        position: (source && source.position) || current.position || "left",
         scale: baseScale * 1.02,
         offsetX: baseOffsetX,
         offsetY: baseOffsetY,
