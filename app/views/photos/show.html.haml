@@ -296,10 +296,7 @@
           return;
         }
 
-        const groupedTargets = document.querySelectorAll("." + button.dataset.target);
-        groupedTargets.forEach(function (element) {
-          element.classList.toggle("hidden");
-        });
+        setPhotoTableEditMode(button.dataset.target, true);
         button.dataset.mode = "save";
         button.textContent = "保存";
         button.classList.add("is-save");
@@ -411,10 +408,48 @@
       container.querySelectorAll("form").forEach(bindPhotoScrollMemory);
     }
 
+    function setPhotoTableEditMode(targetClass, editing) {
+      const groupedTargets = document.querySelectorAll("." + targetClass);
+      groupedTargets.forEach(function (element) {
+        if (element.classList.contains("photo-table-quick-capture")) {
+          setElementHidden(element, editing);
+          return;
+        }
+
+        if (
+          element.classList.contains("photo-blackboard-overwrite-list") ||
+          element.classList.contains("photo-table-capture-control") ||
+          element.classList.contains("photo-table-number-memo") ||
+          element.classList.contains("photo-table-memo")
+        ) {
+          setElementHidden(element, !editing);
+          return;
+        }
+
+        if (
+          element.classList.contains("photo-table-memo-display") ||
+          element.classList.contains("photo-empty")
+        ) {
+          setElementHidden(element, editing);
+        }
+      });
+    }
+
+    function setElementHidden(element, hidden) {
+      element.classList.toggle("hidden", hidden);
+    }
+
     function cancelPhotoTableEdit(button) {
+      setPhotoTableEditMode(button.dataset.target, false);
+
       const groupedTargets = document.querySelectorAll("." + button.dataset.target);
       groupedTargets.forEach(function (element) {
-        if (!element.classList.contains("hidden")) element.classList.add("hidden");
+        if (element.classList.contains("photo-blackboard-overwrite-list")) {
+          element.querySelectorAll(".js-blackboard-overwrite").forEach(function (overwriteButton) {
+            overwriteButton.disabled = false;
+            overwriteButton.textContent = "黒板を修正";
+          });
+        }
       });
 
       const saveForm = document.getElementById(button.dataset.saveForm);

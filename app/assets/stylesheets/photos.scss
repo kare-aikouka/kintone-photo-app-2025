@@ -206,7 +206,7 @@ a.badge:focus, a.badge:hover {
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 .jibun-thumbnail {
