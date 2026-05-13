@@ -720,13 +720,15 @@ class PhotosController < ApplicationController
   end
 
   def apply_table_row_params(payload, row_params = table_row_params, source_row: nil)
-    file_column = table_row_params[:file_column].presence
-    memo_column = table_row_params[:memo_column].presence
     table_code = table_row_params[:table_code].presence
+    file_column = table_row_params[:file_column].presence || inferred_file_column(table_code, payload)
+    memo_column = table_row_params[:memo_column].presence
     payload[:value] ||= {}
 
     photo_file_key = uploaded_photo_file_key(param_value(row_params, :photo))
-    if file_column.present? && photo_file_key.present?
+    if photo_file_key.present? && file_column.blank?
+      raise "添付先のファイル列を特定できませんでした。"
+    elsif file_column.present? && photo_file_key.present?
       payload[:value][file_column] = { value: [{ fileKey: photo_file_key }] }
     end
 
@@ -738,6 +740,19 @@ class PhotosController < ApplicationController
       payload[:value][memo_column] = { value: memo_value }
     end
     payload
+  end
+
+  def inferred_file_column(table_code, payload)
+    table_subfield_codes(table_code).find { |column| table_subfield_type(table_code, column) == "FILE" } ||
+      payload.fetch(:value, {}).keys.find { |column| table_subfield_type(table_code, column) == "FILE" } ||
+      fallback_file_column(table_code)
+  end
+
+  def fallback_file_column(table_code)
+    label = detail_table_label(table_code)
+    return "その他" if label == "その他"
+
+    label.presence
   end
 
   def param_present_key?(params_hash, key)

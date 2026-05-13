@@ -274,6 +274,7 @@
     const uploadIndicator = buildUploadIndicator();
     const scrollStorageKey = "photo-scroll:" + window.location.pathname;
     let pendingFileInput = null;
+    let lastSelectedFileInput = null;
     let addRowSequence = 0;
 
     restorePhotoScroll();
@@ -502,7 +503,11 @@
       form.dataset.photoUploadBound = "true";
       form.addEventListener("submit", async function (event) {
         const files = selectedUploadFiles(form);
-        if (files.length === 0) return;
+        const hasFiles = files.length > 0;
+        if (!hasFiles && isAutoPhotoUploadForm(form)) {
+          event.preventDefault();
+          return;
+        }
 
         event.preventDefault();
         if (form.dataset.uploading === "true") return;
@@ -513,12 +518,18 @@
         const selectedChoice = selectedInput && selectedInput.closest(".js-photo-file-choice");
         const selectedLabel = selectedChoice && selectedChoice.querySelector(".js-photo-selected-file");
         try {
-          if (selectedLabel) selectedLabel.textContent = "写真を圧縮中...";
-          uploadIndicator.show("写真を圧縮中...", "保存完了までそのままお待ちください");
+          if (hasFiles && selectedLabel) selectedLabel.textContent = "写真を圧縮中...";
+          uploadIndicator.show(
+            hasFiles ? "写真を圧縮中..." : "保存中...",
+            hasFiles ? "保存完了までそのままお待ちください" : "完了状態も再確認しています"
+          );
           clearUploadError(selectedLabel);
-          const body = await compressedFormData(form);
-          if (selectedLabel) selectedLabel.textContent = "アップロード中...";
-          uploadIndicator.show("アップロード中...", "通信状況により時間がかかる場合があります");
+          const body = hasFiles ? await compressedFormData(form) : new FormData(form);
+          if (hasFiles && selectedLabel) selectedLabel.textContent = "アップロード中...";
+          uploadIndicator.show(
+            hasFiles ? "アップロード中..." : "保存中...",
+            hasFiles ? "通信状況により時間がかかる場合があります" : "kintoneの完了フラグを再判定しています"
+          );
 
           const response = await fetch(form.action, {
             body: body,
@@ -536,8 +547,12 @@
           restoreDisabledInputs(disabledInputs);
           uploadIndicator.hide();
           showUploadError(form, selectedInput, selectedLabel);
-          alert("写真を保存できなかったので端末に保存します。");
-          files.forEach(downloadLocalFile);
+          if (hasFiles) {
+            alert("写真を保存できなかったので端末に保存します。");
+            files.forEach(downloadLocalFile);
+          } else {
+            alert("保存できませんでした。通信状況を確認してもう一度お試しください。");
+          }
         }
       });
     }
@@ -598,6 +613,10 @@
       return inputs.flatMap(function (input) {
         return Array.from(input.files || []);
       });
+    }
+
+    function isAutoPhotoUploadForm(form) {
+      return !!(form && form.querySelector(".js-photo-auto-submit"));
     }
 
     function rememberPhotoScroll(form) {
@@ -662,7 +681,18 @@
     }
 
     function activeFileInput(form) {
-      if (!form || !form.dataset.activeFileInput) return null;
+      if (!form) return null;
+
+      if (
+        lastSelectedFileInput &&
+        lastSelectedFileInput.form === form &&
+        lastSelectedFileInput.files &&
+        lastSelectedFileInput.files.length > 0
+      ) {
+        return lastSelectedFileInput;
+      }
+
+      if (!form.dataset.activeFileInput) return null;
 
       const input = document.getElementById(form.dataset.activeFileInput);
       return input && input.files && input.files.length > 0 ? input : null;
@@ -1456,7 +1486,10 @@
       clearUploadError(selectedFile);
       selectedFile.textContent = file ? file.name : "選択されていません";
 
-      if (file && input.form) input.form.dataset.activeFileInput = input.id;
+      if (file && input.form) {
+        lastSelectedFileInput = input;
+        input.form.dataset.activeFileInput = input.id;
+      }
     }
 
     function downloadLocalFile(file) {
