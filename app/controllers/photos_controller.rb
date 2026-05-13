@@ -627,23 +627,20 @@ class PhotosController < ApplicationController
 
   def update_table_rows(record_id, table_code, rows, source_record: nil)
     update_payload = { table_code => { value: rows } }
-    if source_record.present?
-      status_field = photo_status_field_code(source_record)
-      if status_field.present?
-        updated_record = record_with_table_rows(source_record, table_code, rows)
-        update_payload[status_field] = { value: photo_completion_status(updated_record) }
-      end
-    end
-
     photos_record_client.update(record_id, update_payload)
+    refresh_photo_completion_status(record_id)
     clear_photo_summary_cache(source_record) if source_record.present?
   end
 
-  def record_with_table_rows(record, table_code, rows)
-    updated = record.deep_dup
-    updated[table_code] ||= {}
-    updated[table_code]["value"] = rows
-    updated
+  def refresh_photo_completion_status(record_id)
+    record = photo_record(record_id)
+    status_field = photo_status_field_code(record)
+    return if status_field.blank?
+
+    status = photo_completion_status(record)
+    return if photo_status(record) == status
+
+    photos_record_client.update(record_id, status_field => { value: status })
   end
 
   def photo_status_field_code(record)
