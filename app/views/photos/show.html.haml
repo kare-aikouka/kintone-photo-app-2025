@@ -1,5 +1,6 @@
 - weekdays = %w[日 月 火 水 木 金 土]
-- back_url = request.referer.presence || photos_path(machine: @machine_name)
+- detail_return_params = { machine: params[:machine].presence || @machine_name.presence, machine_model: params[:machine_model].presence, date: params[:date].presence }.compact_blank
+- back_url = @back_url.presence || photos_path(detail_return_params)
 
 .photo-page.photo-detail-page
   .photo-header
@@ -27,7 +28,7 @@
           = link_to "地図", "javascript:undefined", class: "btn btn-soft disabled"
           = link_to "図面", "javascript:undefined", class: "btn btn-soft disabled"
           = link_to "設計資料", "javascript:undefined", class: "btn btn-soft disabled"
-          = link_to "写真", photo_path(record_id(@record)), class: "btn btn-primary-action"
+          = link_to "写真", photo_path(record_id(@record), detail_return_params), class: "btn btn-primary-action"
       .photo-record-status
         %span.photo-status-line
           写真：
@@ -118,7 +119,7 @@
               = button_tag "編集", type: "button", class: "btn photo-table-action-edit js-photo-table-edit-save", data: { target: edit_rows_id, save_form: table_save_form_id }, disabled: rows.blank? || !has_row_actions
               = button_tag "キャンセル", type: "button", class: "btn photo-table-action-cancel hidden js-photo-table-edit-cancel", data: { target: edit_rows_id, edit_button_target: ".js-photo-table-edit-save[data-target='#{edit_rows_id}']", save_form: table_save_form_id }
             - if rows.present? && has_row_actions
-              = form_with url: batch_table_rows_photo_path(record_id(@record)), method: :patch, multipart: true, local: true, html: { id: table_save_form_id, class: "photo-table-save-form js-photo-upload-form" } do
+              = form_with url: batch_table_rows_photo_path(record_id(@record), detail_return_params), method: :patch, multipart: true, local: true, html: { id: table_save_form_id, class: "photo-table-save-form js-photo-upload-form" } do
                 = hidden_field_tag :table_code, table_code
                 = hidden_field_tag :file_column, file_column
                 = hidden_field_tag :memo_column, memo_column
@@ -160,12 +161,12 @@
                                         - content_type = file["contentType"].presence || "image/jpeg"
                                         - if file_key.present? && content_type.start_with?("image/")
                                           - file_url = files_path(key: file_key, type: content_type)
-                                          = button_tag "黒板を修正", type: "button", class: "btn photo-blackboard-overwrite js-blackboard-overwrite", data: { src: file_url, file_name: file["name"].presence || "photo.jpg", table_code: table_code, row_id: row["id"], file_column: file_column, memo_column: memo_column, update_url: table_rows_photo_path(record_id(@record)) }
+                                          = button_tag "黒板を修正", type: "button", class: "btn photo-blackboard-overwrite js-blackboard-overwrite", data: { src: file_url, file_name: file["name"].presence || "photo.jpg", table_code: table_code, row_id: row["id"], file_column: file_column, memo_column: memo_column, update_url: table_rows_photo_path(record_id(@record), detail_return_params) }
                                 - else
                                   %span.photo-empty{ class: edit_rows_id } 未登録
                                 - if column == file_column
                                   .photo-table-quick-capture{ class: edit_rows_id }
-                                    = form_with url: table_rows_photo_path(record_id(@record)), method: :patch, multipart: true, local: true, html: { id: quick_form_id, class: "js-photo-upload-form" } do
+                                    = form_with url: table_rows_photo_path(record_id(@record), detail_return_params), method: :patch, multipart: true, local: true, html: { id: quick_form_id, class: "js-photo-upload-form" } do
                                       = hidden_field_tag :table_code, table_code
                                       = hidden_field_tag :row_id, row["id"]
                                       = hidden_field_tag :file_column, file_column
@@ -208,7 +209,7 @@
                           - if has_row_actions
                             %td.photo-table-action-column
                               .photo-table-row-actions
-                                = form_with url: table_rows_photo_path(record_id(@record)), method: :delete, local: true, class: "photo-table-delete-form js-delete-confirm", data: { confirm_message: "この写真・メモを削除しますか？" } do
+                                = form_with url: table_rows_photo_path(record_id(@record), detail_return_params), method: :delete, local: true, class: "photo-table-delete-form js-delete-confirm", data: { confirm_message: "この写真・メモを削除しますか？" } do
                                   = hidden_field_tag :table_code, table_code
                                   = hidden_field_tag :row_id, row["id"]
                                   = submit_tag "削除", class: "btn btn-danger-action photo-table-row-delete"
@@ -219,7 +220,7 @@
                       %tr.photo-detail-add-row.hidden{ id: add_form_id }
                         %td{ colspan: columns.count + 1 }
                           .photo-table-row-editor.photo-table-row-editor-add.photo-table-inline-editor
-                            = form_with url: table_rows_photo_path(record_id(@record)), method: :post, multipart: true, local: true, html: { id: "#{add_form_id}-form", class: "js-photo-upload-form" } do
+                            = form_with url: table_rows_photo_path(record_id(@record), detail_return_params), method: :post, multipart: true, local: true, html: { id: "#{add_form_id}-form", class: "js-photo-upload-form" } do
                               = hidden_field_tag :table_code, table_code
                               = hidden_field_tag :file_column, file_column
                               = hidden_field_tag :memo_column, memo_column

@@ -6,7 +6,7 @@ class PhotosController < ApplicationController
   PICTURE_FLAG_DONE = "完了"
   PICTURE_FLAG_INCOMPLETE = "未完了"
   COMPLETION_EXCLUDED_TABLES = %w[その他].freeze
-  SUMMARY_CACHE_VERSION = "v3"
+  SUMMARY_CACHE_VERSION = "v4"
   SUMMARY_CACHE_TTL = 10.minutes
   SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
   NUMBER_MEMO_TABLE_PATTERNS = [
@@ -141,6 +141,7 @@ class PhotosController < ApplicationController
     @page_title = '施工写真詳細'
     @record = photo_record(params[:id])
     @machine_name = field_value(@record, :machine)
+    @back_url = photos_path(photo_index_return_params(@machine_name))
     @detail_sections = visible_detail_sections(@record)
     @field_keys = record_field_keys([@record])
     @field_preview = record_field_preview([@record])
@@ -169,11 +170,11 @@ class PhotosController < ApplicationController
     rows << new_table_row_payload
     update_table_rows(params[:id], table_code, rows, source_record: record)
 
-    redirect_to photo_path(params[:id])
+    redirect_to photo_detail_return_path(params[:id])
   rescue StandardError => e
     Rails.logger.error("Photo table row add failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
-    redirect_to photo_path(params[:id]), alert: "写真・メモの追加に失敗しました。"
+    redirect_to photo_detail_return_path(params[:id]), alert: "写真・メモの追加に失敗しました。"
   end
 
   def update_table_row
@@ -187,11 +188,11 @@ class PhotosController < ApplicationController
     end
     update_table_rows(params[:id], table_code, rows, source_record: record)
 
-    redirect_to photo_path(params[:id])
+    redirect_to photo_detail_return_path(params[:id])
   rescue StandardError => e
     Rails.logger.error("Photo table row update failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
-    redirect_to photo_path(params[:id]), alert: "写真・メモの編集に失敗しました。"
+    redirect_to photo_detail_return_path(params[:id]), alert: "写真・メモの編集に失敗しました。"
   end
 
   def update_table_rows_batch
@@ -206,11 +207,11 @@ class PhotosController < ApplicationController
     end
     update_table_rows(params[:id], table_code, rows, source_record: record)
 
-    redirect_to photo_path(params[:id])
+    redirect_to photo_detail_return_path(params[:id])
   rescue StandardError => e
     Rails.logger.error("Photo table rows batch update failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
-    redirect_to photo_path(params[:id]), alert: "写真・メモの保存に失敗しました。"
+    redirect_to photo_detail_return_path(params[:id]), alert: "写真・メモの保存に失敗しました。"
   end
 
   def delete_table_row
@@ -224,14 +225,30 @@ class PhotosController < ApplicationController
     end
     update_table_rows(params[:id], table_code, rows, source_record: record)
 
-    redirect_to photo_path(params[:id])
+    redirect_to photo_detail_return_path(params[:id])
   rescue StandardError => e
     Rails.logger.error("Photo table row delete failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
-    redirect_to photo_path(params[:id]), alert: "写真・メモの削除に失敗しました。"
+    redirect_to photo_detail_return_path(params[:id]), alert: "写真・メモの削除に失敗しました。"
   end
 
   private
+
+  def photo_detail_return_path(record_id)
+    photo_path(record_id, photo_return_params)
+  end
+
+  def photo_return_params
+    {
+      machine: params[:machine].presence,
+      machine_model: params[:machine_model].presence,
+      date: params[:date].presence
+    }.compact_blank
+  end
+
+  def photo_index_return_params(machine_name = nil)
+    photo_return_params.merge(machine: params[:machine].presence || machine_name).compact_blank
+  end
 
   def photo_record(id)
     response = photos_record_client.find(id)
@@ -629,8 +646,11 @@ class PhotosController < ApplicationController
   end
 
   def photo_status_field_code(record)
-    FIELD_ALIASES[:photo_status].find { |field_code| record&.key?(field_code) } ||
-      FIELD_ALIASES[:photo_status].find { |field_code| photos_form_properties.key?(field_code) }
+    preferred_field = "写真完了フラグ"
+    return preferred_field if record&.key?(preferred_field) || photos_form_properties.key?(preferred_field)
+
+    FIELD_ALIASES[:photo_status].find { |field_code| photos_form_properties.key?(field_code) } ||
+      FIELD_ALIASES[:photo_status].find { |field_code| record&.key?(field_code) }
   end
 
   def photo_completion_status(record)
@@ -678,8 +698,11 @@ class PhotosController < ApplicationController
 
   def clear_photo_summary_cache(record)
     Rails.cache.delete(photo_summary_cache_key)
+    requested_machine_values = machine_search_values(params[:machine], params[:machine_model])
+    Rails.cache.delete(photo_summary_cache_key(requested_machine_values)) if requested_machine_values.present?
     machine = field_value(record, :machine)
     Rails.cache.delete(photo_summary_cache_key(machine_search_values(machine))) if machine.present?
+    Rails.cache.delete_matched("photos-summary:*")
   rescue StandardError => e
     Rails.logger.warn("Photo summary cache clear skipped: #{e.class}: #{e.message}")
   end
