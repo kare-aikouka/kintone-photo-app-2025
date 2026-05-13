@@ -673,8 +673,9 @@ class PhotosController < ApplicationController
   end
 
   def completion_excluded_table?(table_code)
-    COMPLETION_EXCLUDED_TABLES.include?(table_code.to_s) ||
-      COMPLETION_EXCLUDED_TABLES.include?(detail_table_label(table_code))
+    table_text = [table_code, detail_table_label(table_code)].compact.join(" ")
+    COMPLETION_EXCLUDED_TABLES.any? { |excluded| table_text.include?(excluded) } ||
+      table_text.include?("その他")
   end
 
   def table_photo_attached?(record, table_code)
