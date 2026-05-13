@@ -5,7 +5,7 @@ class PhotosController < ApplicationController
 
   PICTURE_FLAG_DONE = "完了"
   PICTURE_FLAG_INCOMPLETE = "未完了"
-  COMPLETION_EXCLUDED_TABLES = %w[その他].freeze
+  COMPLETION_EXCLUDED_TABLES = %w[その他 テーブルその他].freeze
   SUMMARY_CACHE_VERSION = "v4"
   SUMMARY_CACHE_TTL = 10.minutes
   SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
@@ -450,8 +450,9 @@ class PhotosController < ApplicationController
   end
   helper_method :detail_table_columns
 
-  def detail_file_column(rows, columns, _table_code = nil)
-    columns.find { |column| rows.any? { |row| detail_file_cell?(row, column) } } ||
+  def detail_file_column(rows, columns, table_code = nil)
+    table_subfield_codes(table_code).find { |column| table_subfield_type(table_code, column) == "FILE" } ||
+      columns.find { |column| rows.any? { |row| detail_file_cell?(row, column) } } ||
       columns.find { |column| !memo_column?(column) }
   end
   helper_method :detail_file_column
@@ -668,7 +669,12 @@ class PhotosController < ApplicationController
 
   def required_photo_table_codes(record)
     visible_detail_sections(record).flat_map { |section| section[:tables] }
-                                  .reject { |table_code| COMPLETION_EXCLUDED_TABLES.include?(table_code) }
+                                  .reject { |table_code| completion_excluded_table?(table_code) }
+  end
+
+  def completion_excluded_table?(table_code)
+    COMPLETION_EXCLUDED_TABLES.include?(table_code.to_s) ||
+      COMPLETION_EXCLUDED_TABLES.include?(detail_table_label(table_code))
   end
 
   def table_photo_attached?(record, table_code)
@@ -790,9 +796,10 @@ class PhotosController < ApplicationController
     field["value"]
   end
 
-  def order_detail_table_columns(rows, columns, _table_code)
+  def order_detail_table_columns(rows, columns, table_code)
     columns.sort_by do |column|
-      file_column = rows.any? { |row| detail_file_cell?(row, column) }
+      file_column = table_subfield_type(table_code, column) == "FILE" ||
+        rows.any? { |row| detail_file_cell?(row, column) }
       [
         memo_column?(column) ? 1 : 0,
         file_column ? 0 : 1,
@@ -840,6 +847,9 @@ class PhotosController < ApplicationController
   end
 
   def fallback_table_columns(table_code)
+    subfield_codes = table_subfield_codes(table_code)
+    return order_detail_table_columns([], subfield_codes, table_code) if subfield_codes.present?
+
     label = detail_table_label(table_code)
     [label, fallback_memo_column(table_code, [])].compact_blank
   end
