@@ -4,6 +4,8 @@ class PhotosController < ApplicationController
   before_action :authentication
 
   PICTURE_FLAG_DONE = "完了"
+  PICTURE_FLAG_INCOMPLETE = "未完了"
+  COMPLETION_EXCLUDED_TABLES = %w[その他].freeze
   SUMMARY_CACHE_VERSION = "v3"
   SUMMARY_CACHE_TTL = 10.minutes
   SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
@@ -165,7 +167,7 @@ class PhotosController < ApplicationController
     table_code = table_row_params[:table_code]
     rows = detail_table_rows(record, table_code).map { |row| kintone_table_row_payload(row) }
     rows << new_table_row_payload
-    update_table_rows(params[:id], table_code, rows)
+    update_table_rows(params[:id], table_code, rows, source_record: record)
 
     redirect_to photo_path(params[:id])
   rescue StandardError => e
@@ -183,7 +185,7 @@ class PhotosController < ApplicationController
       apply_table_row_params(payload, source_row: row) if row["id"].to_s == target_row_id
       payload
     end
-    update_table_rows(params[:id], table_code, rows)
+    update_table_rows(params[:id], table_code, rows, source_record: record)
 
     redirect_to photo_path(params[:id])
   rescue StandardError => e
@@ -202,7 +204,7 @@ class PhotosController < ApplicationController
       apply_table_row_params(payload, row_params, source_row: row)
       payload
     end
-    update_table_rows(params[:id], table_code, rows)
+    update_table_rows(params[:id], table_code, rows, source_record: record)
 
     redirect_to photo_path(params[:id])
   rescue StandardError => e
@@ -220,7 +222,7 @@ class PhotosController < ApplicationController
 
       kintone_table_row_payload(row)
     end
-    update_table_rows(params[:id], table_code, rows)
+    update_table_rows(params[:id], table_code, rows, source_record: record)
 
     redirect_to photo_path(params[:id])
   rescue StandardError => e
@@ -605,11 +607,81 @@ class PhotosController < ApplicationController
     params.permit(:table_code, :row_id, :file_column, :memo_column, :memo, :photo)
   end
 
-  def update_table_rows(record_id, table_code, rows)
-    photos_record_client.update(
-      record_id,
-      table_code => { value: rows }
-    )
+  def update_table_rows(record_id, table_code, rows, source_record: nil)
+    update_payload = { table_code => { value: rows } }
+    if source_record.present?
+      status_field = photo_status_field_code(source_record)
+      if status_field.present?
+        updated_record = record_with_table_rows(source_record, table_code, rows)
+        update_payload[status_field] = { value: photo_completion_status(updated_record) }
+      end
+    end
+
+    photos_record_client.update(record_id, update_payload)
+    clear_photo_summary_cache(source_record) if source_record.present?
+  end
+
+  def record_with_table_rows(record, table_code, rows)
+    updated = record.deep_dup
+    updated[table_code] ||= {}
+    updated[table_code]["value"] = rows
+    updated
+  end
+
+  def photo_status_field_code(record)
+    FIELD_ALIASES[:photo_status].find { |field_code| record&.key?(field_code) } ||
+      FIELD_ALIASES[:photo_status].find { |field_code| photos_form_properties.key?(field_code) }
+  end
+
+  def photo_completion_status(record)
+    all_required_photo_tables_complete?(record) ? PICTURE_FLAG_DONE : PICTURE_FLAG_INCOMPLETE
+  end
+
+  def all_required_photo_tables_complete?(record)
+    required_tables = required_photo_table_codes(record)
+    return false if required_tables.blank?
+
+    required_tables.all? do |table_code|
+      table_photo_attached?(record, table_code)
+    end
+  end
+
+  def required_photo_table_codes(record)
+    visible_detail_sections(record).flat_map { |section| section[:tables] }
+                                  .reject { |table_code| COMPLETION_EXCLUDED_TABLES.include?(table_code) }
+  end
+
+  def table_photo_attached?(record, table_code)
+    rows = detail_table_rows(record, table_code)
+    return false if rows.blank?
+
+    file_columns = table_file_columns(table_code, rows)
+    return false if file_columns.blank?
+
+    rows.any? do |row|
+      file_columns.any? { |column| file_value_present?(detail_cell_value(row, column)) }
+    end
+  end
+
+  def table_file_columns(table_code, rows)
+    current_file_column = table_row_params[:file_column].presence if table_code.to_s == table_row_params[:table_code].to_s
+    Array(current_file_column).presence ||
+      table_subfield_codes(table_code).select { |column| table_subfield_type(table_code, column) == "FILE" }.presence ||
+      detail_table_columns(rows, table_code).select { |column| rows.any? { |row| detail_file_cell?(row, column) } }
+  end
+
+  def file_value_present?(value)
+    Array(value).any? do |file|
+      file.is_a?(Hash) ? file["fileKey"].present? || file["name"].present? : file.present?
+    end
+  end
+
+  def clear_photo_summary_cache(record)
+    Rails.cache.delete(photo_summary_cache_key)
+    machine = field_value(record, :machine)
+    Rails.cache.delete(photo_summary_cache_key(machine_search_values(machine))) if machine.present?
+  rescue StandardError => e
+    Rails.logger.warn("Photo summary cache clear skipped: #{e.class}: #{e.message}")
   end
 
   def new_table_row_payload
