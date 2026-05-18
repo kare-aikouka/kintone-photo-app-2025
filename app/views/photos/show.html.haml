@@ -510,13 +510,19 @@
         }
 
         event.preventDefault();
+        const selectedInput = activeFileInput(form);
+        const selectedChoice = selectedInput && selectedInput.closest(".js-photo-file-choice");
+        const selectedLabel = selectedChoice && selectedChoice.querySelector(".js-photo-selected-file");
+        if (hasFiles && files.some(function (file) { return !file || file.size <= 0; })) {
+          showUploadError(form, selectedInput, selectedLabel);
+          alert("カメラから写真ファイルを取得できませんでした。もう一度撮影してください。");
+          return;
+        }
+
         if (form.dataset.uploading === "true") return;
 
         form.dataset.uploading = "true";
         const disabledInputs = disableInactiveChoiceInputs(form);
-        const selectedInput = activeFileInput(form);
-        const selectedChoice = selectedInput && selectedInput.closest(".js-photo-file-choice");
-        const selectedLabel = selectedChoice && selectedChoice.querySelector(".js-photo-selected-file");
         try {
           if (hasFiles && selectedLabel) selectedLabel.textContent = "写真を圧縮中...";
           uploadIndicator.show(
@@ -549,7 +555,7 @@
           showUploadError(form, selectedInput, selectedLabel);
           if (hasFiles) {
             alert("写真を保存できなかったので端末に保存します。");
-            files.forEach(downloadLocalFile);
+            files.filter(function (file) { return file && file.size > 0; }).forEach(downloadLocalFile);
           } else {
             alert("保存できませんでした。通信状況を確認してもう一度お試しください。");
           }

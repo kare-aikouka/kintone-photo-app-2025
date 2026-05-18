@@ -175,7 +175,7 @@ class PhotosController < ApplicationController
   rescue StandardError => e
     Rails.logger.error("Photo table row add failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
-    redirect_to photo_detail_return_path(params[:id]), alert: "写真・メモの追加に失敗しました。"
+    respond_photo_table_error("写真・メモの追加に失敗しました。")
   end
 
   def update_table_row
@@ -193,7 +193,7 @@ class PhotosController < ApplicationController
   rescue StandardError => e
     Rails.logger.error("Photo table row update failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
-    redirect_to photo_detail_return_path(params[:id]), alert: "写真・メモの編集に失敗しました。"
+    respond_photo_table_error("写真・メモの編集に失敗しました。")
   end
 
   def update_table_rows_batch
@@ -212,7 +212,7 @@ class PhotosController < ApplicationController
   rescue StandardError => e
     Rails.logger.error("Photo table rows batch update failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
-    redirect_to photo_detail_return_path(params[:id]), alert: "写真・メモの保存に失敗しました。"
+    respond_photo_table_error("写真・メモの保存に失敗しました。")
   end
 
   def delete_table_row
@@ -230,10 +230,18 @@ class PhotosController < ApplicationController
   rescue StandardError => e
     Rails.logger.error("Photo table row delete failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
-    redirect_to photo_detail_return_path(params[:id]), alert: "写真・メモの削除に失敗しました。"
+    respond_photo_table_error("写真・メモの削除に失敗しました。")
   end
 
   private
+
+  def respond_photo_table_error(message)
+    if request.xhr?
+      render plain: message, status: :unprocessable_entity
+    else
+      redirect_to photo_detail_return_path(params[:id]), alert: message
+    end
+  end
 
   def photo_detail_return_path(record_id)
     photo_path(record_id, photo_return_params)
@@ -771,6 +779,9 @@ class PhotosController < ApplicationController
       table_code: table_code,
       row_id: source_row&.dig("id") || table_row_params[:row_id]
     )
+    if photo_file_key.blank? && selected_photo_param?(row_params, :photo)
+      raise "写真ファイルを取得できませんでした。カメラアプリから空のファイルが返された可能性があります。"
+    end
     if photo_file_key.present? && file_column.blank?
       raise "添付先のファイル列を特定できませんでした。"
     elsif file_column.present? && photo_file_key.present?
@@ -822,6 +833,17 @@ class PhotosController < ApplicationController
     return params_hash[key.to_s] if params_hash.respond_to?(:key?) && params_hash.key?(key.to_s)
 
     nil
+  end
+
+  def selected_photo_param?(params_hash, key)
+    return false unless param_present_key?(params_hash, key)
+
+    Array(param_value(params_hash, key)).any? do |file|
+      next false if file.blank?
+
+      (file.respond_to?(:original_filename) && file.original_filename.present?) ||
+        (file.respond_to?(:size) && file.size.to_i >= 0)
+    end
   end
 
   def numeric_memo_field?(table_code, memo_column, source_row = nil)
