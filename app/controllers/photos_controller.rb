@@ -93,6 +93,7 @@ class PhotosController < ApplicationController
     machine: %w[施工機 施工機通称 施工班通称 施工機名 施工班名 施工班 機械名 重機名],
     date: %w[施工予定日 日付 施工日 作業日 撮影日 予定日 開始日 日時 登録日時],
     company: %w[発注会社名 会社名 取引先名 顧客名 運用会社名 施工会社 施工会社名],
+    prime_contractor: %w[元請名 元請 元請会社 元請会社名],
     branch: %w[支店 支店名 営業所 営業所名],
     site: %w[物件名 現場名 工事名 案件名],
     detail: %w[打設明細 明細 工事内容],

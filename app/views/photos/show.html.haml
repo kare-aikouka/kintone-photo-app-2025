@@ -36,7 +36,7 @@
 
     - blackboard_date = record_date(@record) ? "#{record_date(@record).year}年#{record_date(@record).month}月#{record_date(@record).day}日" : field_value(@record, :date).to_s
     - blackboard_project = field_value(@record, :site).presence || record_title(@record)
-    - blackboard_maker = field_value(@record, :company).presence || ""
+    - blackboard_maker = field_value(@record, :prime_contractor).presence || ""
     - blackboard_place = record_address(@record).presence || ""
     - blackboard_piles_parts = field_value(@record, :detail).to_s.split(/[、,]/).map(&:strip).reject(&:blank?)
     - blackboard_piles = blackboard_piles_parts.take_while { |part| !part.match?(/\A(?:JIS\b|カーボン|キュア|.*材)/i) && (part.match?(/[0-9０-９]/) || part.match?(/\A(?:本体|付帯|看板)/)) }.join(",")
