@@ -627,9 +627,17 @@ class PhotosController < ApplicationController
 
   def update_table_rows(record_id, table_code, rows, source_record: nil)
     update_payload = { table_code => { value: rows } }
+    upload_logs = pending_photo_upload_logs.dup
     photos_record_client.update(record_id, update_payload)
+    log_photo_upload_successes(upload_logs)
+    log_photo_table_update_success(record_id, table_code)
     refresh_photo_completion_status(record_id)
     clear_photo_summary_cache(source_record) if source_record.present?
+  rescue StandardError => e
+    log_photo_upload_failures(upload_logs || [], e)
+    raise
+  ensure
+    clear_pending_photo_upload_logs
   end
 
   def refresh_photo_completion_status(record_id)
@@ -723,7 +731,11 @@ class PhotosController < ApplicationController
     memo_column = table_row_params[:memo_column].presence
     payload[:value] ||= {}
 
-    photo_file_key = uploaded_photo_file_key(param_value(row_params, :photo))
+    photo_file_key = uploaded_photo_file_key(
+      param_value(row_params, :photo),
+      table_code: table_code,
+      row_id: source_row&.dig("id") || table_row_params[:row_id]
+    )
     if photo_file_key.present? && file_column.blank?
       raise "添付先のファイル列を特定できませんでした。"
     elsif file_column.present? && photo_file_key.present?
@@ -781,16 +793,82 @@ class PhotosController < ApplicationController
     match ? match[0].tr(",", ".") : ""
   end
 
-  def uploaded_photo_file_key(photo)
+  def uploaded_photo_file_key(photo, table_code: nil, row_id: nil)
     photo = Array(photo).find do |file|
       file.present? && (!file.respond_to?(:size) || file.size.to_i.positive?)
     end
     return if photo.blank?
 
+    upload_log = photo_upload_log_attributes(photo, table_code: table_code, row_id: row_id)
+    log_photo_upload_start(upload_log)
     KintoneSync::File.new(photos_app_id, photos_guest_space_id).upload(
       data: photo.read,
       content_type: photo.content_type,
       filename: photo.original_filename
+    ).tap do
+      pending_photo_upload_logs << upload_log
+    end
+  rescue StandardError => e
+    log_photo_upload_failure(upload_log, e) if upload_log
+    raise
+  end
+
+  def photo_upload_log_attributes(photo, table_code:, row_id:)
+    {
+      record_id: params[:id],
+      table_code: table_code,
+      row_id: row_id,
+      file_name: photo.respond_to?(:original_filename) ? photo.original_filename : nil,
+      content_type: photo.respond_to?(:content_type) ? photo.content_type : nil,
+      file_size: photo.respond_to?(:size) ? photo.size : nil
+    }
+  end
+
+  def pending_photo_upload_logs
+    @pending_photo_upload_logs ||= []
+  end
+
+  def clear_pending_photo_upload_logs
+    @pending_photo_upload_logs = []
+  end
+
+  def log_photo_upload_start(upload_log)
+    log_photo_upload_event("photos.upload.start", upload_log)
+  end
+
+  def log_photo_upload_successes(upload_logs)
+    Array(upload_logs).each { |upload_log| log_photo_upload_event("photos.upload.success", upload_log) }
+  end
+
+  def log_photo_upload_failure(upload_log, error)
+    log_photo_upload_event("photos.upload.failure", upload_log, error: error)
+  end
+
+  def log_photo_upload_failures(upload_logs, error)
+    Array(upload_logs).each { |upload_log| log_photo_upload_failure(upload_log, error) }
+  end
+
+  def log_photo_upload_event(key, upload_log, error: nil)
+    ActionLogger.photo_upload(
+      key,
+      request: request,
+      account: current_account,
+      record_id: upload_log[:record_id],
+      table_code: upload_log[:table_code],
+      file_name: upload_log[:file_name],
+      content_type: upload_log[:content_type],
+      file_size: upload_log[:file_size],
+      row_id: upload_log[:row_id],
+      error: error&.message
+    )
+  end
+
+  def log_photo_table_update_success(record_id, table_code)
+    ActionLogger.photo_table_update_success(
+      request: request,
+      account: current_account,
+      record_id: record_id,
+      table_code: table_code
     )
   end
 
