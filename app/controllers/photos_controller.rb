@@ -417,7 +417,7 @@ class PhotosController < ApplicationController
   helper_method :field_raw_value
 
   def record_title(record)
-    [field_value(record, :company), field_value(record, :site), field_value(record, :detail)].compact_blank.join("　")
+    [field_value(record, :prime_contractor), field_value(record, :site), field_value(record, :detail)].compact_blank.join("　")
   end
   helper_method :record_title
 
@@ -631,7 +631,7 @@ class PhotosController < ApplicationController
     upload_logs = pending_photo_upload_logs.dup
     photos_record_client.update(record_id, update_payload)
     log_photo_upload_successes(upload_logs)
-    log_photo_table_update_success(record_id, table_code)
+    log_photo_table_update_success(record_id, table_code) if upload_logs.blank?
     refresh_photo_completion_status(record_id)
     clear_photo_summary_cache(source_record) if source_record.present?
   rescue StandardError => e
@@ -801,7 +801,6 @@ class PhotosController < ApplicationController
     return if photo.blank?
 
     upload_log = photo_upload_log_attributes(photo, table_code: table_code, row_id: row_id)
-    log_photo_upload_start(upload_log)
     KintoneSync::File.new(photos_app_id, photos_guest_space_id).upload(
       data: photo.read,
       content_type: photo.content_type,
@@ -850,7 +849,7 @@ class PhotosController < ApplicationController
   end
 
   def log_photo_upload_event(key, upload_log, error: nil)
-    ActionLogger.photo_upload(
+    ActionLogger.photo_upload_async(
       key,
       request: request,
       account: current_account,
@@ -865,7 +864,7 @@ class PhotosController < ApplicationController
   end
 
   def log_photo_table_update_success(record_id, table_code)
-    ActionLogger.photo_table_update_success(
+    ActionLogger.photo_table_update_success_async(
       request: request,
       account: current_account,
       record_id: record_id,

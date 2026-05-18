@@ -5,6 +5,9 @@ class ActionLogger < ActiveKintone
   kintone_record_class_set ActionLogRecord
 
   class InvalidMessageKey < StandardError; end
+  RequestSnapshot = Struct.new(:url, :user_agent, :remote_ip, :referer, keyword_init: true)
+  AccountSnapshot = Struct.new(:record, keyword_init: true)
+  AccountRecordSnapshot = Struct.new(:email, :group, :company, :team, :area, keyword_init: true)
 
   MESSAGES = {
     account: {
@@ -57,8 +60,66 @@ class ActionLogger < ActiveKintone
       new.photo_upload(key, request: request, account: account, record_id: record_id, table_code: table_code, file: file, file_name: file_name, content_type: content_type, file_size: file_size, row_id: row_id, error: error)
     end
 
+    def photo_upload_async(key, request:, account:, record_id:, table_code:, file: nil, file_name: nil, content_type: nil, file_size: nil, row_id: nil, error: nil)
+      return photo_upload(key, request: request, account: account, record_id: record_id, table_code: table_code, file: file, file_name: file_name, content_type: content_type, file_size: file_size, row_id: row_id, error: error) unless enabled?
+
+      request_snapshot = snapshot_request(request)
+      account_snapshot = snapshot_account(account)
+      run_async do
+        photo_upload(key, request: request_snapshot, account: account_snapshot, record_id: record_id, table_code: table_code, file: file, file_name: file_name, content_type: content_type, file_size: file_size, row_id: row_id, error: error)
+      end
+    end
+
     def photo_table_update_success(request:, account:, record_id:, table_code:)
       new.photo_table_update_success(request: request, account: account, record_id: record_id, table_code: table_code)
+    end
+
+    def photo_table_update_success_async(request:, account:, record_id:, table_code:)
+      return photo_table_update_success(request: request, account: account, record_id: record_id, table_code: table_code) unless enabled?
+
+      request_snapshot = snapshot_request(request)
+      account_snapshot = snapshot_account(account)
+      run_async do
+        photo_table_update_success(request: request_snapshot, account: account_snapshot, record_id: record_id, table_code: table_code)
+      end
+    end
+
+    private
+
+    def run_async(&block)
+      Thread.new do
+        Rails.application.executor.wrap do
+          block.call
+        rescue StandardError => e
+          Rails.logger.warn("ActionLogger async skipped: #{e.class}: #{e.message}")
+        end
+      end
+      nil
+    rescue StandardError => e
+      Rails.logger.warn("ActionLogger async start skipped: #{e.class}: #{e.message}")
+      nil
+    end
+
+    def snapshot_request(request)
+      RequestSnapshot.new(
+        url: request&.url,
+        user_agent: request&.user_agent,
+        remote_ip: request&.remote_ip,
+        referer: request&.referer
+      )
+    end
+
+    def snapshot_account(account)
+      record = account&.record
+      AccountSnapshot.new(
+        record: AccountRecordSnapshot.new(
+          email: record&.email,
+          group: record&.group,
+          company: record&.company,
+          team: record&.team,
+          area: record&.area
+        )
+      )
     end
   end
 
@@ -206,7 +267,17 @@ class ActionLogger < ActiveKintone
   end
 
   def action_log_properties
-    @action_log_properties ||= kintone_app.properties
+    @action_log_properties ||= Rails.cache.fetch(action_log_properties_cache_key, expires_in: 1.hour) do
+      kintone_app.properties
+    end
+  end
+
+  def action_log_properties_cache_key
+    [
+      "action-log-fields",
+      ENV['APP_ACTION_LOG'],
+      ENV['GUEST_SPACE']
+    ].join(":")
   end
 
   def field_code(code, label = nil)
