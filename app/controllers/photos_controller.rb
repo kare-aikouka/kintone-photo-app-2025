@@ -479,9 +479,18 @@ class PhotosController < ApplicationController
   helper_method :record_id
 
   def detail_table_label(table_code)
+    return "その他" if other_table_code?(table_code)
+
     table_code.to_s.sub(/\Aテーブル/, "")
   end
   helper_method :detail_table_label
+
+  def detail_column_label(table_code, column)
+    return "その他" if other_table_code?(table_code) && column.to_s == "テーブルその他"
+
+    column
+  end
+  helper_method :detail_column_label
 
   def detail_table_rows(record, table_code)
     resolved_table_code = resolve_detail_table_code(record, table_code)
@@ -618,6 +627,8 @@ class PhotosController < ApplicationController
 
   def detail_table_code_candidates(table_code)
     raw = table_code.to_s
+    return %w[その他 テーブルその他] if other_table_code?(raw)
+
     label = detail_table_label(raw)
     [raw, "テーブル#{label}", label].compact_blank.uniq
   end
@@ -632,7 +643,8 @@ class PhotosController < ApplicationController
   end
 
   def other_table_code?(table_code)
-    [table_code, detail_table_label(table_code)].compact.any? { |value| value.to_s == "その他" }
+    raw = table_code.to_s
+    raw == "その他" || raw == "テーブルその他"
   end
 
   def table_has_visible_content?(rows)
@@ -853,8 +865,11 @@ class PhotosController < ApplicationController
 
   def fallback_file_column(table_code)
     label = detail_table_label(table_code)
-    return table_subfield_codes(table_code).find { |column| table_subfield_type(table_code, column) == "FILE" } if label == "その他"
-    return "その他" if label == "その他"
+    if label == "その他"
+      return table_subfield_codes(table_code).find { |column| column.to_s == "その他" && table_subfield_type(table_code, column) == "FILE" } ||
+        table_subfield_codes(table_code).find { |column| table_subfield_type(table_code, column) == "FILE" } ||
+        "テーブルその他"
+    end
 
     label.presence
   end

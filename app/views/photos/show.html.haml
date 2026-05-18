@@ -128,7 +128,7 @@
                   %thead
                     %tr
                       - columns.each do |column|
-                        %th= column
+                        %th= detail_column_label(table_code, column)
                       - if has_row_actions
                         %th.photo-table-action-column
                   %tbody
