@@ -31,7 +31,11 @@ class AccountsController < ApplicationController
 
   def session_destroy
     session.delete :account_id
-    redirect_to root_path
+
+    respond_to do |format|
+      format.html { redirect_to root_path }
+      format.json { head :no_content }
+    end
   end
 
   private

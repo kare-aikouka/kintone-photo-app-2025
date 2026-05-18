@@ -17,7 +17,14 @@
         <span class="app-shell-context"><%= app_shell_context_label %></span>
       <% end %>
       <%= link_to "ホーム", app_home_path, class: "app-shell-link" %>
-      <%= link_to "ログアウト", sign_out_path, data: { turbo_method: :delete }, class: "app-shell-button" %>
+      <%= button_to "ログアウト",
+                    sign_out_path,
+                    method: :delete,
+                    form: {
+                      class: "js-app-logout-form",
+                      data: { mobile_confirm: "アプリを終了しますか？" }
+                    },
+                    class: "app-shell-button app-shell-logout-button" %>
     </div>
   </div>
 </header>

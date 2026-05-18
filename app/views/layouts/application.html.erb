@@ -41,6 +41,65 @@
         document.documentElement.classList.remove("app-navigation-loading");
       }
 
+      function isMobileDevice() {
+        const userAgent = navigator.userAgent || "";
+        return /Android|iPhone|iPad|iPod/i.test(userAgent) ||
+          (/Macintosh/i.test(userAgent) && navigator.maxTouchPoints > 1) ||
+          (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+      }
+
+      function redirectHome() {
+        window.location.href = "/";
+      }
+
+      function closeAppOrRedirectHome() {
+        window.close();
+        window.setTimeout(function () {
+          if (!document.hidden) redirectHome();
+        }, 500);
+      }
+
+      function submitLogoutRequest(form) {
+        const token = document.querySelector("meta[name='csrf-token']")?.content;
+        const headers = {
+          "Accept": "application/json",
+          "X-Requested-With": "XMLHttpRequest"
+        };
+        if (token) headers["X-CSRF-Token"] = token;
+
+        return fetch(form.action, {
+          method: "DELETE",
+          credentials: "same-origin",
+          headers: headers
+        }).then(function (response) {
+          return response.ok || response.redirected;
+        });
+      }
+
+      document.addEventListener("submit", function (event) {
+        const form = event.target;
+        if (!form || !form.classList || !form.classList.contains("js-app-logout-form")) return;
+        if (!isMobileDevice()) return;
+
+        event.preventDefault();
+        const shouldClose = window.confirm(form.dataset.mobileConfirm || "アプリを終了しますか？");
+        showNavigationLoader();
+
+        submitLogoutRequest(form).then(function (loggedOut) {
+          if (!loggedOut) {
+            form.submit();
+            return;
+          }
+          if (shouldClose) {
+            closeAppOrRedirectHome();
+          } else {
+            redirectHome();
+          }
+        }).catch(function () {
+          form.submit();
+        });
+      }, true);
+
       document.addEventListener("click", function (event) {
         const link = event.target.closest && event.target.closest("a[href]");
         if (!link) return;
