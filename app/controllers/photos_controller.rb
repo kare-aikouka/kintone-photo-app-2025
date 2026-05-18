@@ -6,7 +6,7 @@ class PhotosController < ApplicationController
   PICTURE_FLAG_DONE = "完了"
   PICTURE_FLAG_INCOMPLETE = "未完了"
   COMPLETION_EXCLUDED_TABLES = %w[その他 テーブルその他].freeze
-  SUMMARY_CACHE_VERSION = "v4"
+  SUMMARY_CACHE_VERSION = "v5"
   SUMMARY_CACHE_TTL = 10.minutes
   SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
   NUMBER_MEMO_TABLE_PATTERNS = [
@@ -166,9 +166,9 @@ class PhotosController < ApplicationController
 
   def add_table_row
     record = photo_record(params[:id])
-    table_code = table_row_params[:table_code]
+    table_code = resolve_detail_table_code(record, table_row_params[:table_code])
     rows = detail_table_rows(record, table_code).map { |row| kintone_table_row_payload(row) }
-    rows << new_table_row_payload
+    rows << new_table_row_payload(table_code: table_code)
     update_table_rows(params[:id], table_code, rows, source_record: record)
 
     redirect_to photo_detail_return_path(params[:id])
@@ -180,11 +180,11 @@ class PhotosController < ApplicationController
 
   def update_table_row
     record = photo_record(params[:id])
-    table_code = table_row_params[:table_code]
+    table_code = resolve_detail_table_code(record, table_row_params[:table_code])
     target_row_id = table_row_params[:row_id].to_s
     rows = detail_table_rows(record, table_code).map do |row|
       payload = kintone_table_row_payload(row)
-      apply_table_row_params(payload, source_row: row) if row["id"].to_s == target_row_id
+      apply_table_row_params(payload, source_row: row, table_code: table_code) if row["id"].to_s == target_row_id
       payload
     end
     update_table_rows(params[:id], table_code, rows, source_record: record)
@@ -198,12 +198,12 @@ class PhotosController < ApplicationController
 
   def update_table_rows_batch
     record = photo_record(params[:id])
-    table_code = table_row_params[:table_code]
+    table_code = resolve_detail_table_code(record, table_row_params[:table_code])
     submitted_rows = params.fetch(:table_rows, {})
     rows = detail_table_rows(record, table_code).map do |row|
       payload = kintone_table_row_payload(row)
       row_params = submitted_rows[row["id"].to_s] || {}
-      apply_table_row_params(payload, row_params, source_row: row)
+      apply_table_row_params(payload, row_params, source_row: row, table_code: table_code)
       payload
     end
     update_table_rows(params[:id], table_code, rows, source_record: record)
@@ -217,7 +217,7 @@ class PhotosController < ApplicationController
 
   def delete_table_row
     record = photo_record(params[:id])
-    table_code = table_row_params[:table_code]
+    table_code = resolve_detail_table_code(record, table_row_params[:table_code])
     target_row_id = table_row_params[:row_id].to_s
     rows = detail_table_rows(record, table_code).filter_map do |row|
       next if row["id"].to_s == target_row_id
@@ -440,7 +440,8 @@ class PhotosController < ApplicationController
   helper_method :detail_table_label
 
   def detail_table_rows(record, table_code)
-    Array(record&.dig(table_code, "value"))
+    resolved_table_code = resolve_detail_table_code(record, table_code)
+    Array(record&.dig(resolved_table_code, "value"))
   end
   helper_method :detail_table_rows
 
@@ -542,19 +543,52 @@ class PhotosController < ApplicationController
     enabled = Array(record&.dig("報告書フォーマット撮影写真", "value")).map(&:to_s)
 
     DETAIL_SECTIONS.filter_map do |section|
-      tables = section[:tables].select do |table_code|
-        label = detail_table_label(table_code)
+      tables = section[:tables].filter_map do |configured_table_code|
+        table_code = resolve_detail_table_code(record, configured_table_code)
+        label = detail_table_label(configured_table_code)
+        resolved_label = detail_table_label(table_code)
         rows = detail_table_rows(record, table_code)
         if enabled.present?
-          enabled.include?(label) || table_code == "その他"
+          table_code if enabled.include?(label) || enabled.include?(resolved_label) || other_table_code?(configured_table_code)
         else
-          table_has_visible_content?(rows) || table_code == "その他"
+          table_code if table_has_visible_content?(rows) || other_table_code?(configured_table_code)
         end
-      end
+      end.uniq
       next if tables.blank?
 
       section.merge(tables: tables)
     end
+  end
+
+  def resolve_detail_table_code(record, table_code)
+    candidates = detail_table_code_candidates(table_code)
+    candidates.find { |candidate| record_table_field?(record, candidate) && form_table_field?(candidate) } ||
+      candidates.find { |candidate| form_table_field?(candidate) } ||
+      candidates.find { |candidate| record_table_field?(record, candidate) } ||
+      table_code.to_s
+  end
+
+  def resolve_form_table_code(table_code)
+    detail_table_code_candidates(table_code).find { |candidate| form_table_field?(candidate) } || table_code.to_s
+  end
+
+  def detail_table_code_candidates(table_code)
+    raw = table_code.to_s
+    label = detail_table_label(raw)
+    [raw, "テーブル#{label}", label].compact_blank.uniq
+  end
+
+  def form_table_field?(table_code)
+    photos_form_properties.dig(table_code.to_s, "type") == "SUBTABLE"
+  end
+
+  def record_table_field?(record, table_code)
+    field = record&.dig(table_code.to_s)
+    field&.dig("type") == "SUBTABLE" || field&.dig("value").is_a?(Array)
+  end
+
+  def other_table_code?(table_code)
+    [table_code, detail_table_label(table_code)].compact.any? { |value| value.to_s == "その他" }
   end
 
   def table_has_visible_content?(rows)
@@ -720,15 +754,15 @@ class PhotosController < ApplicationController
     Rails.logger.warn("Photo summary cache clear skipped: #{e.class}: #{e.message}")
   end
 
-  def new_table_row_payload
+  def new_table_row_payload(table_code: nil)
     payload = { value: {} }
-    apply_table_row_params(payload)
+    apply_table_row_params(payload, table_code: table_code)
     payload
   end
 
-  def apply_table_row_params(payload, row_params = table_row_params, source_row: nil)
-    table_code = table_row_params[:table_code].presence
-    file_column = table_row_params[:file_column].presence || inferred_file_column(table_code, payload)
+  def apply_table_row_params(payload, row_params = table_row_params, source_row: nil, table_code: nil)
+    table_code = table_code.presence || table_row_params[:table_code].presence
+    file_column = resolved_file_column(table_code, table_row_params[:file_column].presence, payload)
     memo_column = table_row_params[:memo_column].presence
     payload[:value] ||= {}
 
@@ -753,6 +787,17 @@ class PhotosController < ApplicationController
     payload
   end
 
+  def resolved_file_column(table_code, requested_file_column, payload)
+    inferred_column = inferred_file_column(table_code, payload)
+    return requested_file_column if requested_file_column.present? && inferred_column.blank?
+    return requested_file_column if requested_file_column.present? && table_subfield_type(table_code, requested_file_column) == "FILE"
+
+    if requested_file_column.present? && inferred_column.present? && requested_file_column != inferred_column
+      Rails.logger.warn("Photo file column corrected: table=#{table_code} requested=#{requested_file_column} resolved=#{inferred_column}")
+    end
+    inferred_column
+  end
+
   def inferred_file_column(table_code, payload)
     table_subfield_codes(table_code).find { |column| table_subfield_type(table_code, column) == "FILE" } ||
       payload.fetch(:value, {}).keys.find { |column| table_subfield_type(table_code, column) == "FILE" } ||
@@ -761,6 +806,7 @@ class PhotosController < ApplicationController
 
   def fallback_file_column(table_code)
     label = detail_table_label(table_code)
+    return table_subfield_codes(table_code).find { |column| table_subfield_type(table_code, column) == "FILE" } if label == "その他"
     return "その他" if label == "その他"
 
     label.presence
@@ -914,9 +960,10 @@ class PhotosController < ApplicationController
   def table_subfield_properties(table_code)
     return {} if table_code.blank?
 
+    resolved_table_code = resolve_form_table_code(table_code)
     @table_subfield_properties ||= {}
-    @table_subfield_properties[table_code.to_s] ||= begin
-      field = photos_form_properties[table_code.to_s]
+    @table_subfield_properties[resolved_table_code.to_s] ||= begin
+      field = photos_form_properties[resolved_table_code.to_s]
       field&.dig("fields") || {}
     end
   rescue StandardError => e
