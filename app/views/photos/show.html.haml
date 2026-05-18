@@ -39,6 +39,7 @@
     - blackboard_maker = field_value(@record, :prime_contractor).presence || ""
     - blackboard_place = record_address(@record).presence || ""
     - blackboard_piles = blackboard_piles_text(@record)
+    - stale_single_date = photo_status(@record) == PhotosController::PICTURE_FLAG_INCOMPLETE && record_date(@record).present? && record_date(@record) < Date.current && blackboard_date.scan("日").size == 1
     .photo-blackboard.js-photo-blackboard-config{ data: { record_id: record_id(@record) } }
       .photo-blackboard-head
         .photo-blackboard-title 電子黒板
@@ -65,7 +66,7 @@
           = text_field_tag :photo_blackboard_kind, "様邸新築工事", class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "kind" }
         .photo-blackboard-field
           %label 工事年月日
-          = text_field_tag :photo_blackboard_date, blackboard_date, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "date" }
+          = text_field_tag :photo_blackboard_date, blackboard_date, class: ["photo-blackboard-input js-blackboard-field", ("is-blackboard-stale-date" if stale_single_date)].compact.join(" "), data: { blackboard_key: "date" }
         .photo-blackboard-field
           %label 施工者
           = text_field_tag :photo_blackboard_maker, blackboard_maker, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "maker" }
