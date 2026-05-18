@@ -269,6 +269,8 @@
     const BLACKBOARD_STORAGE_KEY = "photo-blackboard:" + window.location.pathname;
     const BLACKBOARD_PHOTO_STORAGE_KEY = "photo-blackboard-photos:" + window.location.pathname;
     const BLACKBOARD_FONT_FAMILY = '"Noto Sans CJK JP", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
+    const BLACKBOARD_MIN_SCALE = 0.7;
+    const BLACKBOARD_OVERWRITE_SCALE = 1.03;
     const deleteConfirm = buildDeleteConfirm();
     const photoPreview = buildPhotoPreview();
     const uploadIndicator = buildUploadIndicator();
@@ -879,13 +881,13 @@
       const saved = blackboardPhotoConfig(button);
       const savedHasBurnedBoard = saved && saved.enabled !== false;
       const source = savedHasBurnedBoard ? saved : current;
-      const baseScale = numericValue(source && source.scale, current.scale || 1);
+      const baseScale = savedHasBurnedBoard ? numericValue(saved.scale, current.scale || 1) : BLACKBOARD_MIN_SCALE;
       const baseOffsetX = numericValue(source && source.offsetX, current.offsetX || 0);
       const baseOffsetY = numericValue(source && source.offsetY, current.offsetY || 0);
       return {
         enabled: true,
         position: (source && source.position) || current.position || "left",
-        scale: baseScale * 1.02,
+        scale: baseScale * BLACKBOARD_OVERWRITE_SCALE,
         offsetX: baseOffsetX,
         offsetY: baseOffsetY,
         values: current.values || {}
@@ -924,7 +926,7 @@
         fileName: button.dataset.fileName || "",
         enabled: true,
         position: overwriteConfig.position || "left",
-        scale: (overwriteConfig.scale || 1.02) / 1.02,
+        scale: (overwriteConfig.scale || BLACKBOARD_OVERWRITE_SCALE) / BLACKBOARD_OVERWRITE_SCALE,
         offsetX: overwriteConfig.offsetX || 0,
         offsetY: overwriteConfig.offsetY || 0,
         values: overwriteConfig.values || {},
