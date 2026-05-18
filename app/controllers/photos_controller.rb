@@ -92,6 +92,7 @@ class PhotosController < ApplicationController
   FIELD_ALIASES = {
     machine: %w[施工機 施工機通称 施工班通称 施工機名 施工班名 施工班 機械名 重機名],
     date: %w[施工予定日 日付 施工日 作業日 撮影日 予定日 開始日 日時 登録日時],
+    end_date: %w[施工終了日 終了日 完了予定日 工期終了日 終了予定日],
     company: %w[発注会社名 会社名 取引先名 顧客名 運用会社名 施工会社 施工会社名],
     prime_contractor: %w[元請名 元請 元請会社 元請会社名],
     branch: %w[支店 支店名 営業所 営業所名],
@@ -401,6 +402,28 @@ class PhotosController < ApplicationController
   end
   helper_method :record_date
 
+  def record_end_date(record)
+    value = field_value(record, :end_date)
+    parse_date(value)
+  end
+  helper_method :record_end_date
+
+  def blackboard_date_text(record)
+    start_date = record_date(record)
+    end_date = record_end_date(record)
+    fallback = field_value(record, :date).to_s
+    return fallback if start_date.blank?
+    return japanese_date(start_date) if end_date.blank? || end_date == start_date
+
+    "#{japanese_date(start_date)}～#{japanese_date(end_date)}"
+  end
+  helper_method :blackboard_date_text
+
+  def blackboard_piles_text(record)
+    sanitize_blackboard_piles(field_value(record, :detail))
+  end
+  helper_method :blackboard_piles_text
+
   def parse_date(value)
     return value if value.is_a?(Date)
     return if value.blank?
@@ -408,6 +431,19 @@ class PhotosController < ApplicationController
     Date.parse(value.to_s)
   rescue ArgumentError
     nil
+  end
+
+  def japanese_date(date)
+    "#{date.year}年#{date.month}月#{date.day}日"
+  end
+
+  def sanitize_blackboard_piles(value)
+    text = value.to_s.tr("，", ",").tr("★☆", "").squish
+    text = text.split(/[→⇒]/).first.to_s
+    text = text.sub(/[、,]\s*(?:JIS\b|H-?CPT|カーボン|キュア|.*材|.*追加|.*破損|.*折れ).*\z/i, "")
+    text = text.sub(/\s+(?:JIS\b|H-?CPT|カーボン|キュア|.*材).*\z/i, "")
+    text.strip!
+    text.match?(/[mMｍＭ]/) ? text : ""
   end
 
   def field_value(record, key)

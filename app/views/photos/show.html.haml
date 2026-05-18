@@ -34,13 +34,11 @@
           写真：
           %strong{ class: ("is-done" if photo_status(@record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(@record)
 
-    - blackboard_date = record_date(@record) ? "#{record_date(@record).year}年#{record_date(@record).month}月#{record_date(@record).day}日" : field_value(@record, :date).to_s
+    - blackboard_date = blackboard_date_text(@record)
     - blackboard_project = field_value(@record, :site).presence || record_title(@record)
     - blackboard_maker = field_value(@record, :prime_contractor).presence || ""
     - blackboard_place = record_address(@record).presence || ""
-    - blackboard_piles_parts = field_value(@record, :detail).to_s.split(/[、,]/).map(&:strip).reject(&:blank?)
-    - blackboard_piles = blackboard_piles_parts.take_while { |part| !part.match?(/\A(?:JIS\b|カーボン|キュア|.*材)/i) && (part.match?(/[0-9０-９]/) || part.match?(/\A(?:本体|付帯|看板)/)) }.join(",")
-    - blackboard_piles = "" unless blackboard_piles.match?(/[mMｍＭ]/)
+    - blackboard_piles = blackboard_piles_text(@record)
     .photo-blackboard.js-photo-blackboard-config{ data: { record_id: record_id(@record) } }
       .photo-blackboard-head
         .photo-blackboard-title 電子黒板
@@ -86,7 +84,7 @@
         .photo-blackboard-adjustments
           .photo-blackboard-adjustment
             %label サイズ
-            = range_field_tag :photo_blackboard_scale, 100, min: 70, max: 140, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
+            = range_field_tag :photo_blackboard_scale, 90, min: 70, max: 140, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
         .photo-blackboard-position-adjustments
           .photo-blackboard-position-adjustments-title 位置微調整
           .photo-blackboard-adjustment
@@ -271,6 +269,8 @@
     const BLACKBOARD_FONT_FAMILY = '"Noto Sans CJK JP", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
     const BLACKBOARD_MIN_SCALE = 0.7;
     const BLACKBOARD_OVERWRITE_SCALE = 1.03;
+    const BLACKBOARD_CONFIG_VERSION = 2;
+    const BLACKBOARD_DEFAULT_SCALE_VALUE = "90";
     const deleteConfirm = buildDeleteConfirm();
     const photoPreview = buildPhotoPreview();
     const uploadIndicator = buildUploadIndicator();
@@ -1234,6 +1234,7 @@
       const enabledInput = root.querySelector(".js-blackboard-enabled:checked");
       const positionInput = root.querySelector(".js-blackboard-position:checked");
       const data = {
+        version: BLACKBOARD_CONFIG_VERSION,
         enabled: enabledInput ? enabledInput.value : "1",
         position: positionInput ? positionInput.value : "left",
         adjustments: {},
@@ -1283,7 +1284,10 @@
         });
         Object.keys(data.adjustments || {}).forEach(function (key) {
           const input = root.querySelector(".js-blackboard-adjust[data-blackboard-key='" + key + "']");
-          if (input) input.value = data.adjustments[key];
+          if (input) {
+            const savedValue = data.adjustments[key];
+            input.value = key === "scale" && data.version !== BLACKBOARD_CONFIG_VERSION && savedValue === "100" ? BLACKBOARD_DEFAULT_SCALE_VALUE : savedValue;
+          }
         });
       } catch (error) {
         try {
@@ -1344,24 +1348,12 @@
     }
 
     function sanitizeBlackboardPilesValue(value) {
-      const parts = String(value || "").split(/[、,]/).map(function (part) {
-        return part.trim();
-      }).filter(Boolean);
-      const kept = [];
-      parts.some(function (part) {
-        if (isBlackboardPilesExcludedPart(part)) return true;
-        if (/[0-9０-９]/.test(part) || /^(本体|付帯|看板)/.test(part)) {
-          kept.push(part);
-          return false;
-        }
-        return kept.length > 0;
-      });
-      const sanitized = kept.join(",");
+      let sanitized = String(value || "").replace(/[，]/g, ",").replace(/[★☆]/g, "").trim();
+      sanitized = sanitized.replace(/\s+/g, " ");
+      sanitized = sanitized.split(/[→⇒]/)[0] || "";
+      sanitized = sanitized.replace(/[、,]\s*(?:JIS\b|H-?CPT|カーボン|キュア|.*材|.*追加|.*破損|.*折れ).*$/i, "");
+      sanitized = sanitized.replace(/\s+(?:JIS\b|H-?CPT|カーボン|キュア|.*材).*$/i, "").trim();
       return /[mMｍＭ]/.test(sanitized) ? sanitized : "";
-    }
-
-    function isBlackboardPilesExcludedPart(part) {
-      return /^(JIS\b|カーボン|キュア|.*材)/i.test(part || "");
     }
 
     function updateBlackboardPreview() {
