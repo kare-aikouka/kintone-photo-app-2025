@@ -113,13 +113,45 @@
 
 :javascript
   document.addEventListener("DOMContentLoaded", function () {
+    var debugArea = document.querySelector(".debug-info");
+    if (debugArea) {
+      var jsStatus = document.createElement("p");
+      jsStatus.style.cssText = "color: blue; font-weight: bold; margin-top: 8px;";
+      jsStatus.textContent = "✅ JavaScript初期化OK - フォーム検索中...";
+      debugArea.appendChild(jsStatus);
+    }
+
     const forms = document.querySelectorAll(".js-document-pdf-form");
-    if (!forms.length) return;
+    if (!forms.length) {
+      if (debugArea) {
+        var noFormMsg = document.createElement("p");
+        noFormMsg.style.cssText = "color: red; font-weight: bold;";
+        noFormMsg.textContent = "❌ .js-document-pdf-form が見つかりません（フォーム未描画）";
+        debugArea.appendChild(noFormMsg);
+      }
+      return;
+    }
+
+    if (debugArea) {
+      var formMsg = document.createElement("p");
+      formMsg.style.cssText = "color: green; font-weight: bold;";
+      formMsg.textContent = "✅ フォーム " + forms.length + " 件検出 - イベントリスナー登録完了";
+      debugArea.appendChild(formMsg);
+    }
 
     forms.forEach(function (form) {
       form.querySelectorAll(".js-document-image-input").forEach(function (input) {
         input.addEventListener("change", function () {
-          if (!input.files || !input.files[0] || form.dataset.uploading === "true") return;
+          var statusEl = form.querySelector(".js-document-status");
+          if (statusEl) statusEl.textContent = "ファイル選択を検知しました...";
+          if (!input.files || !input.files[0]) {
+            if (statusEl) statusEl.textContent = "⚠ ファイルが空です";
+            return;
+          }
+          if (form.dataset.uploading === "true") {
+            if (statusEl) statusEl.textContent = "⚠ 前回のアップロード処理中です";
+            return;
+          }
           submitDocumentImage(form, input.files[0]);
         });
       });

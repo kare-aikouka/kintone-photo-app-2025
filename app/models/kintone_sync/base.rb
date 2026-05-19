@@ -32,7 +32,7 @@ module KintoneSync
     def fields
       @__fields_cache ||= {}
       @__fields_cache[app_id] ||= begin
-        client.get('form/fields.json', { app: app_id })
+        client.get('app/form/fields.json', { app: app_id })
       end
     end
 
