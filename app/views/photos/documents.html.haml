@@ -41,6 +41,25 @@
       %h2 資料アップロード
       %p 写真を1枚ずつPDFに変換し、kintoneの資料添付フィールドへ保存します。
 
+    - contact_note_field_code = document_contact_note_field_code(@record)
+    .photo-document-contact-card{ class: ("is-disabled" if contact_note_field_code.blank?) }
+      .photo-document-card-head
+        %h3 施工後連絡事項
+        - if contact_note_field_code.present?
+          %span.photo-document-field= contact_note_field_code
+        - else
+          %span.photo-document-field.is-missing kintoneフィールド未検出
+      %p.photo-document-contact-help
+        現場からオフィスへ伝えたいことがある場合だけ入力してください。
+      - if contact_note_field_code.present?
+        = form_with url: update_document_contact_note_photo_path(record_id(@record), detail_return_params), method: :patch, local: true, html: { class: "photo-document-contact-form" } do
+          = text_area_tag :document_contact_note, document_contact_note(@record), rows: 4, class: "photo-document-contact-textarea", placeholder: "例）納品書のほかに1本追加になっています。"
+          .photo-document-contact-actions
+            %button.btn.photo-document-contact-save{ type: "submit" } 連絡事項を保存
+      - else
+        .photo-document-disabled-message
+          kintone側に「施工後連絡事項」フィールドを追加後に利用できます。
+
     .photo-document-grid
       - document_categories.each do |category_key, category|
         - field_code = document_field_code(category, @record)
@@ -60,7 +79,13 @@
                 - file_name = file["name"].presence || "#{category[:label]}#{index + 1}.pdf"
                 - content_type = file["contentType"].presence || "application/pdf"
                 - if file_key.present?
-                  = link_to file_name, files_path(key: file_key, type: content_type), class: "photo-document-file"
+                  .photo-document-file-row
+                    = link_to file_name, files_path(key: file_key, type: content_type), class: "photo-document-file"
+                    = form_with url: documents_photo_path(record_id(@record), detail_return_params), method: :delete, local: true, html: { class: "photo-document-delete-form js-document-delete-form", data: { file_name: file_name } } do
+                      = hidden_field_tag :document_category, category_key
+                      = hidden_field_tag :file_key, file_key
+                      = hidden_field_tag :file_name, file_name
+                      %button.photo-document-delete-button{ type: "submit" } 削除
           - else
             .photo-document-empty まだ資料はありません。
 
@@ -82,8 +107,10 @@
               kintone側に「#{category[:label]}」用の添付ファイルフィールドを追加後に利用できます。
 
     - if @diag_record_target_check.present?
-      .debug-info{ style: "margin-top: 40px; padding: 16px; background: #fffbe6; border: 2px solid #f0ad4e; border-radius: 8px; font-size: 13px; color: #333;" }
-        %h4{ style: "margin: 0 0 12px; color: #c00;" } 🔍 フィールド検出 診断パネル（一時的）
+      .photo-document-debug-actions
+        %button.photo-document-debug-toggle.js-document-debug-toggle{ type: "button", aria: { expanded: "false", controls: "document-diagnostics" } } ログを表示する
+      #document-diagnostics.debug-info.photo-document-debug-panel{ hidden: true }
+        %h4 🔍 フィールド検出 診断パネル
         %p
           %strong form/fields.json API 取得フィールド数：
           = @diag_form_properties_count || 0
@@ -94,25 +121,45 @@
           - else
             %span{ style: "color: red;" } ※ FILEフィールドが1件も見つかりません（API失敗の可能性大）
         %hr
-        %table{ style: "width: 100%; border-collapse: collapse; font-size: 12px;" }
+        %table
           %thead
-            %tr{ style: "background: #f5f5f5;" }
-              %th{ style: "border: 1px solid #ccc; padding: 4px;" } フィールドコード
-              %th{ style: "border: 1px solid #ccc; padding: 4px;" } レコード内に存在
-              %th{ style: "border: 1px solid #ccc; padding: 4px;" } レコードtype
-              %th{ style: "border: 1px solid #ccc; padding: 4px;" } フォーム定義に存在
-              %th{ style: "border: 1px solid #ccc; padding: 4px;" } フォームtype
+            %tr
+              %th フィールドコード
+              %th レコード内に存在
+              %th レコードtype
+              %th フォーム定義に存在
+              %th フォームtype
           %tbody
             - @diag_record_target_check.each do |check|
               %tr
-                %td{ style: "border: 1px solid #ccc; padding: 4px; font-weight: bold;" }= check[:code]
-                %td{ style: "border: 1px solid #ccc; padding: 4px; color: #{check[:in_record] ? 'green' : 'red'};" }= check[:in_record] ? "✅ YES" : "❌ NO"
-                %td{ style: "border: 1px solid #ccc; padding: 4px;" }= check[:type] || "-"
-                %td{ style: "border: 1px solid #ccc; padding: 4px; color: #{check[:in_form] ? 'green' : 'red'};" }= check[:in_form] ? "✅ YES" : "❌ NO"
-                %td{ style: "border: 1px solid #ccc; padding: 4px;" }= check[:form_type] || "-"
+                %td= check[:code]
+                %td{ class: (check[:in_record] ? "is-ok" : "is-ng") }= check[:in_record] ? "YES" : "NO"
+                %td= check[:type] || "-"
+                %td{ class: (check[:in_form] ? "is-ok" : "is-ng") }= check[:in_form] ? "YES" : "NO"
+                %td= check[:form_type] || "-"
 
 :javascript
   document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".js-document-debug-toggle").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var target = document.getElementById(button.getAttribute("aria-controls"));
+        if (!target) return;
+        var willOpen = target.hidden;
+        target.hidden = !willOpen;
+        button.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        button.textContent = willOpen ? "ログを隠す" : "ログを表示する";
+      });
+    });
+
+    document.querySelectorAll(".js-document-delete-form").forEach(function (form) {
+      form.addEventListener("submit", function (event) {
+        var fileName = form.dataset.fileName || "このPDF";
+        if (!window.confirm(fileName + " を削除しますか？")) {
+          event.preventDefault();
+        }
+      });
+    });
+
     var debugArea = document.querySelector(".debug-info");
     if (debugArea) {
       var jsStatus = document.createElement("p");
@@ -142,7 +189,6 @@
     forms.forEach(function (form) {
       form.querySelectorAll(".js-document-image-input").forEach(function (input) {
         input.addEventListener("change", function () {
-          alert("changeイベント発火: " + (input.files && input.files[0] ? input.files[0].name + " (" + input.files[0].size + "bytes)" : "ファイルなし"));
           var statusEl = form.querySelector(".js-document-status");
           if (statusEl) statusEl.textContent = "ファイル選択を検知しました...";
           if (!input.files || !input.files[0]) {
@@ -169,13 +215,13 @@
       try {
         form.dataset.uploading = "true";
         setFormDisabled(form, true);
-        setStatus(status, "PDF生成中です...");
+        setStatus(status, "PDF生成中です...", false, true);
 
         var image = await loadImage(file);
-        setStatus(status, "画像読み込み完了 (" + image.naturalWidth + "x" + image.naturalHeight + ") PDF変換中...");
+        setStatus(status, "A4 PDFへ変換中です...", false, true);
 
         pdfBlob = await imageToPdfBlob(image);
-        setStatus(status, "PDF生成完了 (" + pdfBlob.size + "bytes) アップロード準備中...");
+        setStatus(status, "PDF生成完了。アップロード準備中です...", false, true);
 
         filename = documentPdfFilename(label, file);
         var formData = new FormData(form);
@@ -186,7 +232,7 @@
         formData.append("document_pdf", pdfBlob, filename);
 
         var csrfValue = csrfToken();
-        setStatus(status, "kintoneへアップロード中... (CSRF=" + (csrfValue ? "有" : "無") + ", action=" + form.action + ")");
+        setStatus(status, "kintoneへアップロード中です...", false, true);
 
         var response = await fetch(form.action, {
           method: "POST",
@@ -207,14 +253,14 @@
         } catch (_) {}
 
         if (result && result.status === "success") {
-          alert("✅ 成功: " + result.message + "\nfield=" + result.field_code + " file_key=" + result.file_key);
+          setStatus(status, "アップロード完了。画面を更新します...", false, true);
           window.location.reload();
           return;
         } else if (result && result.status === "error") {
           throw new Error(result.message);
         } else {
-          alert("サーバー応答（想定外）: status=" + response.status + " type=" + response.type + "\n" + responseText.substring(0, 300));
           if (response.ok || response.type === "opaqueredirect") {
+            setStatus(status, "アップロード完了。画面を更新します...", false, true);
             window.location.reload();
             return;
           }
@@ -230,10 +276,20 @@
       }
     }
 
-    function setStatus(target, text, error) {
+    function setStatus(target, text, error, loading) {
       if (!target) return;
-      target.textContent = text || "";
+      target.innerHTML = "";
+      if (loading) {
+        const spinner = document.createElement("span");
+        spinner.className = "photo-document-status-spinner";
+        spinner.setAttribute("aria-hidden", "true");
+        target.appendChild(spinner);
+      }
+      const message = document.createElement("span");
+      message.textContent = text || "";
+      target.appendChild(message);
       target.classList.toggle("is-error", !!error);
+      target.classList.toggle("is-loading", !!loading);
     }
 
     function setFormDisabled(form, disabled) {
@@ -265,7 +321,9 @@
     }
 
     async function imageToPdfBlob(image) {
-      const size = fitSize(image.naturalWidth || image.width, image.naturalHeight || image.height, 1600);
+      const sourceWidth = image.naturalWidth || image.width;
+      const sourceHeight = image.naturalHeight || image.height;
+      const size = fitSize(sourceWidth, sourceHeight, 2480);
       const canvas = document.createElement("canvas");
       canvas.width = size.width;
       canvas.height = size.height;
@@ -275,10 +333,12 @@
       context.drawImage(image, 0, 0, size.width, size.height);
       const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.9);
       const jpegBytes = base64ToBytes(jpegDataUrl.split(",")[1]);
-      return new Blob([buildSingleImagePdf(size.width, size.height, jpegBytes)], { type: "application/pdf" });
+      const page = a4PageSize(sourceWidth, sourceHeight);
+      const draw = containRect(size.width, size.height, page.width, page.height);
+      return new Blob([buildSingleImagePdf(page.width, page.height, size.width, size.height, draw, jpegBytes)], { type: "application/pdf" });
     }
 
-    function buildSingleImagePdf(width, height, jpegBytes) {
+    function buildSingleImagePdf(pageWidth, pageHeight, imageWidth, imageHeight, draw, jpegBytes) {
       const chunks = [];
       const offsets = [];
       let length = 0;
@@ -303,11 +363,11 @@
       push("%PDF-1.4\n");
       object(1, "<< /Type /Catalog /Pages 2 0 R >>");
       object(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-      object(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + width + " " + height + "] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>");
-      const commands = "q\n" + width + " 0 0 " + height + " 0 0 cm\n/Im0 Do\nQ\n";
+      object(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + pageWidth + " " + pageHeight + "] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>");
+      const commands = "q\n" + draw.width + " 0 0 " + draw.height + " " + draw.x + " " + draw.y + " cm\n/Im0 Do\nQ\n";
       object(4, ["<< /Length " + asciiBytes(commands).length + " >>\nstream\n", commands, "endstream"]);
       object(5, [
-        "<< /Type /XObject /Subtype /Image /Width " + width + " /Height " + height + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpegBytes.length + " >>\nstream\n",
+        "<< /Type /XObject /Subtype /Image /Width " + imageWidth + " /Height " + imageHeight + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpegBytes.length + " >>\nstream\n",
         jpegBytes,
         "\nendstream"
       ]);
@@ -327,6 +387,22 @@
         position += chunk.length;
       });
       return output;
+    }
+
+    function a4PageSize(width, height) {
+      return width > height ? { width: 842, height: 595 } : { width: 595, height: 842 };
+    }
+
+    function containRect(width, height, pageWidth, pageHeight) {
+      const ratio = Math.min(pageWidth / width, pageHeight / height);
+      const drawWidth = Math.round(width * ratio * 1000) / 1000;
+      const drawHeight = Math.round(height * ratio * 1000) / 1000;
+      return {
+        width: drawWidth,
+        height: drawHeight,
+        x: Math.round(((pageWidth - drawWidth) / 2) * 1000) / 1000,
+        y: Math.round(((pageHeight - drawHeight) / 2) * 1000) / 1000
+      };
     }
 
     function fitSize(width, height, max) {

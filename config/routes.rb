@@ -8,6 +8,8 @@ Rails.application.routes.draw do
     member do
       get 'documents', action: :documents
       post 'documents', action: :upload_document
+      delete 'documents', action: :delete_document
+      patch 'documents/contact_note', action: :update_document_contact_note, as: :update_document_contact_note
       post 'table_rows', action: :add_table_row
       patch 'table_rows', action: :update_table_row
       patch 'table_rows/batch', action: :update_table_rows_batch, as: :batch_table_rows

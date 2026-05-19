@@ -9,6 +9,7 @@ class PhotosController < ApplicationController
   SUMMARY_CACHE_VERSION = "v5"
   SUMMARY_CACHE_TTL = 10.minutes
   SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
+  DOCUMENT_CONTACT_NOTE_FIELD_CODE = "施工後連絡事項"
   NUMBER_MEMO_TABLE_PATTERNS = [
     /杭長/,
     /杭材検寸.*(下端|頭端|上端)/
@@ -252,6 +253,58 @@ class PhotosController < ApplicationController
     end
   end
 
+  def delete_document
+    record = photo_record(params[:id])
+    category_key = params[:document_category].to_s
+    category = document_category(category_key)
+    raise "資料種別を選択してください。" if category.blank?
+
+    field_code = document_field_code(category, record)
+    raise "#{category[:label]} の添付ファイルフィールドがkintone側に見つかりません。" if field_code.blank?
+
+    target_file_key = params[:file_key].to_s
+    raise "削除対象のファイルを取得できませんでした。" if target_file_key.blank?
+
+    existing_files = document_file_keys(record, field_code)
+    remaining_files = existing_files.reject { |file| file[:fileKey].to_s == target_file_key }
+    raise "削除対象のファイルが見つかりませんでした。" if remaining_files.length == existing_files.length
+
+    replace_document_file_field(params[:id], field_code, remaining_files)
+    log_photo_upload_event(
+      "documents.delete.success",
+      {
+        record_id: params[:id],
+        table_code: category[:label],
+        file_name: params[:file_name],
+        content_type: "application/pdf",
+        file_size: 0,
+        row_id: nil
+      }
+    )
+    clear_photo_summary_cache(record)
+
+    redirect_to documents_photo_path(params[:id], photo_return_params), notice: "#{category[:label]}PDFを削除しました。"
+  rescue StandardError => e
+    Rails.logger.error("Photo document delete failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    redirect_to documents_photo_path(params[:id], photo_return_params), alert: "資料PDFの削除に失敗しました。#{e.message}"
+  end
+
+  def update_document_contact_note
+    record = photo_record(params[:id])
+    field_code = document_contact_note_field_code(record)
+    raise "施工後連絡事項フィールドがkintone側に見つかりません。" if field_code.blank?
+
+    photos_record_client.update(params[:id], field_code => { value: params[:document_contact_note].to_s })
+    clear_photo_summary_cache(record)
+
+    redirect_to documents_photo_path(params[:id], photo_return_params), notice: "施工後連絡事項を保存しました。"
+  rescue StandardError => e
+    Rails.logger.error("Photo document contact note update failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    redirect_to documents_photo_path(params[:id], photo_return_params), alert: "施工後連絡事項の保存に失敗しました。#{e.message}"
+  end
+
   def warm_cache
     record_client = KintoneSync::Record.new(photos_app_id, photos_guest_space_id)
     available_field_codes(record_client)
@@ -361,6 +414,22 @@ class PhotosController < ApplicationController
   end
   helper_method :document_categories
 
+  def document_contact_note_field_code(record = nil)
+    field_code = DOCUMENT_CONTACT_NOTE_FIELD_CODE
+    return field_code if record&.key?(field_code) || photos_form_properties.key?(field_code)
+
+    nil
+  end
+  helper_method :document_contact_note_field_code
+
+  def document_contact_note(record)
+    field_code = document_contact_note_field_code(record)
+    return "" if field_code.blank?
+
+    record&.dig(field_code, "value").to_s
+  end
+  helper_method :document_contact_note
+
   def document_category(key)
     DOCUMENT_CATEGORIES[key.to_s.to_sym]
   end
@@ -431,10 +500,14 @@ class PhotosController < ApplicationController
   end
 
   def update_document_file_field(record_id, field_code, existing_files, new_file_key)
-    payload = { field_code.to_s => { value: existing_files + [{ fileKey: new_file_key }] } }
+    replace_document_file_field(record_id, field_code, existing_files + [{ fileKey: new_file_key }])
+  end
+
+  def replace_document_file_field(record_id, field_code, files)
+    payload = { field_code.to_s => { value: files } }
     Rails.logger.info(
-      "Document PDF field update: record_id=#{record_id} field_code=#{field_code} " \
-      "existing_files=#{existing_files.count} payload_keys=#{payload.keys.join(',')}"
+      "Document PDF field replace: record_id=#{record_id} field_code=#{field_code} " \
+      "files=#{files.count} payload_keys=#{payload.keys.join(',')}"
     )
     photos_record_client.update(record_id, payload)
   end
