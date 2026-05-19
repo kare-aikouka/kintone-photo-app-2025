@@ -562,6 +562,7 @@ html.app-navigation-loading::after {
 }
 
 .photo-documents-intro,
+.photo-document-contact-card,
 .photo-document-card {
   background: #fff;
   border: 1px solid #d8dce2;
@@ -584,6 +585,53 @@ html.app-navigation-loading::after {
   color: #56657f;
   font-weight: 700;
   margin: 0;
+}
+
+.photo-document-contact-card {
+  margin-top: 16px;
+  padding: 18px 22px;
+}
+
+.photo-document-contact-card.is-disabled {
+  background: #f8fafc;
+}
+
+.photo-document-contact-help {
+  color: #56657f;
+  font-weight: 800;
+  margin: 0 0 12px;
+}
+
+.photo-document-contact-form {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.photo-document-contact-textarea {
+  border: 1px solid #cfd8ea;
+  border-radius: 14px;
+  color: #1f2937;
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.6;
+  min-height: 140px;
+  padding: 14px 16px;
+  resize: vertical;
+  width: 100%;
+}
+
+.photo-document-contact-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.photo-document-contact-save {
+  background: #3E5FAA;
+  border: 1px solid #3E5FAA;
+  color: #fff;
+  min-width: 180px;
 }
 
 .photo-document-grid {
@@ -1916,6 +1964,7 @@ form.photo-detail-table-actions {
   }
 
   .photo-documents-intro,
+  .photo-document-contact-card,
   .photo-document-card {
     border-radius: 18px;
     padding: 14px;
@@ -1924,6 +1973,14 @@ form.photo-detail-table-actions {
   .photo-document-card-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .photo-document-contact-actions {
+    justify-content: stretch;
+  }
+
+  .photo-document-contact-save {
+    width: 100%;
   }
 
   .photo-document-capture-button {

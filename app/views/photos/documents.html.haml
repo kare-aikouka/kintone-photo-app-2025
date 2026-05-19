@@ -41,25 +41,6 @@
       %h2 資料アップロード
       %p 写真を1枚ずつPDFに変換し、kintoneの資料添付フィールドへ保存します。
 
-    - contact_note_field_code = document_contact_note_field_code(@record)
-    .photo-document-contact-card{ class: ("is-disabled" if contact_note_field_code.blank?) }
-      .photo-document-card-head
-        %h3 施工後連絡事項
-        - if contact_note_field_code.present?
-          %span.photo-document-field= contact_note_field_code
-        - else
-          %span.photo-document-field.is-missing kintoneフィールド未検出
-      %p.photo-document-contact-help
-        現場からオフィスへ伝えたいことがある場合だけ入力してください。
-      - if contact_note_field_code.present?
-        = form_with url: update_document_contact_note_photo_path(record_id(@record), detail_return_params), method: :patch, local: true, html: { class: "photo-document-contact-form" } do
-          = text_area_tag :document_contact_note, document_contact_note(@record), rows: 4, class: "photo-document-contact-textarea", placeholder: "例）納品書のほかに1本追加になっています。"
-          .photo-document-contact-actions
-            %button.btn.photo-document-contact-save{ type: "submit" } 連絡事項を保存
-      - else
-        .photo-document-disabled-message
-          kintone側に「施工後連絡事項」フィールドを追加後に利用できます。
-
     .photo-document-grid
       - document_categories.each do |category_key, category|
         - field_code = document_field_code(category, @record)
@@ -105,6 +86,25 @@
           - else
             .photo-document-disabled-message
               kintone側に「#{category[:label]}」用の添付ファイルフィールドを追加後に利用できます。
+
+    - contact_note_field_code = document_contact_note_field_code(@record)
+    .photo-document-contact-card{ class: ("is-disabled" if contact_note_field_code.blank?) }
+      .photo-document-card-head
+        %h3 施工後連絡事項
+        - if contact_note_field_code.present?
+          %span.photo-document-field= contact_note_field_code
+        - else
+          %span.photo-document-field.is-missing kintoneフィールド未検出
+      %p.photo-document-contact-help
+        現場からオフィスへ伝えたいことがある場合だけ入力してください。
+      - if contact_note_field_code.present?
+        = form_with url: update_document_contact_note_photo_path(record_id(@record), detail_return_params), method: :patch, local: true, html: { class: "photo-document-contact-form" } do
+          = text_area_tag :document_contact_note, document_contact_note(@record), rows: 4, class: "photo-document-contact-textarea", placeholder: "例）納品書のほかに1本追加になっています。"
+          .photo-document-contact-actions
+            %button.btn.photo-document-contact-save{ type: "submit" } 連絡事項を保存
+      - else
+        .photo-document-disabled-message
+          kintone側に「施工後連絡事項」フィールドを追加後に利用できます。
 
     - if @diag_record_target_check.present?
       .photo-document-debug-actions
