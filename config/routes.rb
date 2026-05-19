@@ -6,6 +6,8 @@ Rails.application.routes.draw do
     end
 
     member do
+      get 'documents', action: :documents
+      post 'documents', action: :upload_document
       post 'table_rows', action: :add_table_row
       patch 'table_rows', action: :update_table_row
       patch 'table_rows/batch', action: :update_table_rows_batch, as: :batch_table_rows

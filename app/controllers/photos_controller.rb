@@ -107,6 +107,25 @@ class PhotosController < ApplicationController
     management_status: %w[管理 管理状況 管理ステータス]
   }.freeze
 
+  DOCUMENT_CATEGORIES = {
+    receipt: {
+      label: "レシート",
+      field_codes: %w[現場直送レシート レシート 資料レシート レシートPDF レシート資料]
+    },
+    delivery_note: {
+      label: "納品書",
+      field_codes: %w[現場直送納品書 納品書 資料納品書 納品書PDF 納品書資料]
+    },
+    completion_drawing: {
+      label: "施工後図面",
+      field_codes: %w[現場直送施工後図面 施工後図面 資料施工後図面 施工後図面PDF 施工後図面資料]
+    },
+    other_document: {
+      label: "その他資料",
+      field_codes: %w[現場直送その他資料 その他資料 資料その他 その他資料PDF その他資料添付]
+    }
+  }.freeze
+
   def index
     @machine_name = params[:machine].to_s.strip
     @machine_search_values = machine_search_values(@machine_name, params[:machine_model])
@@ -154,6 +173,57 @@ class PhotosController < ApplicationController
     @photo_error = e
     @record = nil
     @detail_sections = []
+  end
+
+  def documents
+    @record = photo_record(params[:id])
+    @machine_name = params[:machine].presence || field_value(@record, :machine)
+    @back_url = photo_path(params[:id], photo_return_params)
+  rescue StandardError => e
+    Rails.logger.error("Photo documents fetch failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+
+    @photo_error = e
+    @record = nil
+  end
+
+  def upload_document
+    record = photo_record(params[:id])
+    category_key = params[:document_category].to_s
+    category = document_category(category_key)
+    raise "資料種別を選択してください。" if category.blank?
+
+    field_code = document_field_code(category)
+    raise "#{category[:label]} の添付ファイルフィールドがkintone側に見つかりません。" if field_code.blank?
+
+    document = params[:document_pdf]
+    raise "PDFファイルを取得できませんでした。" if document.blank? || document.size.to_i <= 0
+
+    file_key = KintoneSync::File.new(photos_app_id, photos_guest_space_id).upload(
+      data: document.read,
+      content_type: "application/pdf",
+      filename: document.original_filename.presence || document_pdf_filename(category)
+    )
+    existing_files = Array(record.dig(field_code, "value")).filter_map { |file| { fileKey: file["fileKey"] } if file["fileKey"].present? }
+    photos_record_client.update(params[:id], field_code => { value: existing_files + [{ fileKey: file_key }] })
+    log_photo_upload_event(
+      "photos.upload.success",
+      {
+        record_id: params[:id],
+        table_code: category[:label],
+        file_name: document.original_filename,
+        content_type: "application/pdf",
+        file_size: document.size,
+        row_id: nil
+      }
+    )
+    clear_photo_summary_cache(record)
+
+    redirect_to documents_photo_path(params[:id], photo_return_params), notice: "#{category[:label]}PDFをアップロードしました。"
+  rescue StandardError => e
+    Rails.logger.error("Photo document upload failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    redirect_to documents_photo_path(params[:id], photo_return_params), alert: "資料PDFのアップロードに失敗しました。#{e.message}"
   end
 
   def warm_cache
@@ -258,6 +328,33 @@ class PhotosController < ApplicationController
 
   def photo_index_return_params(machine_name = nil)
     photo_return_params.merge(machine: params[:machine].presence || machine_name).compact_blank
+  end
+
+  def document_categories
+    DOCUMENT_CATEGORIES
+  end
+  helper_method :document_categories
+
+  def document_category(key)
+    DOCUMENT_CATEGORIES[key.to_s.to_sym]
+  end
+
+  def document_field_code(category)
+    Array(category[:field_codes]).find { |field_code| photos_form_properties.dig(field_code, "type") == "FILE" }
+  end
+  helper_method :document_field_code
+
+  def document_files(record, category)
+    field_code = document_field_code(category)
+    return [] if field_code.blank?
+
+    Array(record&.dig(field_code, "value"))
+  end
+  helper_method :document_files
+
+  def document_pdf_filename(category)
+    timestamp = Time.zone.now.strftime("%Y%m%d_%H%M%S")
+    "#{category[:label]}_#{timestamp}.pdf"
   end
 
   def photo_record(id)

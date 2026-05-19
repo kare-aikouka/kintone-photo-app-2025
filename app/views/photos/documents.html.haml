@@ -1,0 +1,279 @@
+- weekdays = %w[日 月 火 水 木 金 土]
+- detail_return_params = { machine: params[:machine].presence || @machine_name.presence, machine_model: params[:machine_model].presence, date: params[:date].presence }.compact_blank
+- back_url = @back_url.presence || photo_path(params[:id], detail_return_params)
+
+.photo-page.photo-detail-page.photo-documents-page
+  .photo-header
+    .photo-title
+      = link_to "← 戻る", back_url
+      %span.machine-title= @machine_name.presence || "資料アップロード"
+
+  - if flash[:notice].present?
+    .alert.alert-success.photo-alert= flash[:notice]
+  - if flash[:alert].present?
+    .alert.alert-danger.photo-alert= flash[:alert]
+
+  - if @photo_error
+    .alert.alert-danger.photo-alert
+      %strong 資料アップロード画面を取得できませんでした。
+      %pre= "#{@photo_error.class}: #{@photo_error.message}"
+
+  - if @record.present?
+    .photo-record.photo-detail-summary
+      .photo-record-main
+        .photo-record-date
+          - if record_date(@record)
+            = "#{record_date(@record).month}/#{record_date(@record).day}(#{weekdays[record_date(@record).wday]})"
+          - else
+            = field_value(@record, :date)
+        .photo-record-site= record_title(@record)
+        - if record_address(@record).present?
+          .photo-record-address= "【#{record_address(@record)}】"
+        .photo-record-actions
+          = link_to "写真", photo_path(record_id(@record), detail_return_params), class: "btn btn-soft"
+          = link_to "資料UP", documents_photo_path(record_id(@record), detail_return_params), class: "btn btn-primary-action"
+      .photo-record-status
+        %span.photo-status-line
+          写真：
+          %strong{ class: ("is-done" if photo_status(@record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(@record)
+
+    .photo-documents-intro
+      %h2 資料アップロード
+      %p 写真を1枚ずつPDFに変換し、kintoneの資料添付フィールドへ保存します。
+
+    .photo-document-grid
+      - document_categories.each do |category_key, category|
+        - field_code = document_field_code(category)
+        - files = document_files(@record, category)
+        .photo-document-card{ class: ("is-disabled" if field_code.blank?) }
+          .photo-document-card-head
+            %h3= category[:label]
+            - if field_code.present?
+              %span.photo-document-field= field_code
+            - else
+              %span.photo-document-field.is-missing kintoneフィールド未検出
+
+          - if files.present?
+            .photo-document-files
+              - files.each_with_index do |file, index|
+                - file_key = file["fileKey"]
+                - file_name = file["name"].presence || "#{category[:label]}#{index + 1}.pdf"
+                - content_type = file["contentType"].presence || "application/pdf"
+                - if file_key.present?
+                  = link_to file_name, files_path(key: file_key, type: content_type), class: "photo-document-file"
+          - else
+            .photo-document-empty まだ資料はありません。
+
+          - if field_code.present?
+            = form_with url: documents_photo_path(record_id(@record), detail_return_params), method: :post, multipart: true, local: true, html: { class: "photo-document-form js-document-pdf-form", data: { category_label: category[:label] } } do
+              = hidden_field_tag :document_category, category_key
+              .photo-document-file-choice.js-document-file-choice
+                = file_field_tag :document_image, accept: "image/*", capture: "environment", id: "document-#{category_key}-camera", class: "photo-document-hidden-file js-document-image-input"
+                = label_tag "document-#{category_key}-camera", class: "btn photo-document-capture-button" do
+                  %span.btn-icon 📷
+                  %span 撮影してPDF
+                = file_field_tag :document_image, accept: "image/*", id: "document-#{category_key}-gallery", class: "photo-document-hidden-file js-document-image-input"
+                = label_tag "document-#{category_key}-gallery", class: "btn photo-document-capture-button photo-document-gallery-button" do
+                  %span.btn-icon 🖼
+                  %span 選択してPDF
+              .photo-document-status.js-document-status
+          - else
+            .photo-document-disabled-message
+              kintone側に「#{category[:label]}」用の添付ファイルフィールドを追加後に利用できます。
+
+:javascript
+  document.addEventListener("DOMContentLoaded", function () {
+    const forms = document.querySelectorAll(".js-document-pdf-form");
+    if (!forms.length) return;
+
+    forms.forEach(function (form) {
+      form.querySelectorAll(".js-document-image-input").forEach(function (input) {
+        input.addEventListener("change", function () {
+          if (!input.files || !input.files[0] || form.dataset.uploading === "true") return;
+          submitDocumentImage(form, input.files[0]);
+        });
+      });
+    });
+
+    async function submitDocumentImage(form, file) {
+      const status = form.querySelector(".js-document-status");
+      const label = form.dataset.categoryLabel || "資料";
+
+      try {
+        form.dataset.uploading = "true";
+        setFormDisabled(form, true);
+        setStatus(status, "PDF生成中です...");
+
+        const image = await loadImage(file);
+        const pdfBlob = await imageToPdfBlob(image);
+        const filename = documentPdfFilename(label, file);
+        const formData = new FormData(form);
+        formData.delete("document_image");
+        formData.append("document_pdf", pdfBlob, filename);
+
+        setStatus(status, "kintoneへアップロード中です...");
+        const response = await fetch(form.action, {
+          method: "POST",
+          headers: {
+            "X-CSRF-Token": csrfToken(),
+            "Accept": "text/html"
+          },
+          body: formData,
+          credentials: "same-origin"
+        });
+
+        if (response.redirected) {
+          window.location.href = response.url;
+          return;
+        }
+        if (!response.ok) throw new Error("upload failed");
+
+        window.location.reload();
+      } catch (error) {
+        console.error(error);
+        setStatus(status, "PDFアップロードに失敗しました。もう一度お試しください。", true);
+        setFormDisabled(form, false);
+        form.dataset.uploading = "false";
+      }
+    }
+
+    function setStatus(target, text, error) {
+      if (!target) return;
+      target.textContent = text || "";
+      target.classList.toggle("is-error", !!error);
+    }
+
+    function setFormDisabled(form, disabled) {
+      form.querySelectorAll("input, button, label").forEach(function (element) {
+        if (element.tagName === "LABEL") {
+          element.classList.toggle("is-disabled", disabled);
+        } else {
+          element.disabled = disabled;
+        }
+      });
+    }
+
+    function loadImage(file) {
+      return new Promise(function (resolve, reject) {
+        const image = new Image();
+        const url = URL.createObjectURL(file);
+        image.onload = function () {
+          URL.revokeObjectURL(url);
+          resolve(image);
+        };
+        image.onerror = function () {
+          URL.revokeObjectURL(url);
+          reject(new Error("image load failed"));
+        };
+        image.src = url;
+      });
+    }
+
+    async function imageToPdfBlob(image) {
+      const size = fitSize(image.naturalWidth || image.width, image.naturalHeight || image.height, 1600);
+      const canvas = document.createElement("canvas");
+      canvas.width = size.width;
+      canvas.height = size.height;
+      const context = canvas.getContext("2d", { alpha: false });
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, size.width, size.height);
+      context.drawImage(image, 0, 0, size.width, size.height);
+      const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+      const jpegBytes = base64ToBytes(jpegDataUrl.split(",")[1]);
+      return new Blob([buildSingleImagePdf(size.width, size.height, jpegBytes)], { type: "application/pdf" });
+    }
+
+    function buildSingleImagePdf(width, height, jpegBytes) {
+      const chunks = [];
+      const offsets = [];
+      let length = 0;
+
+      function push(value) {
+        const bytes = typeof value === "string" ? asciiBytes(value) : value;
+        chunks.push(bytes);
+        length += bytes.length;
+      }
+
+      function object(number, body) {
+        offsets[number] = length;
+        push(number + " 0 obj\n");
+        if (Array.isArray(body)) {
+          body.forEach(push);
+        } else {
+          push(body);
+        }
+        push("\nendobj\n");
+      }
+
+      push("%PDF-1.4\n");
+      object(1, "<< /Type /Catalog /Pages 2 0 R >>");
+      object(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+      object(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + width + " " + height + "] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>");
+      const commands = "q\n" + width + " 0 0 " + height + " 0 0 cm\n/Im0 Do\nQ\n";
+      object(4, ["<< /Length " + asciiBytes(commands).length + " >>\nstream\n", commands, "endstream"]);
+      object(5, [
+        "<< /Type /XObject /Subtype /Image /Width " + width + " /Height " + height + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpegBytes.length + " >>\nstream\n",
+        jpegBytes,
+        "\nendstream"
+      ]);
+
+      const xrefOffset = length;
+      push("xref\n0 6\n");
+      push("0000000000 65535 f \n");
+      for (let i = 1; i <= 5; i += 1) {
+        push(String(offsets[i]).padStart(10, "0") + " 00000 n \n");
+      }
+      push("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n" + xrefOffset + "\n%%EOF\n");
+
+      const output = new Uint8Array(length);
+      let position = 0;
+      chunks.forEach(function (chunk) {
+        output.set(chunk, position);
+        position += chunk.length;
+      });
+      return output;
+    }
+
+    function fitSize(width, height, max) {
+      const longest = Math.max(width, height);
+      if (!longest || longest <= max) return { width: width, height: height };
+      const ratio = max / longest;
+      return { width: Math.round(width * ratio), height: Math.round(height * ratio) };
+    }
+
+    function asciiBytes(text) {
+      const bytes = new Uint8Array(text.length);
+      for (let i = 0; i < text.length; i += 1) bytes[i] = text.charCodeAt(i) & 0xff;
+      return bytes;
+    }
+
+    function base64ToBytes(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    }
+
+    function documentPdfFilename(label, file) {
+      const date = new Date(file && file.lastModified ? file.lastModified : Date.now());
+      const stamp = [
+        date.getFullYear(),
+        pad2(date.getMonth() + 1),
+        pad2(date.getDate()),
+        "_",
+        pad2(date.getHours()),
+        pad2(date.getMinutes()),
+        pad2(date.getSeconds())
+      ].join("");
+      return label + "_" + stamp + ".pdf";
+    }
+
+    function pad2(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function csrfToken() {
+      const meta = document.querySelector("meta[name='csrf-token']");
+      return meta ? meta.content : "";
+    }
+  });
