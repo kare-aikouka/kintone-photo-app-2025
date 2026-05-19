@@ -187,24 +187,34 @@
           method: "POST",
           headers: {
             "X-CSRF-Token": csrfValue,
-            "Accept": "text/html"
+            "Accept": "application/json"
           },
           body: formData,
-          credentials: "same-origin"
+          credentials: "same-origin",
+          redirect: "manual"
         });
-        alert("サーバー応答: status=" + response.status + " redirected=" + response.redirected + " url=" + response.url);
 
-        if (response.redirected) {
-          window.location.href = response.url;
+        var result = null;
+        var responseText = "";
+        try {
+          responseText = await response.text();
+          result = JSON.parse(responseText);
+        } catch (_) {}
+
+        if (result && result.status === "success") {
+          alert("✅ 成功: " + result.message + "\nfield=" + result.field_code + " file_key=" + result.file_key);
+          window.location.reload();
           return;
+        } else if (result && result.status === "error") {
+          throw new Error(result.message);
+        } else {
+          alert("サーバー応答（想定外）: status=" + response.status + " type=" + response.type + "\n" + responseText.substring(0, 300));
+          if (response.ok || response.type === "opaqueredirect") {
+            window.location.reload();
+            return;
+          }
+          throw new Error("unexpected response: " + response.status);
         }
-        if (!response.ok) {
-          var errorBody = "";
-          try { errorBody = await response.text(); } catch (_) {}
-          throw new Error("upload failed: " + response.status + " " + errorBody.substring(0, 200));
-        }
-
-        window.location.reload();
       } catch (error) {
         console.error("[doc-upload] error:", error);
         var errorMsg = (error && error.message) ? error.message : String(error);

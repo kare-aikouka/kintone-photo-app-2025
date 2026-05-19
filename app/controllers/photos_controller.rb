@@ -227,11 +227,29 @@ class PhotosController < ApplicationController
     )
     clear_photo_summary_cache(latest_record)
 
-    redirect_to documents_photo_path(params[:id], photo_return_params), notice: "#{category[:label]}PDFをアップロードしました。"
+    if request.xhr? || request.headers["X-CSRF-Token"].present?
+      render json: {
+        status: "success",
+        message: "#{category[:label]}PDFをアップロードしました。",
+        field_code: field_code,
+        file_key: file_key,
+        existing_count: existing_files.count
+      }
+    else
+      redirect_to documents_photo_path(params[:id], photo_return_params), notice: "#{category[:label]}PDFをアップロードしました。"
+    end
   rescue StandardError => e
     Rails.logger.error("Photo document upload failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
-    redirect_to documents_photo_path(params[:id], photo_return_params), alert: "資料PDFのアップロードに失敗しました。#{e.message}"
+    if request.xhr? || request.headers["X-CSRF-Token"].present?
+      render json: {
+        status: "error",
+        message: "資料PDFのアップロードに失敗しました。#{e.message}",
+        error_class: e.class.name
+      }, status: :unprocessable_entity
+    else
+      redirect_to documents_photo_path(params[:id], photo_return_params), alert: "資料PDFのアップロードに失敗しました。#{e.message}"
+    end
   end
 
   def warm_cache
