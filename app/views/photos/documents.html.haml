@@ -81,6 +81,16 @@
             .photo-document-disabled-message
               kintone側に「#{category[:label]}」用の添付ファイルフィールドを追加後に利用できます。
 
+    - if @debug_available_fields.present? || @debug_all_fields.present?
+      .debug-info{ style: "margin-top: 50px; padding: 20px; background: #f8f9fa; border: 1px solid #ddd; font-size: 12px; color: #666;" }
+        %h4 [開発者向けデバッグ情報]
+        %p
+          %strong 現在のアプリが認識している「添付ファイル」フィールド一覧：
+          = @debug_available_fields.inspect
+        %p
+          %strong 認識している全フィールドコード：
+          = @debug_all_fields.inspect
+
 :javascript
   document.addEventListener("DOMContentLoaded", function () {
     const forms = document.querySelectorAll(".js-document-pdf-form");

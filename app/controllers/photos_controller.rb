@@ -179,6 +179,8 @@ class PhotosController < ApplicationController
     @record = photo_record(params[:id])
     @machine_name = params[:machine].presence || field_value(@record, :machine)
     @back_url = photo_path(params[:id], photo_return_params)
+    @debug_available_fields = available_document_file_fields
+    @debug_all_fields = photos_form_properties.keys
   rescue StandardError => e
     Rails.logger.error("Photo documents fetch failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
