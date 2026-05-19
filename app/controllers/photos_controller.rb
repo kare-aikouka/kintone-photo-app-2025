@@ -179,6 +179,13 @@ class PhotosController < ApplicationController
     @record = photo_record(params[:id])
     @machine_name = params[:machine].presence || field_value(@record, :machine)
     @back_url = photo_path(params[:id], photo_return_params)
+
+    # 診断情報: フィールド未検出問題の原因を特定するために一時的に追加
+    @diag_form_properties_count = photos_form_properties.size
+    @diag_form_file_fields = photos_form_properties.select { |_k, v| v["type"] == "FILE" }.keys
+    @diag_record_keys = @record&.keys&.sort || []
+    target_codes = %w[現場直送レシート 現場直送納品書 現場直送施工後図面 現場直送その他資料]
+    @diag_record_target_check = target_codes.map { |code| { code: code, in_record: @record&.key?(code), type: @record&.dig(code, "type"), in_form: photos_form_properties.key?(code), form_type: photos_form_properties.dig(code, "type") } }
   rescue StandardError => e
     Rails.logger.error("Photo documents fetch failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
