@@ -193,7 +193,7 @@ class PhotosController < ApplicationController
     category = document_category(category_key)
     raise "資料種別を選択してください。" if category.blank?
 
-    field_code = document_field_code(category)
+    field_code = document_field_code(category, record)
     raise "#{category[:label]} の添付ファイルフィールドがkintone側に見つかりません。" if field_code.blank?
 
     document = params[:document_pdf]
@@ -339,13 +339,59 @@ class PhotosController < ApplicationController
     DOCUMENT_CATEGORIES[key.to_s.to_sym]
   end
 
-  def document_field_code(category)
-    Array(category[:field_codes]).find { |field_code| photos_form_properties.dig(field_code, "type") == "FILE" }
+  def document_field_code(category, record = nil)
+    candidates = document_field_candidates(category)
+    record_match = candidates.find { |field_code| record&.dig(field_code, "type") == "FILE" }
+    return record_match if record_match.present?
+
+    exact_match = candidates.find { |field_code| photos_form_properties.dig(field_code, "type") == "FILE" }
+    return exact_match if exact_match.present?
+
+    normalized_candidates = candidates.map { |value| normalize_document_field_name(value) }
+    label_match = photos_form_properties.find do |field_code, property|
+      next false unless property["type"] == "FILE"
+
+      document_field_name_match?(field_code, normalized_candidates) ||
+        document_field_name_match?(property["label"], normalized_candidates)
+    end
+    return label_match.first if label_match.present?
+
+    Rails.logger.warn(
+      "Document FILE field not found: label=#{category[:label]} " \
+      "candidates=#{candidates.join(', ')} available=#{available_document_file_fields.join(', ')}"
+    )
+    nil
   end
   helper_method :document_field_code
 
+  def document_field_candidates(category)
+    (Array(category[:field_codes]) + [category[:label]]).compact.map(&:to_s).uniq
+  end
+
+  def normalize_document_field_name(value)
+    value.to_s.gsub(/[[:space:]　"'“”‘’「」『』]/, "")
+  end
+
+  def document_field_name_match?(value, normalized_candidates)
+    normalized_value = normalize_document_field_name(value)
+    normalized_candidates.any? do |candidate|
+      normalized_value == candidate ||
+        normalized_value.end_with?(candidate) ||
+        normalized_value.include?(candidate)
+    end
+  end
+
+  def available_document_file_fields
+    photos_form_properties.filter_map do |field_code, property|
+      next unless property["type"] == "FILE"
+
+      label = property["label"].presence
+      label.present? && label != field_code ? "#{field_code}(#{label})" : field_code
+    end
+  end
+
   def document_files(record, category)
-    field_code = document_field_code(category)
+    field_code = document_field_code(category, record)
     return [] if field_code.blank?
 
     Array(record&.dig(field_code, "value"))

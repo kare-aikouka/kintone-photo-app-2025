@@ -43,7 +43,7 @@
 
     .photo-document-grid
       - document_categories.each do |category_key, category|
-        - field_code = document_field_code(category)
+        - field_code = document_field_code(category, @record)
         - files = document_files(@record, category)
         .photo-document-card{ class: ("is-disabled" if field_code.blank?) }
           .photo-document-card-head
