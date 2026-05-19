@@ -84,8 +84,9 @@ body.controller-accounts.action-sign-in .container {
 
 .signin-submit {
   border-radius: 14px;
+  display: block;
   min-height: 52px;
-  min-width: 220px;
+  width: 100%;
 }
 
 @media (max-width: 640px) {

@@ -51,11 +51,12 @@
             .photo-record-actions
               = link_to "地図", "javascript:undefined", class: "btn btn-soft disabled"
               = link_to "図面", "javascript:undefined", class: "btn btn-soft disabled"
-              = link_to "設計資料", "javascript:undefined", class: "btn btn-soft disabled"
               - if record_id(record).present?
                 = link_to "写真", photo_path(record_id(record), photo_link_params), class: "btn btn-primary-action"
+                = link_to "資料UP", documents_photo_path(record_id(record), photo_link_params), class: "btn btn-document-action"
               - else
                 = link_to "写真", "javascript:undefined", class: "btn btn-primary-action disabled"
+                = link_to "資料UP", "javascript:undefined", class: "btn btn-document-action disabled"
           .photo-record-status
             %span.photo-status-line
               写真：

@@ -27,8 +27,8 @@
         .photo-record-actions
           = link_to "地図", "javascript:undefined", class: "btn btn-soft disabled"
           = link_to "図面", "javascript:undefined", class: "btn btn-soft disabled"
-          = link_to "資料UP", documents_photo_path(record_id(@record), detail_return_params), class: "btn btn-soft"
           = link_to "写真", photo_path(record_id(@record), detail_return_params), class: "btn btn-primary-action"
+          = link_to "資料UP", documents_photo_path(record_id(@record), detail_return_params), class: "btn btn-document-action"
       .photo-record-status
         %span.photo-status-line
           写真：

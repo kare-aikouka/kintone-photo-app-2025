@@ -520,6 +520,17 @@ html.app-navigation-loading::after {
   color: #fff;
 }
 
+.photo-record-actions .btn-document-action {
+  background: #fff2c2;
+  border: 1px solid #f0d986;
+  color: #6b5400;
+}
+
+.photo-record-actions .btn-document-action:hover {
+  background: #ffe9a3;
+  color: #3f3100;
+}
+
 .photo-record-actions .btn-secondary-action {
   background: #6aa7eb;
   border-color: #6aa7eb;
