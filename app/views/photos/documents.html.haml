@@ -142,6 +142,7 @@
     forms.forEach(function (form) {
       form.querySelectorAll(".js-document-image-input").forEach(function (input) {
         input.addEventListener("change", function () {
+          alert("changeイベント発火: " + (input.files && input.files[0] ? input.files[0].name + " (" + input.files[0].size + "bytes)" : "ファイルなし"));
           var statusEl = form.querySelector(".js-document-status");
           if (statusEl) statusEl.textContent = "ファイル選択を検知しました...";
           if (!input.files || !input.files[0]) {
@@ -167,31 +168,31 @@
         form.dataset.uploading = "true";
         setFormDisabled(form, true);
         setStatus(status, "PDF生成中です...");
-        console.log("[doc-upload] step1: loading image", file.name, file.size);
 
         var image = await loadImage(file);
-        console.log("[doc-upload] step2: image loaded", image.naturalWidth, "x", image.naturalHeight);
+        setStatus(status, "画像読み込み完了 (" + image.naturalWidth + "x" + image.naturalHeight + ") PDF変換中...");
 
         pdfBlob = await imageToPdfBlob(image);
-        console.log("[doc-upload] step3: pdf generated", pdfBlob.size, "bytes");
+        setStatus(status, "PDF生成完了 (" + pdfBlob.size + "bytes) アップロード準備中...");
 
         filename = documentPdfFilename(label, file);
         var formData = new FormData(form);
         formData.delete("document_image");
         formData.append("document_pdf", pdfBlob, filename);
-        console.log("[doc-upload] step4: formData ready, action=", form.action);
 
-        setStatus(status, "kintoneへアップロード中です...");
+        var csrfValue = csrfToken();
+        setStatus(status, "kintoneへアップロード中... (CSRF=" + (csrfValue ? "有" : "無") + ", action=" + form.action + ")");
+
         var response = await fetch(form.action, {
           method: "POST",
           headers: {
-            "X-CSRF-Token": csrfToken(),
+            "X-CSRF-Token": csrfValue,
             "Accept": "text/html"
           },
           body: formData,
           credentials: "same-origin"
         });
-        console.log("[doc-upload] step5: response", response.status, "redirected=", response.redirected);
+        alert("サーバー応答: status=" + response.status + " redirected=" + response.redirected + " url=" + response.url);
 
         if (response.redirected) {
           window.location.href = response.url;
