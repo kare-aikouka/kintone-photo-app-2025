@@ -161,6 +161,8 @@
     async function submitDocumentImage(form, file) {
       const status = form.querySelector(".js-document-status");
       const label = form.dataset.categoryLabel || "資料";
+      const categoryInput = form.querySelector("input[name='document_category']");
+      const categoryValue = categoryInput ? categoryInput.value : "";
       var pdfBlob = null;
       var filename = null;
 
@@ -177,6 +179,9 @@
 
         filename = documentPdfFilename(label, file);
         var formData = new FormData(form);
+        if (!formData.get("document_category") && categoryValue) {
+          formData.append("document_category", categoryValue);
+        }
         formData.delete("document_image");
         formData.append("document_pdf", pdfBlob, filename);
 
@@ -235,6 +240,8 @@
       form.querySelectorAll("input, button, label").forEach(function (element) {
         if (element.tagName === "LABEL") {
           element.classList.toggle("is-disabled", disabled);
+        } else if (element.type === "hidden") {
+          element.disabled = false;
         } else {
           element.disabled = disabled;
         }
