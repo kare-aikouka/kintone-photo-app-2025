@@ -128,21 +128,29 @@
     async function submitDocumentImage(form, file) {
       const status = form.querySelector(".js-document-status");
       const label = form.dataset.categoryLabel || "資料";
+      var pdfBlob = null;
+      var filename = null;
 
       try {
         form.dataset.uploading = "true";
         setFormDisabled(form, true);
         setStatus(status, "PDF生成中です...");
+        console.log("[doc-upload] step1: loading image", file.name, file.size);
 
-        const image = await loadImage(file);
-        const pdfBlob = await imageToPdfBlob(image);
-        const filename = documentPdfFilename(label, file);
-        const formData = new FormData(form);
+        var image = await loadImage(file);
+        console.log("[doc-upload] step2: image loaded", image.naturalWidth, "x", image.naturalHeight);
+
+        pdfBlob = await imageToPdfBlob(image);
+        console.log("[doc-upload] step3: pdf generated", pdfBlob.size, "bytes");
+
+        filename = documentPdfFilename(label, file);
+        var formData = new FormData(form);
         formData.delete("document_image");
         formData.append("document_pdf", pdfBlob, filename);
+        console.log("[doc-upload] step4: formData ready, action=", form.action);
 
         setStatus(status, "kintoneへアップロード中です...");
-        const response = await fetch(form.action, {
+        var response = await fetch(form.action, {
           method: "POST",
           headers: {
             "X-CSRF-Token": csrfToken(),
@@ -151,18 +159,24 @@
           body: formData,
           credentials: "same-origin"
         });
+        console.log("[doc-upload] step5: response", response.status, "redirected=", response.redirected);
 
         if (response.redirected) {
           window.location.href = response.url;
           return;
         }
-        if (!response.ok) throw new Error("upload failed");
+        if (!response.ok) {
+          var errorBody = "";
+          try { errorBody = await response.text(); } catch (_) {}
+          throw new Error("upload failed: " + response.status + " " + errorBody.substring(0, 200));
+        }
 
         window.location.reload();
       } catch (error) {
-        console.error(error);
-        downloadFailedDocumentFiles(file, pdfBlob, filename);
-        setStatus(status, "PDFアップロードに失敗しました。もう一度お試しください。", true);
+        console.error("[doc-upload] error:", error);
+        var errorMsg = (error && error.message) ? error.message : String(error);
+        try { downloadFailedDocumentFiles(file, pdfBlob, filename); } catch (_) {}
+        setStatus(status, "失敗: " + errorMsg, true);
         setFormDisabled(form, false);
         form.dataset.uploading = "false";
       }
