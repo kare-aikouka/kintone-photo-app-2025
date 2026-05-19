@@ -81,16 +81,6 @@
             .photo-document-disabled-message
               kintone側に「#{category[:label]}」用の添付ファイルフィールドを追加後に利用できます。
 
-    - if @debug_available_fields.present? || @debug_all_fields.present?
-      .debug-info{ style: "margin-top: 50px; padding: 20px; background: #f8f9fa; border: 1px solid #ddd; font-size: 12px; color: #666;" }
-        %h4 [開発者向けデバッグ情報]
-        %p
-          %strong 現在のアプリが認識している「添付ファイル」フィールド一覧：
-          = @debug_available_fields.inspect
-        %p
-          %strong 認識している全フィールドコード：
-          = @debug_all_fields.inspect
-
 :javascript
   document.addEventListener("DOMContentLoaded", function () {
     const forms = document.querySelectorAll(".js-document-pdf-form");
@@ -141,6 +131,7 @@
         window.location.reload();
       } catch (error) {
         console.error(error);
+        downloadFailedDocumentFiles(file, pdfBlob, filename);
         setStatus(status, "PDFアップロードに失敗しました。もう一度お試しください。", true);
         setFormDisabled(form, false);
         form.dataset.uploading = "false";
@@ -251,6 +242,32 @@
       return { width: Math.round(width * ratio), height: Math.round(height * ratio) };
     }
 
+    function downloadFailedDocumentFiles(file, pdfBlob, pdfFilename) {
+      downloadLocalFile(file);
+      if (pdfBlob) downloadBlob(pdfBlob, pdfFilename);
+    }
+
+    function downloadLocalFile(file) {
+      if (!file || file.size <= 0) return;
+      const type = file.type || "";
+      const extension = type.indexOf("png") >= 0 ? ".png" : ".jpg";
+      const filename = file.name && file.name !== "image.jpg" ? file.name : "document_photo_" + timestampForFilename(new Date(file.lastModified || Date.now())) + extension;
+      downloadBlob(file, filename);
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename || "document.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(function () {
+        URL.revokeObjectURL(url);
+      }, 1000);
+    }
+
     function asciiBytes(text) {
       const bytes = new Uint8Array(text.length);
       for (let i = 0; i < text.length; i += 1) bytes[i] = text.charCodeAt(i) & 0xff;
@@ -266,7 +283,11 @@
 
     function documentPdfFilename(label, file) {
       const date = new Date(file && file.lastModified ? file.lastModified : Date.now());
-      const stamp = [
+      return label + "_" + timestampForFilename(date) + ".pdf";
+    }
+
+    function timestampForFilename(date) {
+      return [
         date.getFullYear(),
         pad2(date.getMonth() + 1),
         pad2(date.getDate()),
@@ -275,7 +296,6 @@
         pad2(date.getMinutes()),
         pad2(date.getSeconds())
       ].join("");
-      return label + "_" + stamp + ".pdf";
     }
 
     function pad2(value) {

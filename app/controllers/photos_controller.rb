@@ -179,8 +179,6 @@ class PhotosController < ApplicationController
     @record = photo_record(params[:id])
     @machine_name = params[:machine].presence || field_value(@record, :machine)
     @back_url = photo_path(params[:id], photo_return_params)
-    @debug_available_fields = available_document_file_fields
-    @debug_all_fields = photos_form_properties.keys
   rescue StandardError => e
     Rails.logger.error("Photo documents fetch failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
@@ -206,8 +204,9 @@ class PhotosController < ApplicationController
       content_type: "application/pdf",
       filename: document.original_filename.presence || document_pdf_filename(category)
     )
-    existing_files = Array(record.dig(field_code, "value")).filter_map { |file| { fileKey: file["fileKey"] } if file["fileKey"].present? }
-    photos_record_client.update(params[:id], field_code => { value: existing_files + [{ fileKey: file_key }] })
+    latest_record = photo_record(params[:id])
+    existing_files = document_file_keys(latest_record, field_code)
+    update_document_file_field(params[:id], field_code, existing_files, file_key)
     log_photo_upload_event(
       "photos.upload.success",
       {
@@ -219,7 +218,7 @@ class PhotosController < ApplicationController
         row_id: nil
       }
     )
-    clear_photo_summary_cache(record)
+    clear_photo_summary_cache(latest_record)
 
     redirect_to documents_photo_path(params[:id], photo_return_params), notice: "#{category[:label]}PDFをアップロードしました。"
   rescue StandardError => e
@@ -399,6 +398,21 @@ class PhotosController < ApplicationController
     Array(record&.dig(field_code, "value"))
   end
   helper_method :document_files
+
+  def document_file_keys(record, field_code)
+    Array(record&.dig(field_code, "value")).filter_map do |file|
+      { fileKey: file["fileKey"] } if file["fileKey"].present?
+    end
+  end
+
+  def update_document_file_field(record_id, field_code, existing_files, new_file_key)
+    payload = { field_code.to_s => { value: existing_files + [{ fileKey: new_file_key }] } }
+    Rails.logger.info(
+      "Document PDF field update: record_id=#{record_id} field_code=#{field_code} " \
+      "existing_files=#{existing_files.count} payload_keys=#{payload.keys.join(',')}"
+    )
+    photos_record_client.update(record_id, payload)
+  end
 
   def document_pdf_filename(category)
     timestamp = Time.zone.now.strftime("%Y%m%d_%H%M%S")
