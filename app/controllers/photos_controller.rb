@@ -132,6 +132,7 @@ class PhotosController < ApplicationController
     @machine_name = params[:machine].to_s.strip
     @machine_search_values = machine_search_values(@machine_name, params[:machine_model])
     @records = @machine_name.present? ? photo_records_for(@machine_search_values) : []
+    refresh_photo_summary_statuses!(@records)
     @default_records = default_records(@records)
     @incomplete_records = @default_records.select { |record| incomplete?(record) }
     @date_tabs = date_tabs
@@ -945,6 +946,36 @@ class PhotosController < ApplicationController
     (FIELD_ALIASES.values.flatten + SUMMARY_SYSTEM_FIELDS).uniq.select do |field_code|
       field_code.start_with?("$") || available_codes.include?(field_code)
     end
+  end
+
+  def refresh_photo_summary_statuses!(records)
+    record_ids = records.filter_map { |record| record_id(record).presence }
+                        .map(&:to_i)
+                        .reject(&:zero?)
+                        .uniq
+    return if record_ids.blank?
+
+    record_client = KintoneSync::Record.new(photos_app_id, photos_guest_space_id)
+    available_codes = available_field_codes(record_client)
+    status_field_codes = FIELD_ALIASES[:photo_status].select { |field_code| available_codes.include?(field_code) }
+    return if status_field_codes.blank?
+
+    fields = (SUMMARY_SYSTEM_FIELDS + status_field_codes).uniq
+    fresh_records = record_ids.each_slice(100).flat_map do |ids|
+      fetch_all_photo_records("$id in (#{ids.join(',')})", record_client: record_client, fields: fields)
+    end
+    fresh_records_by_id = fresh_records.index_by { |record| record_id(record).to_s }
+
+    records.each do |record|
+      fresh_record = fresh_records_by_id[record_id(record).to_s]
+      next unless fresh_record
+
+      status_field_codes.each do |field_code|
+        record[field_code] = fresh_record[field_code] if fresh_record.key?(field_code)
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.warn("Photo summary status refresh skipped: #{e.class}: #{e.message}")
   end
 
   def machine_query_clause(machine_values, record_client)
