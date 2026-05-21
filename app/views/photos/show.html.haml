@@ -287,6 +287,12 @@
     bindBlackboardConfig();
     updateBlackboardRequiredHighlights();
     updateBlackboardPreview();
+    refreshBlackboardPreviewSoon();
+
+    window.addEventListener("pageshow", refreshBlackboardPreviewSoon);
+    window.addEventListener("resize", refreshBlackboardPreviewSoon);
+    document.addEventListener("turbo:load", refreshBlackboardPreviewSoon);
+    document.addEventListener("turbo:render", refreshBlackboardPreviewSoon);
 
     document.querySelectorAll(".js-photo-table-toggle").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -1372,6 +1378,21 @@
 
       const config = currentBlackboardConfig();
       if (config.enabled) drawBlackboard(context, canvas, config);
+    }
+
+    function refreshBlackboardPreviewSoon() {
+      if (!document.querySelector(".js-blackboard-preview-canvas")) return;
+
+      [0, 80, 250, 700].forEach(function (delay) {
+        window.setTimeout(function () {
+          window.requestAnimationFrame(updateBlackboardPreview);
+        }, delay);
+      });
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function () {
+          updateBlackboardPreview();
+        }).catch(function () {});
+      }
     }
 
     function renamedOriginalFile(file) {
