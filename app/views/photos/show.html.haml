@@ -269,6 +269,7 @@
     const BLACKBOARD_PHOTO_STORAGE_KEY = "photo-blackboard-photos:" + window.location.pathname;
     const BLACKBOARD_FONT_FAMILY = '"Noto Sans CJK JP", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
     const BLACKBOARD_MIN_SCALE = 0.7;
+    const BLACKBOARD_MAX_SCALE = 1.4;
     const BLACKBOARD_OVERWRITE_SCALE = 1.03;
     const BLACKBOARD_CONFIG_VERSION = 2;
     const BLACKBOARD_DEFAULT_SCALE_VALUE = "90";
@@ -927,13 +928,14 @@
       const saved = blackboardPhotoConfig(button);
       const savedHasBurnedBoard = saved && saved.enabled !== false;
       const source = savedHasBurnedBoard ? saved : current;
-      const baseScale = savedHasBurnedBoard ? numericValue(saved.scale, current.scale || 1) : BLACKBOARD_MIN_SCALE;
+      const currentScale = normalizedBlackboardScale(current.scale, BLACKBOARD_MIN_SCALE);
+      const baseScale = savedHasBurnedBoard ? normalizedBlackboardScale(saved.scale, currentScale) : currentScale;
       const baseOffsetX = numericValue(source && source.offsetX, current.offsetX || 0);
       const baseOffsetY = numericValue(source && source.offsetY, current.offsetY || 0);
       return {
         enabled: true,
         position: (source && source.position) || current.position || "left",
-        scale: baseScale * BLACKBOARD_OVERWRITE_SCALE,
+        scale: normalizedBlackboardScale(baseScale * BLACKBOARD_OVERWRITE_SCALE, currentScale),
         offsetX: baseOffsetX,
         offsetY: baseOffsetY,
         values: current.values || {}
@@ -955,7 +957,7 @@
         fileName: uploaded.name,
         enabled: config.enabled,
         position: config.position || "left",
-        scale: config.scale || 1,
+        scale: normalizedBlackboardScale(config.scale, 1),
         offsetX: config.offsetX || 0,
         offsetY: config.offsetY || 0,
         values: config.values || {},
@@ -972,7 +974,7 @@
         fileName: button.dataset.fileName || "",
         enabled: true,
         position: overwriteConfig.position || "left",
-        scale: (overwriteConfig.scale || BLACKBOARD_OVERWRITE_SCALE) / BLACKBOARD_OVERWRITE_SCALE,
+        scale: normalizedBlackboardScale((overwriteConfig.scale || BLACKBOARD_OVERWRITE_SCALE) / BLACKBOARD_OVERWRITE_SCALE, BLACKBOARD_MIN_SCALE),
         offsetX: overwriteConfig.offsetX || 0,
         offsetY: overwriteConfig.offsetY || 0,
         values: overwriteConfig.values || {},
@@ -985,7 +987,10 @@
       const tableCode = button.dataset.tableCode || "";
       const rowId = button.dataset.rowId || "";
       const fileName = button.dataset.fileName || "";
-      return storage[blackboardPhotoKey(tableCode, rowId, fileName)] || storage[blackboardPhotoKey(tableCode, "", fileName)] || null;
+      return storage[blackboardPhotoKey(tableCode, rowId, fileName)] ||
+        storage[blackboardPhotoKey(tableCode, "", fileName)] ||
+        latestBlackboardPhotoConfig(storage, tableCode, fileName) ||
+        null;
     }
 
     function writeBlackboardPhotoConfig(config) {
@@ -1015,6 +1020,22 @@
       return [tableCode || "", rowId || "", fileName || ""].join("::");
     }
 
+    function latestBlackboardPhotoConfig(storage, tableCode, fileName) {
+      let latestSameFile = null;
+      let latest = null;
+      Object.keys(storage || {}).forEach(function (key) {
+        const config = storage[key];
+        if (!config || config.enabled === false || config.tableCode !== tableCode) return;
+        if (fileName && config.fileName === fileName && (!latestSameFile || numericValue(config.capturedAt, 0) > numericValue(latestSameFile.capturedAt, 0))) {
+          latestSameFile = config;
+        }
+        if (!latest || numericValue(config.capturedAt, 0) > numericValue(latest.capturedAt, 0)) {
+          latest = config;
+        }
+      });
+      return latestSameFile || latest;
+    }
+
     function rowIdFromPhotoInput(input) {
       const match = String(input.name || "").match(/table_rows\[([^\]]+)\]\[photo\]/);
       return match ? match[1] : "";
@@ -1025,10 +1046,17 @@
       return Number.isFinite(number) ? number : fallback;
     }
 
+    function normalizedBlackboardScale(value, fallback) {
+      let scale = numericValue(value, fallback);
+      if (scale > 10) scale = scale / 100;
+      if (!Number.isFinite(scale) || scale <= 0) scale = fallback;
+      return Math.min(BLACKBOARD_MAX_SCALE, Math.max(BLACKBOARD_MIN_SCALE, scale));
+    }
+
     function drawBlackboard(context, canvas, config) {
       const width = canvas.width;
       const height = canvas.height;
-      const scale = config.scale || 1;
+      const scale = normalizedBlackboardScale(config.scale, 1);
       const baseBoardWidth = Math.min(width * 0.45, Math.max(width * 0.39, 540));
       const minBoardWidth = Math.round(baseBoardWidth * 0.7);
       let boardWidth = Math.round(baseBoardWidth * scale);

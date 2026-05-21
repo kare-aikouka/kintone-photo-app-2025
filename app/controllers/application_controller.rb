@@ -1,6 +1,9 @@
 # app/controllers/application_controller.rb
 
 class ApplicationController < ActionController::Base
+  DEFAULT_OPERATOR_LABEL = '會澤高圧コンクリート株式会社'.freeze
+  INTERNAL_GROUP_LABELS = ['會澤社員'].freeze
+
   protect_from_forgery with: :exception
 
   include Account::Helper
@@ -30,13 +33,18 @@ class ApplicationController < ActionController::Base
     allowed_companies = current_account.allowed_companies
     return allowed_companies.join(" / ") unless current_account.full_company_access?
 
-    current_account.record.team.presence || current_account.record.user.presence || current_account.record.email
+    [
+      current_account.record.company,
+      current_account.record.team,
+      current_account.record.eigyosyo,
+      current_account.record.area
+    ].find { |label| label.present? && INTERNAL_GROUP_LABELS.exclude?(label) } || DEFAULT_OPERATOR_LABEL
   end
 
   def app_shell_context_label
     return unless signed_in?
 
-    current_account.record.eigyosyo.presence || current_account.record.area.presence || current_account.record.group
+    current_account.record.eigyosyo.presence || current_account.record.area.presence
   end
 
   def body_css_classes
