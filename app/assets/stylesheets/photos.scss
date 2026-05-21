@@ -985,6 +985,13 @@ html.app-navigation-loading::after {
   box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.2);
 }
 
+.photo-blackboard-input.is-blackboard-critical-empty {
+  background: #fee2e2;
+  border-color: #dc2626;
+  color: #991b1b;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.22);
+}
+
 .photo-blackboard-input.is-blackboard-stale-date {
   border-color: #dc2626;
   color: #dc2626;

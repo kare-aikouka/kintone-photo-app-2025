@@ -279,6 +279,7 @@
     let pendingFileInput = null;
     let lastSelectedFileInput = null;
     let addRowSequence = 0;
+    let blackboardGuardAlertedAt = 0;
 
     restorePhotoScroll();
     restoreBlackboardConfig();
@@ -495,7 +496,11 @@
     function bindPhotoFileInput(input) {
       if (input.dataset.photoFileBound === "true") return;
       input.dataset.photoFileBound = "true";
-      input.addEventListener("click", function () {
+      input.addEventListener("click", function (event) {
+        if (!guardBlackboardBeforePhoto(event)) {
+          input.value = "";
+          return;
+        }
         input.value = "";
         pendingFileInput = input;
       });
@@ -525,6 +530,11 @@
         if (hasFiles && files.some(function (file) { return !file || file.size <= 0; })) {
           showUploadError(form, selectedInput, selectedLabel);
           alert("カメラから写真ファイルを取得できませんでした。もう一度撮影してください。");
+          return;
+        }
+        if (hasFiles && !guardBlackboardBeforePhoto(event)) {
+          if (selectedInput) selectedInput.value = "";
+          if (selectedLabel) selectedLabel.textContent = "選択されていません";
           return;
         }
 
@@ -806,6 +816,7 @@
 
     async function overwritePhotoBlackboard(button) {
       if (!button || button.dataset.overwriting === "true") return;
+      if (!guardBlackboardBeforePhoto()) return;
       if (!window.confirm("現在の電子黒板内容で、この写真の黒板を上書きします。元画像には戻せません。よろしいですか？")) return;
 
       button.dataset.overwriting = "true";
@@ -881,6 +892,35 @@
         offsetY: offsetYInput ? numberInRange(offsetYInput.value, -120, 120, 0) : 0,
         values: values
       };
+    }
+
+    function blackboardMissingRequiredPiles() {
+      const config = currentBlackboardConfig();
+      return !!(config.enabled && !(config.values && String(config.values.piles || "").trim()));
+    }
+
+    function guardBlackboardBeforePhoto(event) {
+      if (!blackboardMissingRequiredPiles()) return true;
+
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      updateBlackboardRequiredHighlights();
+      updateBlackboardPreview();
+      refreshBlackboardPreviewSoon();
+
+      const input = document.querySelector(".js-blackboard-field[data-blackboard-key='piles']");
+      if (input) {
+        input.focus({ preventScroll: true });
+        input.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      const now = Date.now();
+      if (now - blackboardGuardAlertedAt > 1200) {
+        blackboardGuardAlertedAt = now;
+        alert("施工明細が空白です。施工明細を入力してから写真を撮影してください。");
+      }
+      return false;
     }
 
     function blackboardOverwriteConfig(button) {
@@ -1000,6 +1040,7 @@
       const values = config.values || {};
       const labels = ["工事名", "工事年月日", "施工者", "工事場所", "施工明細"];
       const keys = ["project", "date", "maker", "place", "piles"];
+      const missingPiles = !String(values.piles || "").trim();
       let metrics = blackboardMetrics(context, boardWidth, values, labels, keys);
       const maxBoardArea = width * height * 0.25;
       for (let i = 0; i < 5 && boardWidth * metrics.boardHeight > maxBoardArea && boardWidth > minBoardWidth; i += 1) {
@@ -1024,9 +1065,20 @@
       const y = Math.max(0, Math.min(height - boardHeight, height - boardHeight + offsetY));
 
       context.save();
-      context.fillStyle = "#fff";
+      context.fillStyle = missingPiles ? "#fee2e2" : "#fff";
       context.fillRect(x, y, boardWidth, boardHeight);
-      context.strokeStyle = "#111";
+      if (missingPiles) {
+        let pilesY = y;
+        const pilesIndex = keys.indexOf("piles");
+        rowLayouts.slice(0, pilesIndex).forEach(function (row) {
+          pilesY += row.height;
+        });
+        context.fillStyle = "#fecaca";
+        context.fillRect(x, pilesY, labelWidth, rowLayouts[pilesIndex].height);
+        context.fillStyle = "#dc2626";
+        context.fillRect(x + labelWidth, pilesY, boardWidth - labelWidth, rowLayouts[pilesIndex].height);
+      }
+      context.strokeStyle = missingPiles ? "#dc2626" : "#111";
       context.lineWidth = lineWidth;
       context.strokeRect(x, y, boardWidth, boardHeight);
 
@@ -1052,7 +1104,20 @@
           drawTextFitMultiline(context, values.project || "", x + labelWidth + pad, rowY, boardWidth - labelWidth - kindWidth - pad * 2, rowHeight, valueFont, "bold", "left", 2);
           drawTextFitMultiline(context, values.kind || "", x + boardWidth - kindWidth + pad, rowY, kindWidth - pad * 2, rowHeight, valueFont, "bold", "right", 2);
         } else {
-          drawTextFitMultiline(context, values[keys[index]] || "", x + labelWidth + pad, rowY, boardWidth - labelWidth - pad * 2, rowHeight, valueFont, "bold", "left", index === 1 ? 1 : 2);
+          const isMissingPilesRow = missingPiles && keys[index] === "piles";
+          drawTextFitMultiline(
+            context,
+            isMissingPilesRow ? "施工明細を入力してください" : (values[keys[index]] || ""),
+            x + labelWidth + pad,
+            rowY,
+            boardWidth - labelWidth - pad * 2,
+            rowHeight,
+            valueFont,
+            "bold",
+            "left",
+            index === 1 ? 1 : 2,
+            isMissingPilesRow ? "#fff" : "#000"
+          );
         }
         cursorY += rowHeight;
       });
@@ -1129,14 +1194,14 @@
       context.restore();
     }
 
-    function drawTextFitMultiline(context, text, x, y, maxWidth, maxHeight, fontSize, weight, align, maxLines) {
+    function drawTextFitMultiline(context, text, x, y, maxWidth, maxHeight, fontSize, weight, align, maxLines, color) {
       let size = fontSize;
       let lines = [];
       const limit = maxLines || 2;
       const safeText = String(text || "");
       context.textBaseline = "alphabetic";
       context.textAlign = align || "left";
-      context.fillStyle = "#000";
+      context.fillStyle = color || "#000";
       while (size > 8) {
         context.font = (weight || "normal") + " " + size + "px " + BLACKBOARD_FONT_FAMILY;
         lines = wrapTextLines(context, safeText, maxWidth);
@@ -1319,7 +1384,9 @@
 
       root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
         const value = String(input.value || "").trim();
+        const isCriticalEmpty = input.dataset.blackboardKey === "piles" && value.length === 0;
         input.classList.toggle("is-blackboard-empty", value.length === 0);
+        input.classList.toggle("is-blackboard-critical-empty", isCriticalEmpty);
       });
     }
 
@@ -1473,6 +1540,12 @@
     function handleFileInput(input) {
       syncFileChoice(input);
       if (!input.files || input.files.length === 0) return;
+      if (!guardBlackboardBeforePhoto()) {
+        input.value = "";
+        syncFileChoice(input);
+        pendingFileInput = null;
+        return;
+      }
 
       pendingFileInput = null;
       if (!input.classList.contains("js-photo-auto-submit")) return;
