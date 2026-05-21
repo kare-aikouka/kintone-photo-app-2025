@@ -275,11 +275,11 @@
     const deleteConfirm = buildDeleteConfirm();
     const photoPreview = buildPhotoPreview();
     const uploadIndicator = buildUploadIndicator();
+    const blackboardWarning = buildBlackboardWarningDialog();
     const scrollStorageKey = "photo-scroll:" + window.location.pathname;
     let pendingFileInput = null;
     let lastSelectedFileInput = null;
     let addRowSequence = 0;
-    let blackboardGuardAlertedAt = 0;
 
     restorePhotoScroll();
     restoreBlackboardConfig();
@@ -915,11 +915,10 @@
         input.focus({ preventScroll: true });
         input.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-      const now = Date.now();
-      if (now - blackboardGuardAlertedAt > 1200) {
-        blackboardGuardAlertedAt = now;
-        alert("施工明細が空白です。施工明細を入力してから写真を撮影してください。");
-      }
+      blackboardWarning.open(
+        "施工明細が空白です",
+        "施工明細を入力してから写真を撮影してください。"
+      );
       return false;
     }
 
@@ -1625,6 +1624,50 @@
         },
         hide: function () {
           overlay.classList.add("hidden");
+        }
+      };
+    }
+
+    function buildBlackboardWarningDialog() {
+      const overlay = document.createElement("div");
+      overlay.className = "blackboard-warning-overlay hidden";
+      overlay.innerHTML = [
+        '<div class="blackboard-warning-dialog" role="alertdialog" aria-modal="true" aria-labelledby="blackboard-warning-title" aria-describedby="blackboard-warning-message">',
+        '  <div class="blackboard-warning-badge" aria-hidden="true">!</div>',
+        '  <h2 id="blackboard-warning-title" class="blackboard-warning-title"></h2>',
+        '  <p id="blackboard-warning-message" class="blackboard-warning-message"></p>',
+        '  <button type="button" class="blackboard-warning-close">OK</button>',
+        '</div>'
+      ].join("");
+      document.body.appendChild(overlay);
+
+      const title = overlay.querySelector(".blackboard-warning-title");
+      const message = overlay.querySelector(".blackboard-warning-message");
+      const closeButton = overlay.querySelector(".blackboard-warning-close");
+      let lastFocusedElement = null;
+
+      function close() {
+        overlay.classList.add("hidden");
+        if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+          lastFocusedElement.focus({ preventScroll: true });
+        }
+      }
+
+      closeButton.addEventListener("click", close);
+      overlay.addEventListener("click", function (event) {
+        if (event.target === overlay) close();
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && !overlay.classList.contains("hidden")) close();
+      });
+
+      return {
+        open: function (titleText, messageText) {
+          lastFocusedElement = document.activeElement;
+          title.textContent = titleText;
+          message.textContent = messageText;
+          overlay.classList.remove("hidden");
+          closeButton.focus();
         }
       };
     }
