@@ -1426,6 +1426,7 @@
       sanitized = sanitized.split(/[→⇒]/)[0] || "";
       sanitized = sanitized.replace(/[、,]\s*(?:JIS\b|H-?CPT|カーボン|キュア|.*材|.*追加|.*破損|.*折れ).*$/i, "");
       sanitized = sanitized.replace(/\s+(?:JIS\b|H-?CPT|カーボン|キュア|.*材).*$/i, "").trim();
+      if (/推定|概算|未定|確認中|調整中|仮/.test(sanitized)) return "";
       return /[mMｍＭ]/.test(sanitized) ? sanitized : "";
     }
 

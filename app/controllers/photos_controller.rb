@@ -10,6 +10,7 @@ class PhotosController < ApplicationController
   SUMMARY_CACHE_TTL = 10.minutes
   SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
   DOCUMENT_CONTACT_NOTE_FIELD_CODE = "施工後連絡事項"
+  BLACKBOARD_PILES_PROVISIONAL_PATTERN = /推定|概算|未定|確認中|調整中|仮/.freeze
   NUMBER_MEMO_TABLE_PATTERNS = [
     /杭長/,
     /杭材検寸.*(下端|頭端|上端)/
@@ -700,6 +701,8 @@ class PhotosController < ApplicationController
     text = text.sub(/[、,]\s*(?:JIS\b|H-?CPT|カーボン|キュア|.*材|.*追加|.*破損|.*折れ).*\z/i, "")
     text = text.sub(/\s+(?:JIS\b|H-?CPT|カーボン|キュア|.*材).*\z/i, "")
     text.strip!
+    return "" if text.match?(BLACKBOARD_PILES_PROVISIONAL_PATTERN)
+
     text.match?(/[mMｍＭ]/) ? text : ""
   end
 
