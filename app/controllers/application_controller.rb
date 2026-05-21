@@ -4,7 +4,7 @@ class ApplicationController < ActionController::Base
   protect_from_forgery with: :exception
 
   include Account::Helper
-  helper_method :app_home_path, :app_shell_context_label, :app_shell_primary_label,
+  helper_method :app_home_path, :app_shell_context_label,
                 :app_shell_secondary_label, :body_css_classes, :show_app_shell?,
                 :show_debug_panels?
 
@@ -26,6 +26,9 @@ class ApplicationController < ActionController::Base
 
   def app_shell_secondary_label
     return unless signed_in?
+
+    allowed_companies = current_account.allowed_companies
+    return allowed_companies.join(" / ") unless current_account.full_company_access?
 
     current_account.record.team.presence || current_account.record.user.presence || current_account.record.email
   end

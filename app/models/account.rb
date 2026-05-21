@@ -18,6 +18,7 @@ class Account < ActiveKintone
     :password,
     :group,
     :company,
+    :allowed_companies,
     :status,
     :fail_count,
     keyword_init: true
@@ -89,8 +90,11 @@ class Account < ActiveKintone
     end
 
     def configured_local_accounts
-      account_configs = json_local_account_configs.presence || numbered_local_account_configs
-      account_configs << single_local_account_config if account_configs.empty? && single_local_account_config
+      account_configs = []
+      account_configs.concat(json_local_account_configs)
+      account_configs << single_local_account_config if single_local_account_config
+      account_configs.concat(numbered_local_account_configs)
+      account_configs = account_configs.uniq { |config| config[:email].to_s.strip.downcase }
 
       account_configs.each_with_index.filter_map do |config, index|
         email = config[:email].to_s.strip.presence
@@ -107,6 +111,7 @@ class Account < ActiveKintone
           password: password,
           group: config[:group].presence || '會澤社員',
           company: config[:company],
+          allowed_companies: config[:allowed_companies],
           status: '有効',
           fail_count: 0
         )
@@ -129,6 +134,7 @@ class Account < ActiveKintone
           team: account['team'],
           area: account['area'],
           company: account['company'],
+          allowed_companies: account['allowed_companies'] || account['allowedCompanies'] || account['companies'],
           eigyosyo: account['eigyosyo']
         }
       end
@@ -150,6 +156,7 @@ class Account < ActiveKintone
           team: ENV["APP_ACCOUNT_TEAM_#{index}"],
           area: ENV["APP_ACCOUNT_AREA_#{index}"],
           company: ENV["APP_ACCOUNT_COMPANY_#{index}"],
+          allowed_companies: ENV["APP_ACCOUNT_ALLOWED_COMPANIES_#{index}"],
           eigyosyo: ENV["APP_ACCOUNT_EIGYOSYO_#{index}"]
         }
       end
@@ -167,6 +174,7 @@ class Account < ActiveKintone
         team: ENV['APP_ACCOUNT_TEAM'],
         area: ENV['APP_ACCOUNT_AREA'],
         company: ENV['APP_ACCOUNT_COMPANY'],
+        allowed_companies: ENV['APP_ACCOUNT_ALLOWED_COMPANIES'],
         eigyosyo: ENV['APP_ACCOUNT_EIGYOSYO']
       }
     end
@@ -223,6 +231,20 @@ class Account < ActiveKintone
 
   def data_without_password
     data.reject { |k, _| k == 'パスワード' }
+  end
+
+  def allowed_companies
+    raw = record.respond_to?(:allowed_companies) ? record.allowed_companies : nil
+    Array(raw).flat_map { |value| value.to_s.split(/[,、\n]/) }.map(&:strip).reject(&:blank?)
+  end
+
+  def full_company_access?
+    allowed = allowed_companies
+    allowed.empty? || allowed.any? { |company| company.in?(%w[* all ALL full FULL 全て 全社]) }
+  end
+
+  def can_access_company?(company)
+    full_company_access? || allowed_companies.include?(company.to_s.strip)
   end
 
   module Helper

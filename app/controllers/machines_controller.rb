@@ -15,6 +15,7 @@ class MachinesController < ApplicationController
     else
       @machines = fetch_machine_records(app_id, guest_space_id, { "エリア" => "北海道" })
     end
+    @machines = filter_accessible_machine_records(@machines)
     log_machine_field_keys(@machines)
     @machine_field_keys = machine_field_keys(@machines)
     @machine_field_preview = machine_field_preview(@machines)
@@ -29,6 +30,10 @@ class MachinesController < ApplicationController
     app_id = machines_app_id
     area = params[:area] || "北海道"
     company = params[:id]
+    unless current_account.can_access_company?(company)
+      redirect_to machines_path(area: area), alert: "このアカウントでは #{company} を表示できません。"
+      return
+    end
 
     cond = { "エリア" => area, "運用会社名" => company }
     @machines = fetch_machine_records(app_id, guest_space_id, cond)
@@ -66,6 +71,14 @@ class MachinesController < ApplicationController
   def fetch_machine_records(app_id, guest_space_id, cond)
     records = KintoneSync::Machines.new(app_id, guest_space_id).where(cond)
     Array(records.is_a?(Hash) ? records["records"] : records)
+  end
+
+  def filter_accessible_machine_records(records)
+    return records if current_account.full_company_access?
+
+    records.select do |machine|
+      current_account.can_access_company?(field_value(machine, "運用会社名"))
+    end
   end
 
   def machines_app_id
