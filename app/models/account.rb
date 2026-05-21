@@ -36,17 +36,12 @@ class Account < ActiveKintone
     # - ステータスが無効なアカウントに対しては、正しいパスワードを入れたとしても失敗と扱う
     #
     def sign_in(email:, password:)
-      return local_sign_in(email: email, password: password) if local_auth?
-
-      email_code = kintone_record_class.key_to_code(:email)
-      account = find_by(email_code => email) or raise SignedInError
-      if account.validate(password)
-        account.resetFailCount
-        return account
+      if local_auth?
+        local_record = matching_local_account(email: email, password: password)
+        return local_account(local_record) if local_record
       end
-      account.incrementFailCount
-      raise LockedError if account.locked?
-      raise SignedInError
+
+      kintone_sign_in(email: email, password: password)
     end
 
     def find(id)
@@ -60,13 +55,29 @@ class Account < ActiveKintone
 
     private
 
-    def local_sign_in(email:, password:)
-      record = local_accounts.find do |account|
-        secure_compare(account.email, email) && secure_compare(account.password, password)
+    def kintone_sign_in(email:, password:)
+      email_code = kintone_record_class.key_to_code(:email)
+      account = find_by(email_code => email) or raise SignedInError
+      if account.validate(password)
+        account.resetFailCount
+        return account
       end
+      account.incrementFailCount
+      raise LockedError if account.locked?
+      raise SignedInError
+    end
+
+    def local_sign_in(email:, password:)
+      record = matching_local_account(email: email, password: password)
       raise SignedInError unless record
 
       local_account(record)
+    end
+
+    def matching_local_account(email:, password:)
+      local_accounts.find do |account|
+        secure_compare(account.email, email) && secure_compare(account.password, password)
+      end
     end
 
     def local_auth?
@@ -149,6 +160,9 @@ class Account < ActiveKintone
         password = ENV["APP_PASSWORD_#{index}"].presence || ENV["APP_LOGIN_PASSWORD_#{index}"].presence
         next if email.blank? && password.blank?
 
+        # 1-10 are reserved for in-house/full-access accounts.
+        allowed_companies = index <= 10 ? nil : ENV["APP_ACCOUNT_ALLOWED_COMPANIES_#{index}"]
+
         {
           email: email,
           password: password,
@@ -156,7 +170,7 @@ class Account < ActiveKintone
           team: ENV["APP_ACCOUNT_TEAM_#{index}"],
           area: ENV["APP_ACCOUNT_AREA_#{index}"],
           company: ENV["APP_ACCOUNT_COMPANY_#{index}"],
-          allowed_companies: ENV["APP_ACCOUNT_ALLOWED_COMPANIES_#{index}"],
+          allowed_companies: allowed_companies,
           eigyosyo: ENV["APP_ACCOUNT_EIGYOSYO_#{index}"]
         }
       end
