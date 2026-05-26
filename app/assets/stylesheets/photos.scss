@@ -1483,6 +1483,50 @@ form.photo-detail-table-actions {
   font-weight: 700;
 }
 
+.photo-upload-steps {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+}
+
+.photo-upload-steps.hidden {
+  display: none;
+}
+
+.photo-upload-step {
+  background: #e5e7eb;
+  border-radius: 999px;
+  color: #667085;
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.2;
+  padding: 8px 6px;
+  text-align: center;
+}
+
+.photo-upload-step.is-complete {
+  background: #dbeafe;
+  color: #31539a;
+}
+
+.photo-upload-step.is-active {
+  background: #3E5FAA;
+  box-shadow: 0 8px 18px rgba(62, 95, 170, 0.26);
+  color: #fff;
+}
+
+@media (max-width: 520px) {
+  .photo-upload-dialog {
+    gap: 16px;
+    padding: 30px 22px;
+  }
+
+  .photo-upload-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .blackboard-warning-overlay {
   align-items: center;
   background: rgba(15, 23, 42, 0.72);
@@ -1543,6 +1587,7 @@ form.photo-detail-table-actions {
   line-height: 1.55;
   margin: 0 0 30px;
   text-align: left;
+  white-space: pre-line;
 }
 
 .blackboard-warning-close {

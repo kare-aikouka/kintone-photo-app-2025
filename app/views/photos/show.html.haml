@@ -277,6 +277,17 @@
     const photoPreview = buildPhotoPreview();
     const uploadIndicator = buildUploadIndicator();
     const blackboardWarning = buildBlackboardWarningDialog();
+    const PHOTO_UPLOAD_STEPS = [
+      { key: "prepare", label: "画像確認" },
+      { key: "blackboard", label: "黒板処理" },
+      { key: "send", label: "送信" },
+      { key: "confirm", label: "保存確認" }
+    ];
+    const PHOTO_SAVE_STEPS = [
+      { key: "prepare", label: "入力確認" },
+      { key: "send", label: "保存" },
+      { key: "confirm", label: "完了判定" }
+    ];
     const scrollStorageKey = "photo-scroll:" + window.location.pathname;
     let pendingFileInput = null;
     let lastSelectedFileInput = null;
@@ -543,18 +554,28 @@
 
         form.dataset.uploading = "true";
         const disabledInputs = disableInactiveChoiceInputs(form);
+        const progressSteps = hasFiles ? PHOTO_UPLOAD_STEPS : PHOTO_SAVE_STEPS;
         try {
-          if (hasFiles && selectedLabel) selectedLabel.textContent = "写真を圧縮中...";
+          if (hasFiles && selectedLabel) selectedLabel.textContent = "画像処理中...";
           uploadIndicator.show(
-            hasFiles ? "写真を圧縮中..." : "保存中...",
-            hasFiles ? "保存完了までそのままお待ちください" : "完了状態も再確認しています"
+            hasFiles ? "画像を準備中..." : "保存内容を確認中...",
+            hasFiles ? "写真を圧縮し、黒板情報を確認しています" : "入力内容をkintoneへ保存する準備をしています",
+            { steps: progressSteps, activeStep: "prepare" }
           );
           clearUploadError(selectedLabel);
+          if (hasFiles) {
+            uploadIndicator.show(
+              "黒板を焼き付け中...",
+              "写真サイズを整えてから保存用データを作成しています",
+              { steps: progressSteps, activeStep: "blackboard" }
+            );
+          }
           const body = hasFiles ? await compressedFormData(form) : new FormData(form);
-          if (hasFiles && selectedLabel) selectedLabel.textContent = "アップロード中...";
+          if (hasFiles && selectedLabel) selectedLabel.textContent = "kintoneへ送信中...";
           uploadIndicator.show(
-            hasFiles ? "アップロード中..." : "保存中...",
-            hasFiles ? "通信状況により時間がかかる場合があります" : "kintoneの完了フラグを再判定しています"
+            hasFiles ? "kintoneへ送信中..." : "kintoneへ保存中...",
+            hasFiles ? "通信状況により10秒ほどかかる場合があります" : "完了フラグを再判定しています",
+            { steps: progressSteps, activeStep: "send" }
           );
 
           const response = await fetch(form.action, {
@@ -565,6 +586,11 @@
           });
 
           if (!response.ok) throw new Error("upload failed");
+          uploadIndicator.show(
+            hasFiles ? "保存結果を確認中..." : "完了状態を確認中...",
+            "画面を更新して最新の状態を表示します",
+            { steps: progressSteps, activeStep: "confirm" }
+          );
           saveUploadedBlackboardPhotoConfig(form, body);
           rememberPhotoScroll(form);
           window.location.href = response.url || window.location.href;
@@ -918,7 +944,7 @@
       }
       blackboardWarning.open(
         "施工明細が空白です",
-        "施工明細を入力してから写真を撮影してください。"
+        "施工明細を入力してから写真を撮影してください。\n例1）〇m*〇本 , 例2）◇m-◇本"
       );
       return false;
     }
@@ -1638,17 +1664,43 @@
         '  <div class="photo-upload-spinner" aria-hidden="true"></div>',
         '  <div class="photo-upload-message">アップロード中...</div>',
         '  <div class="photo-upload-submessage">保存完了までそのままお待ちください</div>',
+        '  <div class="photo-upload-steps hidden" aria-hidden="true"></div>',
         '</div>'
       ].join("");
       document.body.appendChild(overlay);
 
       const message = overlay.querySelector(".photo-upload-message");
       const submessage = overlay.querySelector(".photo-upload-submessage");
+      const stepsContainer = overlay.querySelector(".photo-upload-steps");
+
+      function updateSteps(steps, activeStep) {
+        if (!steps || !steps.length) {
+          stepsContainer.replaceChildren();
+          stepsContainer.classList.add("hidden");
+          return;
+        }
+
+        const activeIndex = steps.findIndex(function (step) {
+          return step.key === activeStep;
+        });
+
+        stepsContainer.replaceChildren();
+        stepsContainer.classList.remove("hidden");
+        steps.forEach(function (step, index) {
+          const item = document.createElement("span");
+          item.className = "photo-upload-step";
+          if (activeIndex >= 0 && index < activeIndex) item.classList.add("is-complete");
+          if (step.key === activeStep) item.classList.add("is-active");
+          item.textContent = step.label;
+          stepsContainer.appendChild(item);
+        });
+      }
 
       return {
-        show: function (text, subtext) {
+        show: function (text, subtext, options) {
           message.textContent = text || "アップロード中...";
           submessage.textContent = subtext || "保存完了までそのままお待ちください";
+          updateSteps(options && options.steps, options && options.activeStep);
           overlay.classList.remove("hidden");
         },
         hide: function () {
