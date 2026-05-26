@@ -777,6 +777,14 @@
       if (!input || !input.name || !input.files || input.files.length === 0) return formData;
 
       const file = input.files[0];
+
+      try {
+        const backupFile = await compressedBackupImageFile(file);
+        downloadLocalFile(backupFile);
+      } catch (backupError) {
+        // エマージェンシー用保存の失敗は無視して通常処理を続行
+      }
+
       let uploadFile;
       try {
         uploadFile = await compressedImageFile(file);
@@ -804,6 +812,32 @@
       if (!blob) return new File([file], uploadFileName(file), { lastModified: uploadFileTime(file), type: file.type });
 
       return new File([blob], uploadFileName(file), {
+        lastModified: uploadFileTime(file),
+        type: "image/jpeg"
+      });
+    }
+
+    async function compressedBackupImageFile(file) {
+      if (!file || !file.type || !file.type.startsWith("image/")) return file;
+
+      const image = await loadImage(file);
+      const BACKUP_MAX_SIZE = 960;
+      const BACKUP_JPEG_QUALITY = 0.70;
+      const size = fittedImageSize(image.width, image.height, BACKUP_MAX_SIZE);
+      const canvas = document.createElement("canvas");
+      canvas.width = size.width;
+      canvas.height = size.height;
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0, size.width, size.height);
+      if (image.close) image.close();
+
+      const blob = await canvasToBlob(canvas, "image/jpeg", BACKUP_JPEG_QUALITY);
+      if (!blob) throw new Error("backup failed");
+
+      const originalName = uploadFileName(file);
+      const backupName = originalName.replace(".jpg", "_original.jpg");
+
+      return new File([blob], backupName, {
         lastModified: uploadFileTime(file),
         type: "image/jpeg"
       });
