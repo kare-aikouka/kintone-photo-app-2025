@@ -1,0 +1,51 @@
+.app-info-page
+  .app-info-hero
+    .app-info-hero-top
+      = link_to "← 施工機一覧へ戻る", machines_path, class: "app-info-back"
+      %span.app-info-version= app_version_label
+    %p.page-kicker App Version
+    %h1 バージョン情報
+    %p.app-info-lead 現場写真アプリの機能と改修履歴を確認できます。現場で迷ったときの備忘録として使える軽いページです。
+
+  .app-info-grid
+    %section.app-info-card
+      %h2 このアプリでできること
+      %ul.app-info-list
+        %li kintoneから施工機・現場情報を取得し、会社やアカウントごとに表示を制御します。
+        %li 写真撮影・ギャラリー選択から、圧縮処理を行ってkintoneへアップロードします。
+        %li 電子黒板を写真へ焼き付け、未入力チェックや黒板修正にも対応します。
+        %li レシート、納品書、施工後図面、その他資料を写真からPDF化して保存できます。
+        %li 施工後連絡事項を入力し、現場からオフィスへ補足情報を共有できます。
+        %li 完了・未完了の状態確認、過去未完了案件の表示、資料UPの確認に対応します。
+
+    %section.app-info-card
+      %h2 改修履歴
+
+      %article.app-info-release
+        .app-info-release-head
+          %span.app-info-date= app_release_date
+          %strong= app_version_label
+        %ul.app-info-list
+          %li 施工機一覧にバージョン表示を追加し、改修履歴ページを開けるようにしました。
+          %li 資料UP機能にPDFアップロード、削除、施工後連絡事項の入力欄を追加しました。
+          %li 電子黒板の施工明細未入力チェック、警告表示、撮影制限を強化しました。
+          %li ログインアカウントごとの会社表示制御を追加し、協力会社向け表示に対応しました。
+
+      %article.app-info-release
+        .app-info-release-head
+          %span.app-info-date 2026-05
+          %strong 主な機能追加
+        %ul.app-info-list
+          %li 電子黒板の焼き付け、位置・サイズ調整、黒板再焼き付け機能を追加しました。
+          %li 写真アップロード時の圧縮、ファイル名整形、進捗表示を改善しました。
+          %li 施工写真の完了判定、その他項目の扱い、kintoneへの反映ロジックを調整しました。
+          %li PWAとして利用しやすい画面構成、ボタン大型化、屋外視認性の改善を進めました。
+
+      %article.app-info-release
+        .app-info-release-head
+          %span.app-info-date 運用メモ
+          %strong 困ったとき
+        %ul.app-info-list
+          %li 写真や資料のアップロードに失敗した場合は、通信状況を確認して再度アップロードしてください。
+          %li 黒板の内容が現場と違う場合は、撮影前に電子黒板欄を修正してください。
+          %li kintone側で項目名やフィールドコードを変更した場合は、アプリ側の対応が必要になることがあります。

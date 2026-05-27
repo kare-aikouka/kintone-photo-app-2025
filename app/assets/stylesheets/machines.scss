@@ -77,6 +77,7 @@ body.controller-machines.action-index {
   gap: 16px;
   justify-content: space-between;
   margin-bottom: 20px;
+  position: relative;
 }
 
 .machines-page-title-group {
@@ -91,6 +92,27 @@ body.controller-machines.action-index {
 .machine-page-subtitle {
   color: #6b7280;
   margin-bottom: 0;
+}
+
+.machines-version-link {
+  align-self: flex-start;
+  background: #ffffff;
+  border: 1px solid #cfe0f6;
+  border-radius: 999px;
+  box-shadow: 0 10px 22px rgba(43, 70, 120, 0.08);
+  color: #315da8;
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 9px 12px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.machines-version-link:active,
+.machines-version-link:hover {
+  background: #eaf4ff;
+  color: #244b91;
 }
 
 .machines-page-summary {
@@ -213,6 +235,16 @@ body.controller-machines.action-index {
   .machines-page-header {
     align-items: flex-start;
     flex-direction: column;
+    min-height: 112px;
+    padding-right: 106px;
+  }
+
+  .machines-version-link {
+    font-size: 0.78rem;
+    padding: 7px 9px;
+    position: absolute;
+    right: 0;
+    top: 8px;
   }
 
   .machines-page-summary {

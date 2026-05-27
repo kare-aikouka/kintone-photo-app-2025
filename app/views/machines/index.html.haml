@@ -4,6 +4,7 @@
       %p.page-kicker Machine Index
       %h1 施工機一覧
       %p.machine-page-subtitle エリアを選択して施工機を表示します。
+    = link_to app_version_label, app_info_path, class: "machines-version-link", aria: { label: "バージョン情報と改修履歴を表示" }
 
   .machines-area-switch
     %button{ id: "btn-hokkaido", class: "toggle-area selected", type: "button" } 北海道

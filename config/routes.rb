@@ -17,6 +17,7 @@ Rails.application.routes.draw do
     end
   end
   get 'router' => 'router#index'
+  get 'version' => 'app_info#show', as: :app_info
 
   get 'sign_in' => 'accounts#sign_in'
   post 'sign_in' => 'accounts#session_create', as: :create_account_session

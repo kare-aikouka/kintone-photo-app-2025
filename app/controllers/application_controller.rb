@@ -3,13 +3,16 @@
 class ApplicationController < ActionController::Base
   DEFAULT_OPERATOR_LABEL = '會澤高圧コンクリート株式会社'.freeze
   INTERNAL_GROUP_LABELS = ['會澤社員'].freeze
+  APP_VERSION_CODE = ENV.fetch('APP_VERSION', '260527').freeze
+  APP_RELEASE_DATE = ENV.fetch('APP_RELEASE_DATE', '2026-05-27').freeze
 
   protect_from_forgery with: :exception
 
   include Account::Helper
   helper_method :app_home_path, :app_shell_context_label,
                 :app_shell_secondary_label, :body_css_classes, :show_app_shell?,
-                :show_debug_panels?
+                :show_debug_panels?, :app_version_code, :app_version_label,
+                :app_release_date
 
   def authentication
     redirect_to sign_in_path(backto: request.fullpath) unless signed_in?
@@ -19,6 +22,18 @@ class ApplicationController < ActionController::Base
 
   def app_home_path
     signed_in? ? router_path : root_path
+  end
+
+  def app_version_code
+    APP_VERSION_CODE
+  end
+
+  def app_version_label
+    "Ver.#{app_version_code}"
+  end
+
+  def app_release_date
+    APP_RELEASE_DATE
   end
 
   def app_shell_primary_label

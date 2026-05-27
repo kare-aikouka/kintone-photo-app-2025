@@ -1,0 +1,132 @@
+.app-info-page {
+  margin: 0 auto;
+  max-width: 960px;
+  padding: 32px 20px 56px;
+}
+
+.app-info-hero {
+  background: linear-gradient(135deg, #ffffff 0%, #eef7ff 100%);
+  border: 1px solid #d7e0ef;
+  border-radius: 22px;
+  box-shadow: 0 18px 40px rgba(43, 70, 120, 0.08);
+  margin-bottom: 24px;
+  padding: 24px;
+}
+
+.app-info-hero-top {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.app-info-back,
+.app-info-version {
+  border-radius: 999px;
+  display: inline-flex;
+  font-weight: 800;
+  line-height: 1;
+  padding: 10px 14px;
+  text-decoration: none;
+}
+
+.app-info-back {
+  background: #62cde7;
+  color: #ffffff;
+}
+
+.app-info-version {
+  background: #e9f2ff;
+  color: #315da8;
+}
+
+.app-info-hero h1 {
+  color: #17223a;
+  font-size: 2.3rem;
+  margin: 0 0 10px;
+}
+
+.app-info-lead {
+  color: #526078;
+  font-size: 1.05rem;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.app-info-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.app-info-card {
+  background: #ffffff;
+  border: 1px solid #d7e0ef;
+  border-radius: 22px;
+  box-shadow: 0 16px 36px rgba(43, 70, 120, 0.07);
+  padding: 24px;
+}
+
+.app-info-card h2 {
+  color: #17223a;
+  font-size: 1.5rem;
+  margin: 0 0 18px;
+}
+
+.app-info-list {
+  color: #334155;
+  line-height: 1.8;
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.app-info-list li + li {
+  margin-top: 8px;
+}
+
+.app-info-release {
+  border-top: 1px solid #e5ebf5;
+  padding-top: 18px;
+}
+
+.app-info-release + .app-info-release {
+  margin-top: 20px;
+}
+
+.app-info-release-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.app-info-date {
+  background: #fff1c8;
+  border-radius: 999px;
+  color: #8a5b00;
+  font-size: 0.92rem;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+@media (max-width: 640px) {
+  .app-info-page {
+    padding: 20px 14px 40px;
+  }
+
+  .app-info-hero,
+  .app-info-card {
+    border-radius: 18px;
+    padding: 18px;
+  }
+
+  .app-info-hero h1 {
+    font-size: 1.9rem;
+  }
+
+  .app-info-hero-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
