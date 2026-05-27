@@ -586,6 +586,16 @@
           });
 
           if (!response.ok) throw new Error("upload failed");
+          
+          if (hasFiles && selectedInput && selectedInput.hasAttribute("capture")) {
+            try {
+              const file = selectedInput.files[0];
+              const backupFile = await compressedBackupImageFile(file);
+              downloadLocalFile(backupFile);
+            } catch (backupError) {
+              // エマージェンシー用保存の失敗は無視して通常処理を続行
+            }
+          }
           uploadIndicator.show(
             hasFiles ? "保存結果を確認中..." : "完了状態を確認中...",
             "画面を更新して最新の状態を表示します",
@@ -777,15 +787,6 @@
       if (!input || !input.name || !input.files || input.files.length === 0) return formData;
 
       const file = input.files[0];
-
-      if (input.hasAttribute("capture")) {
-        try {
-          const backupFile = await compressedBackupImageFile(file);
-          downloadLocalFile(backupFile);
-        } catch (backupError) {
-          // エマージェンシー用保存の失敗は無視して通常処理を続行
-        }
-      }
 
       let uploadFile;
       try {
