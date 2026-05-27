@@ -778,11 +778,13 @@
 
       const file = input.files[0];
 
-      try {
-        const backupFile = await compressedBackupImageFile(file);
-        downloadLocalFile(backupFile);
-      } catch (backupError) {
-        // エマージェンシー用保存の失敗は無視して通常処理を続行
+      if (input.hasAttribute("capture")) {
+        try {
+          const backupFile = await compressedBackupImageFile(file);
+          downloadLocalFile(backupFile);
+        } catch (backupError) {
+          // エマージェンシー用保存の失敗は無視して通常処理を続行
+        }
       }
 
       let uploadFile;
@@ -822,7 +824,7 @@
 
       const image = await loadImage(file);
       const BACKUP_MAX_SIZE = 960;
-      const BACKUP_JPEG_QUALITY = 0.70;
+      const BACKUP_JPEG_QUALITY = 0.75;
       const size = fittedImageSize(image.width, image.height, BACKUP_MAX_SIZE);
       const canvas = document.createElement("canvas");
       canvas.width = size.width;
