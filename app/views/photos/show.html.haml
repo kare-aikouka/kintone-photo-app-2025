@@ -1287,9 +1287,9 @@
       const labelWidth = Math.round(boardWidth * 0.22);
       const kindWidth = Math.round(boardWidth * 0.30);
       const pad = Math.round(boardWidth * 0.012);
-      const labelFont = Math.max(14, Math.round(dataRowHeight * 0.42));
-      const valueFont = Math.max(13, Math.round(dataRowHeight * 0.40));
-      const footerFont = Math.max(14, Math.round(footerHeight * 0.46));
+      const labelFont = Math.max(13, Math.round(dataRowHeight * 0.42) - 1);
+      const valueFont = Math.max(12, Math.round(dataRowHeight * 0.40) - 1);
+      const footerFont = Math.max(13, Math.round(footerHeight * 0.46) - 1);
       const rowLayouts = labels.map(function (_label, index) {
         const valueWidth = index === 0 ? boardWidth - labelWidth - kindWidth - pad * 2 : boardWidth - labelWidth - pad * 2;
         const projectLines = index === 0 ? textLineCount(context, values.project || "", valueWidth, valueFont, "bold", 2) : 1;

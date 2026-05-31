@@ -1,0 +1,88 @@
+diff --git a/app/controllers/application_controller.rb b/app/controllers/application_controller.rb
+index 91cd25e..c2e0494 100644
+--- a/app/controllers/application_controller.rb
++++ b/app/controllers/application_controller.rb
+@@ -3,8 +3,8 @@
+ class ApplicationController < ActionController::Base
+   DEFAULT_OPERATOR_LABEL = '會澤高圧コンクリート株式会社'.freeze
+   INTERNAL_GROUP_LABELS = ['會澤社員'].freeze
+-  APP_VERSION_CODE = ENV.fetch('APP_VERSION', '260527').freeze
+-  APP_RELEASE_DATE = ENV.fetch('APP_RELEASE_DATE', '2026-05-27').freeze
++  APP_VERSION_CODE = ENV.fetch('APP_VERSION', '260530').freeze
++  APP_RELEASE_DATE = ENV.fetch('APP_RELEASE_DATE', '2026-05-30').freeze
+ 
+   protect_from_forgery with: :exception
+ 
+diff --git a/app/views/photos/show.html.haml b/app/views/photos/show.html.haml
+index 43a5203..9273f7e 100644
+--- a/app/views/photos/show.html.haml
++++ b/app/views/photos/show.html.haml
+@@ -85,15 +85,25 @@
+         .photo-blackboard-adjustments
+           .photo-blackboard-adjustment
+             %label サイズ
+-            = range_field_tag :photo_blackboard_scale, 90, min: 70, max: 140, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
+-        .photo-blackboard-position-adjustments
+-          .photo-blackboard-position-adjustments-title 位置微調整
+-          .photo-blackboard-adjustment
+-            %label 横位置
+-            = range_field_tag :photo_blackboard_offset_x, -120, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetX" }
+-          .photo-blackboard-adjustment
+-            %label 縦位置
+-            = range_field_tag :photo_blackboard_offset_y, 120, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetY" }
++            %span.photo-blackboard-scale-label.js-blackboard-scale-label 最小（56%）
++            = range_field_tag :photo_blackboard_scale, 56, min: 56, max: 120, step: 1, list: "blackboard-scale-steps", class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
++            %datalist#blackboard-scale-steps
++              %option{ value: 56, label: "最小" }
++              %option{ value: 64, label: "小" }
++              %option{ value: 72, label: "標準" }
++              %option{ value: 84, label: "やや大" }
++              %option{ value: 96, label: "大" }
++              %option{ value: 108, label: "特大" }
++              %option{ value: 120, label: "最大" }
++        %details.photo-blackboard-position-details
++          %summary.photo-blackboard-position-summary 位置微調整（必要な時だけ開く）
++          .photo-blackboard-position-adjustments
++            .photo-blackboard-adjustment
++              %label 横位置
++              = range_field_tag :photo_blackboard_offset_x, -120, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetX" }
++            .photo-blackboard-adjustment
++              %label 縦位置
++              = range_field_tag :photo_blackboard_offset_y, 120, min: -120, max: 120, step: 5, class: "js-blackboard-adjust", data: { blackboard_key: "offsetY" }
+         .photo-blackboard-reset-area
+           %button.photo-blackboard-reset.js-blackboard-reset{ type: "button" } kintone値に戻す
+ 
+@@ -268,11 +278,21 @@
+     const BLACKBOARD_STORAGE_KEY = "photo-blackboard:" + window.location.pathname;
+     const BLACKBOARD_PHOTO_STORAGE_KEY = "photo-blackboard-photos:" + window.location.pathname;
+     const BLACKBOARD_FONT_FAMILY = '"Noto Sans CJK JP", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
+-    const BLACKBOARD_MIN_SCALE = 0.7;
+-    const BLACKBOARD_MAX_SCALE = 1.4;
++    const BLACKBOARD_MIN_SCALE = 0.56;
++    const BLACKBOARD_MAX_SCALE = 1.2;
+     const BLACKBOARD_OVERWRITE_SCALE = 1.03;
+-    const BLACKBOARD_CONFIG_VERSION = 2;
+-    const BLACKBOARD_DEFAULT_SCALE_VALUE = "90";
++    const BLACKBOARD_CONFIG_VERSION = 3;
++    const BLACKBOARD_DEFAULT_SCALE_VALUE = "72";
++    const BLACKBOARD_SCALE_STEPS = [56, 64, 72, 84, 96, 108, 120];
++    const BLACKBOARD_SCALE_LABELS = {
++      56: "最小",
++      64: "小",
++      72: "標準",
++      84: "やや大",
++      96: "大",
++      108: "特大",
++      120: "最大"
++    };
+     const deleteConfirm = buildDeleteConfirm();
+     const photoPreview = buildPhotoPreview();
+     const uploadIndicator = buildUploadIndicator();
+@@ -295,6 +315,7 @@
+ 
+     restorePhotoScroll();
+     restoreBlackboardConfig();
++    syncBlackboardScaleControl();
+     sanitizeBlackboardPilesInput();
+     syncBlackboardFieldDefaults();
+     bindBlackboardConfig();

@@ -1033,14 +1033,39 @@ html.app-navigation-loading::after {
   max-width: 260px;
 }
 
+.photo-blackboard-position-details {
+  margin-top: 18px;
+}
+
+.photo-blackboard-position-summary {
+  background: #f8fafc;
+  border: 1px solid #d8dce2;
+  border-radius: 10px;
+  color: #475467;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: bold;
+  padding: 8px 14px;
+  user-select: none;
+}
+
+.photo-blackboard-position-summary:hover,
+.photo-blackboard-position-summary:focus {
+  background: #f1f5f9;
+  outline: none;
+}
+
 .photo-blackboard-position-adjustments {
-  border-top: 1px dashed #d8dce2;
+  background: #fff;
+  border: 1px solid #d8dce2;
+  border-radius: 12px;
   display: grid;
-  gap: 8px;
+  gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 22px;
+  margin-top: 8px;
   max-width: 420px;
-  padding-top: 12px;
+  padding: 14px;
 }
 
 .photo-blackboard-position-adjustments-title {
