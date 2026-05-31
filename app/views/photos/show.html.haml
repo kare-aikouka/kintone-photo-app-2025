@@ -85,8 +85,8 @@
         .photo-blackboard-adjustments
           .photo-blackboard-adjustment
             %label サイズ
-            %span.photo-blackboard-scale-label.js-blackboard-scale-label 最小（56%）
-            = range_field_tag :photo_blackboard_scale, 56, min: 56, max: 120, step: 1, list: "blackboard-scale-steps", class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
+            %span.photo-blackboard-scale-label.js-blackboard-scale-label 標準（72%）
+            = range_field_tag :photo_blackboard_scale, 72, min: 56, max: 120, step: 1, list: "blackboard-scale-steps", class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
             %datalist#blackboard-scale-steps
               %option{ value: 56, label: "最小" }
               %option{ value: 64, label: "小" }
@@ -293,6 +293,40 @@
       108: "特大",
       120: "最大"
     };
+
+    function syncBlackboardScaleControl() {
+      const input = document.querySelector(".js-blackboard-adjust[data-blackboard-key='scale']");
+      const label = document.querySelector(".js-blackboard-scale-label");
+
+      if (!input) return;
+
+      const snapValue = function (value) {
+        const numericValue = Number(value);
+        const fallbackValue = Number(BLACKBOARD_DEFAULT_SCALE_VALUE);
+        const currentValue = Number.isFinite(numericValue) ? numericValue : fallbackValue;
+
+        return BLACKBOARD_SCALE_STEPS.reduce(function (nearest, step) {
+          return Math.abs(step - currentValue) < Math.abs(nearest - currentValue) ? step : nearest;
+        }, BLACKBOARD_SCALE_STEPS[0]);
+      };
+
+      const syncValueAndLabel = function () {
+        const scaleValue = snapValue(input.value);
+        input.value = scaleValue;
+
+        if (label) {
+          const scaleLabel = BLACKBOARD_SCALE_LABELS[scaleValue] || String(scaleValue);
+          label.textContent = scaleLabel + "（" + scaleValue + "%）";
+        }
+      };
+
+      input.min = BLACKBOARD_SCALE_STEPS[0];
+      input.max = BLACKBOARD_SCALE_STEPS[BLACKBOARD_SCALE_STEPS.length - 1];
+      syncValueAndLabel();
+      input.addEventListener("input", syncValueAndLabel);
+      input.addEventListener("change", syncValueAndLabel);
+    }
+
     const deleteConfirm = buildDeleteConfirm();
     const photoPreview = buildPhotoPreview();
     const uploadIndicator = buildUploadIndicator();
