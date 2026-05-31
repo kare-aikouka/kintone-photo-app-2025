@@ -294,6 +294,16 @@
       120: "最大"
     };
 
+    const BLACKBOARD_SCALE_LEVELS = {
+      56: "1",
+      64: "2",
+      72: "3",
+      84: "4",
+      96: "5",
+      108: "6",
+      120: "7"
+    };
+
     function syncBlackboardScaleControl() {
       const input = document.querySelector(".js-blackboard-adjust[data-blackboard-key='scale']");
       const label = document.querySelector(".js-blackboard-scale-label");
@@ -316,7 +326,8 @@
 
         if (label) {
           const scaleLabel = BLACKBOARD_SCALE_LABELS[scaleValue] || String(scaleValue);
-          label.textContent = scaleLabel + "（" + scaleValue + "%）";
+          const levelLabel = BLACKBOARD_SCALE_LEVELS[scaleValue] || "?";
+          label.textContent = scaleLabel + "（" + levelLabel + "）";
         }
       };
 
@@ -1247,7 +1258,7 @@
         drawTextFit(context, label, x + pad, rowY + rowHeight * 0.66, labelWidth - pad * 2, labelFont, "bold");
         if (index === 0) {
           drawTextFitMultiline(context, values.project || "", x + labelWidth + pad, rowY, boardWidth - labelWidth - kindWidth - pad * 2, rowHeight, valueFont, "bold", "left", 2);
-          drawTextFitMultiline(context, values.kind || "", x + boardWidth - kindWidth + pad, rowY, kindWidth - pad * 2, rowHeight, valueFont, "bold", "right", 2);
+          drawTextFitMultiline(context, values.kind || "", x + boardWidth - kindWidth + pad, rowY, kindWidth - pad * 2, rowHeight, valueFont, "bold", "right", 1);
         } else {
           const isMissingPilesRow = missingPiles && keys[index] === "piles";
           drawTextFitMultiline(
@@ -1293,7 +1304,7 @@
       const rowLayouts = labels.map(function (_label, index) {
         const valueWidth = index === 0 ? boardWidth - labelWidth - kindWidth - pad * 2 : boardWidth - labelWidth - pad * 2;
         const projectLines = index === 0 ? textLineCount(context, values.project || "", valueWidth, valueFont, "bold", 2) : 1;
-        const kindLines = index === 0 ? textLineCount(context, values.kind || "", kindWidth - pad * 2, valueFont, "bold", 2) : 1;
+        const kindLines = index === 0 ? textLineCount(context, values.kind || "", kindWidth - pad * 2, valueFont, "bold", 1) : 1;
         const valueLines = index === 0 ? Math.max(projectLines, kindLines) : textLineCount(context, values[keys[index]] || "", valueWidth, valueFont, "bold", index === 1 ? 1 : 2);
         const lineHeight = Math.round(valueFont * 1.18);
         return {
