@@ -1010,11 +1010,21 @@ class PhotosController < ApplicationController
   def update_table_rows(record_id, table_code, rows, source_record: nil)
     update_payload = { table_code => { value: rows } }
     upload_logs = pending_photo_upload_logs.dup
+    
+    # 1. 最優先でKintoneのレコードを更新する（ここは待つ必要がある）
     photos_record_client.update(record_id, update_payload)
-    log_photo_upload_successes(upload_logs)
-    log_photo_table_update_success(record_id, table_code) if upload_logs.blank?
-    refresh_photo_completion_status(record_id)
-    clear_photo_summary_cache(source_record) if source_record.present?
+    
+    # 2. ログ送信とステータス更新は裏側（非同期）で実行し、ユーザーを待たせない
+    Thread.new do
+      begin
+        log_photo_upload_successes(upload_logs)
+        log_photo_table_update_success(record_id, table_code) if upload_logs.blank?
+        refresh_photo_completion_status(record_id)
+        clear_photo_summary_cache(source_record) if source_record.present?
+      rescue StandardError => e
+        Rails.logger.error("Background post-update tasks failed: #{e.class}: #{e.message}")
+      end
+    end
   rescue StandardError => e
     log_photo_upload_failures(upload_logs || [], e)
     raise
