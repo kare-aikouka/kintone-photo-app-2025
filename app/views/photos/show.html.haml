@@ -275,6 +275,8 @@
   document.addEventListener("DOMContentLoaded", function () {
     const PHOTO_MAX_SIZE = 1280;
     const PHOTO_JPEG_QUALITY = 0.85;
+    const BLACKBOARD_STALE_DATE_CHECK = #{stale_single_date ? "true" : "false"};
+    const BLACKBOARD_TODAY = new Date(#{Date.current.year}, #{Date.current.month - 1}, #{Date.current.day});
     const BLACKBOARD_STORAGE_KEY = "photo-blackboard:" + window.location.pathname;
     const BLACKBOARD_PHOTO_STORAGE_KEY = "photo-blackboard-photos:" + window.location.pathname;
     const BLACKBOARD_FONT_FAMILY = '"Noto Sans CJK JP", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
@@ -1543,7 +1545,71 @@
         const isCriticalEmpty = input.dataset.blackboardKey === "piles" && value.length === 0;
         input.classList.toggle("is-blackboard-empty", value.length === 0);
         input.classList.toggle("is-blackboard-critical-empty", isCriticalEmpty);
+        if (input.dataset.blackboardKey === "date" && BLACKBOARD_STALE_DATE_CHECK) {
+          input.classList.toggle("is-blackboard-stale-date", !blackboardDateHasTodayOrFuture(value));
+        }
       });
+    }
+
+    function blackboardDateHasTodayOrFuture(value) {
+      return blackboardDateCandidates(value).some(function (date) {
+        return date.getTime() >= BLACKBOARD_TODAY.getTime();
+      });
+    }
+
+    function blackboardDateCandidates(value) {
+      const text = normalizeBlackboardDateText(value);
+      const dates = [];
+      let match;
+
+      const monthDayPattern = /(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日?/g;
+      while ((match = monthDayPattern.exec(text)) !== null) {
+        addBlackboardDateCandidate(dates, match[1], match[2], match[3]);
+      }
+
+      const slashDatePattern = /(?:(\d{4})[\/.-])?(\d{1,2})[\/.-](\d{1,2})/g;
+      while ((match = slashDatePattern.exec(text)) !== null) {
+        addBlackboardDateCandidate(dates, match[1], match[2], match[3]);
+      }
+
+      const dayOnlyPattern = /(^|[^\d月])(\d{1,2})\s*日/g;
+      while ((match = dayOnlyPattern.exec(text)) !== null) {
+        addBlackboardDateCandidate(dates, null, BLACKBOARD_TODAY.getMonth() + 1, match[2]);
+      }
+
+      if (dates.length === 0) {
+        const compactDatePattern = /(^|[^\d])(\d{1,4})(?=$|[^\d])/g;
+        while ((match = compactDatePattern.exec(text)) !== null) {
+          const numberText = match[2];
+          if (numberText.length <= 2) {
+            addBlackboardDateCandidate(dates, null, BLACKBOARD_TODAY.getMonth() + 1, numberText);
+          } else {
+            addBlackboardDateCandidate(dates, null, numberText.slice(0, -2), numberText.slice(-2));
+          }
+        }
+      }
+
+      return dates;
+    }
+
+    function normalizeBlackboardDateText(value) {
+      return String(value || "").replace(/[０-９]/g, function (char) {
+        return String.fromCharCode(char.charCodeAt(0) - 0xFEE0);
+      }).replace(/[／．－]/g, function (char) {
+        return { "／": "/", "．": ".", "－": "-" }[char] || char;
+      });
+    }
+
+    function addBlackboardDateCandidate(dates, year, month, day) {
+      const parsedYear = year == null || year === "" ? BLACKBOARD_TODAY.getFullYear() : numericValue(year, BLACKBOARD_TODAY.getFullYear());
+      const parsedMonth = numericValue(month, 0);
+      const parsedDay = numericValue(day, 0);
+      if (parsedMonth < 1 || parsedMonth > 12 || parsedDay < 1 || parsedDay > 31) return;
+
+      const date = new Date(parsedYear, parsedMonth - 1, parsedDay);
+      if (date.getFullYear() !== parsedYear || date.getMonth() !== parsedMonth - 1 || date.getDate() !== parsedDay) return;
+
+      dates.push(date);
     }
 
     function syncBlackboardFieldDefaults() {
