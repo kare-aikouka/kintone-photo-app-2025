@@ -1261,13 +1261,15 @@ class PhotosController < ApplicationController
   end
 
   def photo_upload_log_attributes(photo, table_code:, row_id:)
+    client_metrics = photo_upload_client_metrics
     {
       record_id: params[:id],
       table_code: table_code,
       row_id: row_id,
       file_name: photo.respond_to?(:original_filename) ? photo.original_filename : nil,
       content_type: photo.respond_to?(:content_type) ? photo.content_type : nil,
-      file_size: photo.respond_to?(:size) ? photo.size : nil
+      file_size: client_metrics["original_bytes"].presence || (photo.respond_to?(:size) ? photo.size : nil),
+      resized_file_size: client_metrics["upload_bytes"].presence || (photo.respond_to?(:size) ? photo.size : nil)
     }
   end
 
@@ -1339,6 +1341,7 @@ class PhotosController < ApplicationController
       file_name: upload_log[:file_name],
       content_type: upload_log[:content_type],
       file_size: upload_log[:file_size],
+      resized_file_size: upload_log[:resized_file_size],
       row_id: upload_log[:row_id],
       error: error&.message
     )

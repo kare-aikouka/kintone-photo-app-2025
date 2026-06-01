@@ -44,7 +44,8 @@ class ActionLogger < ActiveKintone
     number: %w[番号 No NO],
     file_name: %w[ファイル名],
     file_type: %w[ファイル種別 種別],
-    file_size: %w[ファイルサイズ サイズ],
+    file_size: %w[バイト数],
+    resized_file_size: %w[リサイズ後バイト数],
     user_agent: %w[端末情報]
   }.freeze
 
@@ -55,17 +56,21 @@ class ActionLogger < ActiveKintone
       ENV['APP_ACTION_LOG'].present?
     end
 
-    def photo_upload(key, request:, account:, record_id:, table_code:, file: nil, file_name: nil, content_type: nil, file_size: nil, row_id: nil, error: nil)
-      new.photo_upload(key, request: request, account: account, record_id: record_id, table_code: table_code, file: file, file_name: file_name, content_type: content_type, file_size: file_size, row_id: row_id, error: error)
+    def upload_enabled?
+      ENV['APP_UPLOAD_LOG'].present?
     end
 
-    def photo_upload_async(key, request:, account:, record_id:, table_code:, file: nil, file_name: nil, content_type: nil, file_size: nil, row_id: nil, error: nil)
-      return photo_upload(key, request: request, account: account, record_id: record_id, table_code: table_code, file: file, file_name: file_name, content_type: content_type, file_size: file_size, row_id: row_id, error: error) unless enabled?
+    def photo_upload(key, request:, account:, record_id:, table_code:, file: nil, file_name: nil, content_type: nil, file_size: nil, resized_file_size: nil, row_id: nil, error: nil)
+      new.photo_upload(key, request: request, account: account, record_id: record_id, table_code: table_code, file: file, file_name: file_name, content_type: content_type, file_size: file_size, resized_file_size: resized_file_size, row_id: row_id, error: error)
+    end
+
+    def photo_upload_async(key, request:, account:, record_id:, table_code:, file: nil, file_name: nil, content_type: nil, file_size: nil, resized_file_size: nil, row_id: nil, error: nil)
+      return photo_upload(key, request: request, account: account, record_id: record_id, table_code: table_code, file: file, file_name: file_name, content_type: content_type, file_size: file_size, resized_file_size: resized_file_size, row_id: row_id, error: error) unless upload_enabled?
 
       request_snapshot = snapshot_request(request)
       account_snapshot = snapshot_account(account)
       run_async do
-        photo_upload(key, request: request_snapshot, account: account_snapshot, record_id: record_id, table_code: table_code, file: file, file_name: file_name, content_type: content_type, file_size: file_size, row_id: row_id, error: error)
+        photo_upload(key, request: request_snapshot, account: account_snapshot, record_id: record_id, table_code: table_code, file: file, file_name: file_name, content_type: content_type, file_size: file_size, resized_file_size: resized_file_size, row_id: row_id, error: error)
       end
     end
 
@@ -74,7 +79,7 @@ class ActionLogger < ActiveKintone
     end
 
     def photo_table_update_success_async(request:, account:, record_id:, table_code:)
-      return photo_table_update_success(request: request, account: account, record_id: record_id, table_code: table_code) unless enabled?
+      return photo_table_update_success(request: request, account: account, record_id: record_id, table_code: table_code) unless upload_enabled?
 
       request_snapshot = snapshot_request(request)
       account_snapshot = snapshot_account(account)
@@ -140,12 +145,12 @@ class ActionLogger < ActiveKintone
     self
   end
 
-  def photo_upload(key, request:, account:, record_id:, table_code:, file: nil, file_name: nil, content_type: nil, file_size: nil, row_id: nil, error: nil)
-    return self unless self.class.enabled?
+  def photo_upload(key, request:, account:, record_id:, table_code:, file: nil, file_name: nil, content_type: nil, file_size: nil, resized_file_size: nil, row_id: nil, error: nil)
+    return self unless self.class.upload_enabled?
 
     action = message(key)
     action = "#{action}: #{error.to_s.truncate(120)}" if error.present?
-    create(action_log_record(
+    upload_log_app.create(action_log_record(
       action: action,
       request: request,
       account: account,
@@ -156,6 +161,7 @@ class ActionLogger < ActiveKintone
         file_name: file_name,
         content_type: content_type,
         file_size: file_size,
+        resized_file_size: resized_file_size,
         row_id: row_id
       )
     ))
@@ -166,10 +172,10 @@ class ActionLogger < ActiveKintone
   end
 
   def photo_table_update_success(request:, account:, record_id:, table_code:)
-    return self unless self.class.enabled?
+    return self unless self.class.upload_enabled?
 
     action = message('photos.table.update_success')
-    create(action_log_record(
+    upload_log_app.create(action_log_record(
       action: action,
       request: request,
       account: account,
@@ -226,18 +232,19 @@ class ActionLogger < ActiveKintone
     fields.merge!(upload_fields)
 
     fields.each_with_object({}) do |(key, value), result|
-      code = field_code(ActionLogRecord.key_to_code(key), ActionLogRecord.key_to_code(key))
+      code = field_code_for(key)
       result[code] = { value: value } if code.present? && value.present?
     end
   end
 
-  def upload_log_fields(table_code:, file: nil, file_name: nil, content_type: nil, file_size: nil, row_id: nil)
+  def upload_log_fields(table_code:, file: nil, file_name: nil, content_type: nil, file_size: nil, resized_file_size: nil, row_id: nil)
     {
       file_item: table_label(table_code),
       number: row_id,
       file_name: file_name || uploaded_file_name(file),
       file_type: content_type || uploaded_file_content_type(file),
-      file_size: megabytes(file_size || uploaded_file_size(file))
+      file_size: file_size || uploaded_file_size(file),
+      resized_file_size: resized_file_size
     }
   end
 
@@ -253,6 +260,32 @@ class ActionLogger < ActiveKintone
       ENV['APP_ACTION_LOG'],
       ENV['GUEST_SPACE']
     ].join(":")
+  end
+
+  def upload_log_app
+    @upload_log_app ||= KintoneSync::Record.new(ENV['APP_UPLOAD_LOG'], ENV['GUEST_SPACE'])
+  end
+
+  def upload_log_properties
+    @upload_log_properties ||= Rails.cache.fetch(upload_log_properties_cache_key, expires_in: 1.hour) do
+      upload_log_app.properties
+    end
+  end
+
+  def upload_log_properties_cache_key
+    [
+      "upload-log-fields",
+      ENV['APP_UPLOAD_LOG'],
+      ENV['GUEST_SPACE']
+    ].join(":")
+  end
+
+  def field_code_for(key)
+    labels = [ActionLogRecord.key_to_code(key), *UPLOAD_FIELD_LABELS.fetch(key, [])].compact
+    upload_log_properties.find { |field_code, property| labels.include?(field_code) || labels.include?(property['label']) }&.first
+  rescue StandardError => e
+    Rails.logger.warn("ActionLogger field lookup skipped: #{e.class}: #{e.message}")
+    nil
   end
 
   def field_code(code, label = nil)
@@ -283,9 +316,4 @@ class ActionLogger < ActiveKintone
     nil
   end
 
-  def megabytes(bytes)
-    return if bytes.blank?
-
-    (bytes.to_f / 1.megabyte).round(2)
-  end
 end
