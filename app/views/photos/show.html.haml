@@ -286,6 +286,7 @@
     const BLACKBOARD_CONFIG_VERSION = 3;
     const BLACKBOARD_DEFAULT_SCALE_VALUE = "72";
     const BLACKBOARD_SCALE_STEPS = [56, 64, 72, 84, 96, 108, 120];
+    const PHOTO_RELOAD_AFTER_UPLOAD = false;
     const BLACKBOARD_SCALE_LABELS = {
       56: "最小",
       64: "小",
@@ -670,6 +671,10 @@
             { steps: progressSteps, activeStep: "confirm" }
           );
           saveUploadedBlackboardPhotoConfig(form, body);
+          if (hasFiles && !PHOTO_RELOAD_AFTER_UPLOAD) {
+            completePhotoUploadWithoutReload(form, selectedInput, selectedLabel, disabledInputs);
+            return;
+          }
           rememberPhotoScroll(form);
           window.location.href = response.url || window.location.href;
         } catch (error) {
@@ -685,6 +690,25 @@
           }
         }
       });
+    }
+
+    function completePhotoUploadWithoutReload(form, input, label, disabledInputs) {
+      form.dataset.uploading = "false";
+      restoreDisabledInputs(disabledInputs);
+      if (input) input.value = "";
+      delete form.dataset.activeFileInput;
+      if (label) {
+        clearUploadError(label);
+        label.textContent = "保存済み（画面更新で反映）";
+      }
+      uploadIndicator.show(
+        "保存しました",
+        "次の写真を撮影できます。最新表示は画面更新で反映されます",
+        { steps: PHOTO_UPLOAD_STEPS, activeStep: "confirm" }
+      );
+      window.setTimeout(function () {
+        uploadIndicator.hide();
+      }, 700);
     }
 
     function bindUploadRetryLabel(label) {
