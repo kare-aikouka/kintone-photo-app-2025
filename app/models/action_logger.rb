@@ -146,7 +146,7 @@ class ActionLogger < ActiveKintone
 
     action = message(key)
     action = "#{action}: #{error.to_s.truncate(120)}" if error.present?
-    create(action_log_record(
+    payload = action_log_record(
       action: action,
       request: request,
       account: account,
@@ -164,9 +164,11 @@ class ActionLogger < ActiveKintone
           request: request
         )
       ]
-    ))
+    )
+    create(payload)
     self
   rescue StandardError => e
+    log_payload_debug("photo_upload", payload, e)
     Rails.logger.warn("ActionLogger photo upload skipped: #{e.class}: #{e.message}")
     self
   end
@@ -175,7 +177,7 @@ class ActionLogger < ActiveKintone
     return self unless self.class.enabled?
 
     action = message('photos.table.update_success')
-    create(action_log_record(
+    payload = action_log_record(
       action: action,
       request: request,
       account: account,
@@ -189,9 +191,11 @@ class ActionLogger < ActiveKintone
           request: request
         )
       ]
-    ))
+    )
+    create(payload)
     self
   rescue StandardError => e
+    log_payload_debug("photo_table_update_success", payload, e)
     Rails.logger.warn("ActionLogger table update skipped: #{e.class}: #{e.message}")
     self
   end
@@ -333,5 +337,17 @@ class ActionLogger < ActiveKintone
     return if bytes.blank?
 
     (bytes.to_f / 1.megabyte).round(2)
+  end
+
+  def log_payload_debug(context, payload, error)
+    Rails.logger.warn({
+      event: "action_logger.payload.debug",
+      context: context,
+      error_class: error.class.name,
+      error_message: error.message.to_s.truncate(300),
+      payload: payload
+    }.to_json)
+  rescue StandardError => log_error
+    Rails.logger.warn("ActionLogger payload debug skipped: #{log_error.class}: #{log_error.message}")
   end
 end
