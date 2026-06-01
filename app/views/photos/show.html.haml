@@ -287,6 +287,7 @@
     const BLACKBOARD_DEFAULT_SCALE_VALUE = "72";
     const BLACKBOARD_SCALE_STEPS = [56, 64, 72, 84, 96, 108, 120];
     const PHOTO_RELOAD_AFTER_UPLOAD = false;
+    const uploadedPreviewFiles = new WeakMap();
     const BLACKBOARD_SCALE_LABELS = {
       56: "最小",
       64: "小",
@@ -693,22 +694,79 @@
     }
 
     function completePhotoUploadWithoutReload(form, input, label, disabledInputs) {
+      const previewFile = uploadedPreviewFiles.get(form);
       form.dataset.uploading = "false";
       restoreDisabledInputs(disabledInputs);
+      insertLocalUploadPreview(form, input, previewFile);
+      uploadedPreviewFiles.delete(form);
       if (input) input.value = "";
       delete form.dataset.activeFileInput;
       if (label) {
         clearUploadError(label);
-        label.textContent = "保存済み（画面更新で反映）";
+        label.textContent = "保存済み";
       }
       uploadIndicator.show(
         "保存しました",
-        "次の写真を撮影できます。最新表示は画面更新で反映されます",
+        "サムネイルを反映しました。次の写真を撮影できます",
         { steps: PHOTO_UPLOAD_STEPS, activeStep: "confirm" }
       );
       window.setTimeout(function () {
         uploadIndicator.hide();
       }, 700);
+    }
+
+    function insertLocalUploadPreview(form, input, file) {
+      if (!file || !file.type || !file.type.startsWith("image/")) return;
+
+      const scope = (input && input.closest("td, .photo-table-inline-cell")) || form.closest("td, .photo-table-inline-cell");
+      if (!scope) return;
+
+      let list = scope.querySelector(".photo-file-list");
+      if (!list) {
+        list = document.createElement("div");
+        list.className = "photo-file-list";
+        const fileChoice = scope.querySelector(".photo-table-file-choice");
+        if (fileChoice && fileChoice.parentNode) {
+          fileChoice.parentNode.insertBefore(list, fileChoice);
+        } else {
+          scope.insertBefore(list, scope.firstChild);
+        }
+      }
+
+      scope.querySelectorAll(".photo-empty, .photo-table-attachment-empty").forEach(function (empty) {
+        empty.classList.add("hidden");
+      });
+
+      revokeLocalUploadPreviewUrls(list);
+      list.replaceChildren(localUploadPreviewLink(file));
+    }
+
+    function localUploadPreviewLink(file) {
+      const previewUrl = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = previewUrl;
+      link.className = "photo-file js-photo-preview";
+      link.dataset.previewSrc = previewUrl;
+      link.dataset.previewName = file.name || "保存済み写真";
+      link.dataset.localPreviewUrl = previewUrl;
+      link.addEventListener("click", function (event) {
+        event.preventDefault();
+        photoPreview.open(link.dataset.previewSrc, link.dataset.previewName);
+      });
+
+      const image = document.createElement("img");
+      image.src = previewUrl;
+      image.alt = file.name || "保存済み写真";
+      const name = document.createElement("span");
+      name.textContent = file.name || "保存済み写真";
+      link.append(image, name);
+      return link;
+    }
+
+    function revokeLocalUploadPreviewUrls(scope) {
+      scope.querySelectorAll("[data-local-preview-url]").forEach(function (element) {
+        URL.revokeObjectURL(element.dataset.localPreviewUrl);
+      });
     }
 
     function bindUploadRetryLabel(label) {
@@ -893,6 +951,7 @@
       metrics.upload_type = uploadFile && uploadFile.type ? uploadFile.type : "";
       formData.set(input.name, uploadFile, uploadFile.name);
       formData.set("photo_upload_client_metrics", JSON.stringify(metrics));
+      uploadedPreviewFiles.set(form, uploadFile);
       return formData;
     }
 
