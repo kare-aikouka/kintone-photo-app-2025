@@ -36,7 +36,6 @@ class ActionLogger < ActiveKintone
       }
     }
   }.freeze
-  UPLOAD_TABLE_LABEL = 'アップロードリスト'
   UPLOAD_FIELD_LABELS = {
     access_date: %w[アクセス日時],
     user: %w[ログインユーザー],
@@ -146,29 +145,22 @@ class ActionLogger < ActiveKintone
 
     action = message(key)
     action = "#{action}: #{error.to_s.truncate(120)}" if error.present?
-    payload = action_log_record(
+    create(action_log_record(
       action: action,
       request: request,
       account: account,
       record_id: record_id,
-      upload_rows: [
-        upload_log_row(
-          action: action,
-          account: account,
-          table_code: table_code,
-          file: file,
-          file_name: file_name,
-          content_type: content_type,
-          file_size: file_size,
-          row_id: row_id,
-          request: request
-        )
-      ]
-    )
-    create(payload)
+      upload_fields: upload_log_fields(
+        table_code: table_code,
+        file: file,
+        file_name: file_name,
+        content_type: content_type,
+        file_size: file_size,
+        row_id: row_id
+      )
+    ))
     self
   rescue StandardError => e
-    log_payload_debug("photo_upload", payload, e)
     Rails.logger.warn("ActionLogger photo upload skipped: #{e.class}: #{e.message}")
     self
   end
@@ -177,25 +169,18 @@ class ActionLogger < ActiveKintone
     return self unless self.class.enabled?
 
     action = message('photos.table.update_success')
-    payload = action_log_record(
+    create(action_log_record(
       action: action,
       request: request,
       account: account,
       record_id: record_id,
-      upload_rows: [
-        upload_log_row(
-          action: action,
-          account: account,
-          table_code: table_code,
-          file_size: 0,
-          request: request
-        )
-      ]
-    )
-    create(payload)
+      upload_fields: upload_log_fields(
+        table_code: table_code,
+        file_size: 0
+      )
+    ))
     self
   rescue StandardError => e
-    log_payload_debug("photo_table_update_success", payload, e)
     Rails.logger.warn("ActionLogger table update skipped: #{e.class}: #{e.message}")
     self
   end
@@ -222,7 +207,7 @@ class ActionLogger < ActiveKintone
 
   private
 
-  def action_log_record(action:, request:, account:, record_id:, upload_rows: [])
+  def action_log_record(action:, request:, account:, record_id:, upload_fields: {})
     fields = {
       access_date: record.access_date,
       user: account&.record&.email,
@@ -238,35 +223,21 @@ class ActionLogger < ActiveKintone
       referer: request&.referer,
       remote_ip: request&.remote_ip
     }
+    fields.merge!(upload_fields)
 
-    payload = fields.each_with_object({}) do |(key, value), result|
+    fields.each_with_object({}) do |(key, value), result|
       code = field_code(ActionLogRecord.key_to_code(key), ActionLogRecord.key_to_code(key))
       result[code] = { value: value } if code.present? && value.present?
     end
-
-    table_code = upload_table_code
-    payload[table_code] = { value: upload_rows } if table_code.present? && upload_rows.present?
-    payload
   end
 
-  def upload_log_row(action:, account:, table_code:, request:, file: nil, file_name: nil, content_type: nil, file_size: nil, row_id: nil)
-    row_fields = {
-      access_date: record.access_date,
-      user: account&.record&.email,
-      action: action,
+  def upload_log_fields(table_code:, file: nil, file_name: nil, content_type: nil, file_size: nil, row_id: nil)
+    {
       file_item: table_label(table_code),
       number: row_id,
       file_name: file_name || uploaded_file_name(file),
       file_type: content_type || uploaded_file_content_type(file),
-      file_size: megabytes(file_size || uploaded_file_size(file)),
-      user_agent: request&.user_agent
-    }
-
-    {
-      value: row_fields.each_with_object({}) do |(key, value), result|
-        code = upload_subfield_code(key)
-        result[code] = { value: value } if code.present? && value.present?
-      end
+      file_size: megabytes(file_size || uploaded_file_size(file))
     }
   end
 
@@ -294,27 +265,6 @@ class ActionLogger < ActiveKintone
     nil
   end
 
-  def upload_table_code
-    @upload_table_code ||= action_log_properties.find do |field_code, property|
-      field_code == UPLOAD_TABLE_LABEL || property['label'] == UPLOAD_TABLE_LABEL
-    end&.first
-  rescue StandardError => e
-    Rails.logger.warn("ActionLogger upload table lookup skipped: #{e.class}: #{e.message}")
-    nil
-  end
-
-  def upload_subfield_code(key)
-    table_code = upload_table_code
-    return if table_code.blank?
-
-    fields = action_log_properties.dig(table_code, 'fields') || {}
-    labels = UPLOAD_FIELD_LABELS.fetch(key, [])
-    fields.find { |field_code, property| labels.include?(field_code) || labels.include?(property['label']) }&.first
-  rescue StandardError => e
-    Rails.logger.warn("ActionLogger upload field lookup skipped: #{e.class}: #{e.message}")
-    nil
-  end
-
   def table_label(table_code)
     table_code.to_s.sub(/\Aテーブル/, '').presence || table_code
   end
@@ -337,17 +287,5 @@ class ActionLogger < ActiveKintone
     return if bytes.blank?
 
     (bytes.to_f / 1.megabyte).round(2)
-  end
-
-  def log_payload_debug(context, payload, error)
-    Rails.logger.warn({
-      event: "action_logger.payload.debug",
-      context: context,
-      error_class: error.class.name,
-      error_message: error.message.to_s.truncate(300),
-      payload: payload
-    }.to_json)
-  rescue StandardError => log_error
-    Rails.logger.warn("ActionLogger payload debug skipped: #{log_error.class}: #{log_error.message}")
   end
 end
