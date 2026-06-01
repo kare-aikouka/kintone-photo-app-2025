@@ -46,8 +46,8 @@ class PhotosController < ApplicationController
         テーブル刷り版
         テーブル杭材検寸全景
         テーブル杭材検寸断面
-        テーブル杭材検寸杭下端部
         テーブル杭材検寸杭頭端部
+        テーブル杭材検寸杭下端部
         テーブル施工機全景
       ]
     },
