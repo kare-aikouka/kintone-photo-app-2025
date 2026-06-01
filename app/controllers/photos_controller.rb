@@ -1010,9 +1010,18 @@ class PhotosController < ApplicationController
   def update_table_rows(record_id, table_code, rows, source_record: nil)
     update_payload = { table_code => { value: rows } }
     upload_logs = pending_photo_upload_logs.dup
+    record_update_started_at = monotonic_milliseconds
     
     # 1. 最優先でKintoneのレコードを更新する（ここは待つ必要がある）
     photos_record_client.update(record_id, update_payload)
+    log_photo_upload_timing(
+      "record_update",
+      record_id: record_id,
+      table_code: table_code,
+      row_count: rows.size,
+      upload_count: upload_logs.size,
+      record_update_ms: elapsed_milliseconds(record_update_started_at)
+    )
     
     # 2. ログ送信とステータス更新は裏側（非同期）で実行し、ユーザーを待たせない
     Thread.new do
@@ -1033,14 +1042,25 @@ class PhotosController < ApplicationController
   end
 
   def refresh_photo_completion_status(record_id)
+    completion_started_at = monotonic_milliseconds
     record = photo_record(record_id)
     status_field = photo_status_field_code(record)
     return if status_field.blank?
 
     status = photo_completion_status(record)
-    return if photo_status(record) == status
+    current_status = photo_status(record)
+    return if current_status == status
 
     photos_record_client.update(record_id, status_field => { value: status })
+  ensure
+    log_photo_upload_timing(
+      "completion_refresh",
+      record_id: record_id,
+      status_field: defined?(status_field) ? status_field : nil,
+      previous_status: defined?(current_status) ? current_status : nil,
+      next_status: defined?(status) ? status : nil,
+      completion_refresh_ms: elapsed_milliseconds(completion_started_at)
+    )
   end
 
   def photo_status_field_code(record)
@@ -1221,14 +1241,21 @@ class PhotosController < ApplicationController
     return if photo.blank?
 
     upload_log = photo_upload_log_attributes(photo, table_code: table_code, row_id: row_id)
+    kintone_upload_started_at = monotonic_milliseconds
     KintoneSync::File.new(photos_app_id, photos_guest_space_id).upload(
       data: photo.read,
       content_type: photo.content_type,
       filename: photo.original_filename
     ).tap do
+      upload_log[:kintone_file_upload_ms] = elapsed_milliseconds(kintone_upload_started_at)
+      log_photo_upload_timing("kintone_file_upload", upload_log)
       pending_photo_upload_logs << upload_log
     end
   rescue StandardError => e
+    if upload_log
+      upload_log[:kintone_file_upload_ms] = elapsed_milliseconds(kintone_upload_started_at) if defined?(kintone_upload_started_at)
+      log_photo_upload_timing("kintone_file_upload_failure", upload_log.merge(error: e.message))
+    end
     log_photo_upload_failure(upload_log, e) if upload_log
     raise
   end
@@ -1266,6 +1293,40 @@ class PhotosController < ApplicationController
 
   def log_photo_upload_failures(upload_logs, error)
     Array(upload_logs).each { |upload_log| log_photo_upload_failure(upload_log, error) }
+  end
+
+  def log_photo_upload_timing(step, attributes = {})
+    payload = {
+      event: "photo.upload.timing",
+      step: step,
+      request_id: request&.request_id,
+      client: photo_upload_client_metrics
+    }.merge(attributes).compact
+    Rails.logger.info(payload.to_json)
+  rescue StandardError => e
+    Rails.logger.warn("Photo upload timing log skipped: #{e.class}: #{e.message}")
+  end
+
+  def photo_upload_client_metrics
+    raw = params[:photo_upload_client_metrics].presence
+    return {} if raw.blank?
+
+    metrics = JSON.parse(raw)
+    return {} unless metrics.is_a?(Hash)
+
+    metrics.transform_values do |value|
+      value.is_a?(String) ? value.truncate(120) : value
+    end
+  rescue JSON::ParserError
+    {}
+  end
+
+  def monotonic_milliseconds
+    (Process.clock_gettime(Process::CLOCK_MONOTONIC) * 1000).round
+  end
+
+  def elapsed_milliseconds(started_at)
+    monotonic_milliseconds - started_at.to_i
   end
 
   def log_photo_upload_event(key, upload_log, error: nil)

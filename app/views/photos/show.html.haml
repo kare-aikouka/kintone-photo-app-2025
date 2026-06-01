@@ -855,37 +855,69 @@
       if (!input || !input.name || !input.files || input.files.length === 0) return formData;
 
       const file = input.files[0];
+      const metrics = photoUploadClientMetrics(file);
 
       let uploadFile;
       try {
-        uploadFile = await compressedImageFile(file);
+        uploadFile = await compressedImageFile(file, metrics);
       } catch (error) {
+        metrics.compression_failed = true;
+        metrics.compression_error = error && error.message ? error.message : String(error);
         uploadFile = renamedOriginalFile(file);
       }
+      metrics.upload_bytes = uploadFile && uploadFile.size ? uploadFile.size : 0;
+      metrics.upload_type = uploadFile && uploadFile.type ? uploadFile.type : "";
       formData.set(input.name, uploadFile, uploadFile.name);
+      formData.set("photo_upload_client_metrics", JSON.stringify(metrics));
       return formData;
     }
 
-    async function compressedImageFile(file) {
+    function photoUploadClientMetrics(file) {
+      return {
+        client_id: String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8),
+        original_bytes: file && file.size ? file.size : 0,
+        original_type: file && file.type ? file.type : "",
+        max_size: PHOTO_MAX_SIZE,
+        jpeg_quality: PHOTO_JPEG_QUALITY
+      };
+    }
+
+    async function compressedImageFile(file, metrics) {
       if (!file || !file.type || !file.type.startsWith("image/")) return file;
 
+      const totalStart = performance.now();
+      const loadStart = performance.now();
       const image = await loadImage(file);
+      metrics.load_image_ms = roundedMilliseconds(performance.now() - loadStart);
+      metrics.source_width = image.width;
+      metrics.source_height = image.height;
       const size = fittedImageSize(image.width, image.height, PHOTO_MAX_SIZE);
+      metrics.output_width = size.width;
+      metrics.output_height = size.height;
       const canvas = document.createElement("canvas");
       canvas.width = size.width;
       canvas.height = size.height;
       const context = canvas.getContext("2d");
+      const drawStart = performance.now();
       context.drawImage(image, 0, 0, size.width, size.height);
       if (image.close) image.close();
       drawBlackboardIfNeeded(context, canvas);
+      metrics.draw_canvas_ms = roundedMilliseconds(performance.now() - drawStart);
 
+      const encodeStart = performance.now();
       const blob = await canvasToBlob(canvas, "image/jpeg", PHOTO_JPEG_QUALITY);
+      metrics.jpeg_encode_ms = roundedMilliseconds(performance.now() - encodeStart);
+      metrics.client_prepare_ms = roundedMilliseconds(performance.now() - totalStart);
       if (!blob) return new File([file], uploadFileName(file), { lastModified: uploadFileTime(file), type: file.type });
 
       return new File([blob], uploadFileName(file), {
         lastModified: uploadFileTime(file),
         type: "image/jpeg"
       });
+    }
+
+    function roundedMilliseconds(value) {
+      return Math.round(Number(value) || 0);
     }
 
     async function compressedBackupImageFile(file) {
