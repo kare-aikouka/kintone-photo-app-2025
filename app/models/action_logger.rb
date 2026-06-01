@@ -315,5 +315,4 @@ class ActionLogger < ActiveKintone
 
     nil
   end
-
 end
