@@ -484,6 +484,15 @@
         textarea.value = "";
       });
 
+      row.querySelectorAll(".photo-file-list").forEach(function (list) {
+        revokeLocalUploadPreviewUrls(list);
+        if (list.querySelector("[data-local-preview-url]")) list.remove();
+      });
+
+      row.querySelectorAll(".photo-table-attachment-empty").forEach(function (empty) {
+        empty.classList.remove("hidden");
+      });
+
       row.querySelectorAll(".js-photo-selected-file").forEach(function (label) {
         clearUploadError(label);
         label.removeAttribute("data-photo-retry-bound");
