@@ -63,6 +63,10 @@ document.addEventListener('DOMContentLoaded', function () {
     return `/photos?${params.toString()}`;
   }
 
+  function displayMachineName(machineName) {
+    return String(machineName || "") === "住パイ" ? "協力会社様施工物件" : machineName;
+  }
+
   function warmPhotoSummaryCache() {
     if (!window.fetch || !window.sessionStorage) return;
 
@@ -145,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (machines.length > 0) {
         html += `<ul class="machine-list hidden">`;
         machines.forEach(({ machName, machModel }) => {
-          html += `<li><a class="machine-name" href="${photosPath(machName, machModel)}">${escapeHtml(machName)}</a></li>`;
+          html += `<li><a class="machine-name" href="${photosPath(machName, machModel)}">${escapeHtml(displayMachineName(machName))}</a></li>`;
         });
         html += `</ul>`;
       } else {
