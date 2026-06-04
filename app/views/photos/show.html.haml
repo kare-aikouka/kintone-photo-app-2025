@@ -71,7 +71,10 @@
           = text_field_tag :photo_blackboard_project, blackboard_project, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "project" }
         .photo-blackboard-field
           %label 右上表記
-          = text_field_tag :photo_blackboard_kind, "様邸新築工事", class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "kind" }
+          .photo-blackboard-kind-control
+            = select_tag :photo_blackboard_kind_choice, options_for_select([["選択してください", ""], ["様邸新築工事", "様邸新築工事"], ["新築工事", "新築工事"], ["様邸増築工事", "様邸増築工事"], ["増築工事", "増築工事"], ["表記無し（工事名に含まれている）", "__blank__"], ["その他（手入力してください）", "__other__"]]), class: "photo-blackboard-input js-blackboard-field js-blackboard-kind-choice", data: { blackboard_key: "kindChoice", blackboard_default: "" }
+            = text_field_tag :photo_blackboard_kind_other, "", class: "photo-blackboard-input photo-blackboard-kind-other hidden js-blackboard-field js-blackboard-kind-other", placeholder: "右上表記を入力", data: { blackboard_key: "kindOther", blackboard_default: "" }
+            = hidden_field_tag :photo_blackboard_kind, "", class: "js-blackboard-field js-blackboard-kind-value", data: { blackboard_key: "kind", blackboard_default: "" }
         .photo-blackboard-field
           %label 工事年月日
           = text_field_tag :photo_blackboard_date, blackboard_date, class: ["photo-blackboard-input js-blackboard-field", ("is-blackboard-stale-date" if stale_single_date)].compact.join(" "), data: { blackboard_key: "date" }
@@ -376,6 +379,7 @@
 
     restorePhotoScroll();
     restoreBlackboardConfig();
+    syncBlackboardKindControl();
     syncBlackboardScaleControl();
     sanitizeBlackboardPilesInput();
     syncBlackboardFieldDefaults();
@@ -1399,6 +1403,7 @@
     function currentBlackboardConfig() {
       const root = document.querySelector(".js-photo-blackboard-config");
       if (!root) return { enabled: false };
+      syncBlackboardKindValue(root);
 
       const enabledInput = root.querySelector(".js-blackboard-enabled:checked");
       const positionInput = root.querySelector(".js-blackboard-position:checked");
@@ -1423,12 +1428,99 @@
       };
     }
 
+    function syncBlackboardKindControl() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root) return;
+
+      const choice = root.querySelector(".js-blackboard-kind-choice");
+      const other = root.querySelector(".js-blackboard-kind-other");
+      if (!choice) return;
+
+      const sync = function () {
+        syncBlackboardKindValue(root);
+        updateBlackboardRequiredHighlights();
+        updateBlackboardPreview();
+      };
+      choice.addEventListener("change", sync);
+      if (other) {
+        other.addEventListener("input", sync);
+        other.addEventListener("change", sync);
+      }
+      syncBlackboardKindValue(root);
+    }
+
+    function syncBlackboardKindValue(root) {
+      const choice = root.querySelector(".js-blackboard-kind-choice");
+      const other = root.querySelector(".js-blackboard-kind-other");
+      const valueInput = root.querySelector(".js-blackboard-kind-value");
+      if (!choice || !valueInput) return;
+
+      const choiceValue = choice.value || "";
+      const isOther = choiceValue === "__other__";
+      if (other) {
+        other.classList.toggle("hidden", !isOther);
+        other.disabled = !isOther;
+      }
+
+      if (choiceValue === "__blank__") {
+        valueInput.value = "";
+      } else if (isOther) {
+        valueInput.value = other ? String(other.value || "").trim() : "";
+      } else {
+        valueInput.value = choiceValue;
+      }
+    }
+
+    function blackboardKindValidationError() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root) return null;
+
+      const enabledInput = root.querySelector(".js-blackboard-enabled:checked");
+      if (enabledInput && enabledInput.value !== "1") return null;
+
+      const choice = root.querySelector(".js-blackboard-kind-choice");
+      const other = root.querySelector(".js-blackboard-kind-other");
+      if (!choice || choice.value) {
+        if (choice && choice.value === "__other__" && other && !String(other.value || "").trim()) {
+          return {
+            input: other,
+            title: "右上表記が未入力です",
+            message: "その他を選択した場合は、右上表記を入力してから写真を撮影してください。"
+          };
+        }
+        return null;
+      }
+
+      return {
+        input: choice,
+        title: "右上表記が未選択です",
+        message: "右上表記を選択してから写真を撮影してください。\n不要な場合は「表記無し（工事名に含まれている）」を選択してください。"
+      };
+    }
+
     function blackboardMissingRequiredPiles() {
       const config = currentBlackboardConfig();
       return !!(config.enabled && !(config.values && String(config.values.piles || "").trim()));
     }
 
     function guardBlackboardBeforePhoto(event) {
+      const kindError = blackboardKindValidationError();
+      if (kindError) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        updateBlackboardRequiredHighlights();
+        updateBlackboardPreview();
+        refreshBlackboardPreviewSoon();
+        if (kindError.input) {
+          kindError.input.focus({ preventScroll: true });
+          kindError.input.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        blackboardWarning.open(kindError.title, kindError.message);
+        return false;
+      }
+
       if (!blackboardMissingRequiredPiles()) return true;
 
       if (event) {
@@ -1828,7 +1920,7 @@
       const root = document.querySelector(".js-photo-blackboard-config");
       if (!root) return;
 
-      root.querySelectorAll("input").forEach(function (input) {
+      root.querySelectorAll("input, select").forEach(function (input) {
         input.addEventListener("change", saveBlackboardConfig);
         input.addEventListener("input", saveBlackboardConfig);
       });
@@ -1857,6 +1949,7 @@
     function saveBlackboardConfig() {
       const root = document.querySelector(".js-photo-blackboard-config");
       if (!root || !window.localStorage) return;
+      syncBlackboardKindValue(root);
 
       const enabledInput = root.querySelector(".js-blackboard-enabled:checked");
       const positionInput = root.querySelector(".js-blackboard-position:checked");
@@ -1947,6 +2040,16 @@
           input.classList.toggle("is-blackboard-stale-date", !blackboardDateHasTodayOrFuture(value));
         }
       });
+
+      const kindError = blackboardKindValidationError();
+      const kindChoice = root.querySelector(".js-blackboard-kind-choice");
+      const kindOther = root.querySelector(".js-blackboard-kind-other");
+      if (kindChoice) {
+        kindChoice.classList.toggle("is-blackboard-critical-empty", !!(kindError && kindError.input === kindChoice));
+      }
+      if (kindOther) {
+        kindOther.classList.toggle("is-blackboard-critical-empty", !!(kindError && kindError.input === kindOther));
+      }
     }
 
     function blackboardDateHasTodayOrFuture(value) {
@@ -2027,6 +2130,7 @@
       root.querySelectorAll(".js-blackboard-field").forEach(function (input) {
         input.value = normalizedBlackboardFieldDefault(input);
       });
+      syncBlackboardKindValue(root);
       updateBlackboardRequiredHighlights();
       saveBlackboardConfig();
     }

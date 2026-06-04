@@ -1055,6 +1055,14 @@ html.app-navigation-loading::after {
   outline: none;
 }
 
+.photo-blackboard-kind-control {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
 .photo-blackboard-preview {
   border-top: 1px solid #eef2f7;
   margin-top: 12px;
