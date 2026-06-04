@@ -109,10 +109,15 @@
 }
 
 .app-shell-refresh-link {
+  color: #d83131;
   font-size: 1.5rem;
   min-width: 54px;
   padding-left: 0;
   padding-right: 0;
+}
+
+.app-shell-refresh-link:hover {
+  color: #b91c1c;
 }
 
 .app-shell-link:hover,

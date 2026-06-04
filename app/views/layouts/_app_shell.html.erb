@@ -15,8 +15,8 @@
       <% if app_shell_context_label.present? %>
         <span class="app-shell-context"><%= app_shell_context_label %></span>
       <% end %>
-      <%= link_to "ホーム", app_home_path, class: "app-shell-link" %>
       <%= link_to "↻", request.fullpath, class: "app-shell-link app-shell-refresh-link", aria: { label: "現在の画面を更新" }, title: "更新", data: { turbo: false } %>
+      <%= link_to "ホーム", app_home_path, class: "app-shell-link" %>
       <%= button_to "ログアウト",
                     sign_out_path,
                     method: :delete,
