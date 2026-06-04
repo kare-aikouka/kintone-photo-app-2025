@@ -108,6 +108,13 @@
   align-self: center;
 }
 
+.app-shell-refresh-link {
+  font-size: 1.5rem;
+  min-width: 54px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .app-shell-link:hover,
 .app-shell-button:hover {
   background: rgba(255, 255, 255, 0.28);
@@ -199,5 +206,12 @@
     font-size: 0.78rem;
     min-height: 38px;
     padding: 8px 9px;
+  }
+
+  .app-shell-refresh-link {
+    font-size: 1.15rem;
+    min-width: 38px;
+    padding-left: 0;
+    padding-right: 0;
   }
 }

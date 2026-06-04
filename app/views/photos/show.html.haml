@@ -666,7 +666,7 @@
 
           if (!response.ok) throw new Error("upload failed");
           
-          if (hasFiles && selectedInput && selectedInput.hasAttribute("capture")) {
+          if (hasFiles && selectedInput && selectedInput.hasAttribute("capture") && !isIOSDevice()) {
             try {
               const file = selectedInput.files[0];
               const backupFile = await compressedBackupImageFile(file);
@@ -1639,8 +1639,9 @@
         Object.keys(data.adjustments || {}).forEach(function (key) {
           const input = root.querySelector(".js-blackboard-adjust[data-blackboard-key='" + key + "']");
           if (input) {
+            if (key === "scale") return;
             const savedValue = data.adjustments[key];
-            input.value = key === "scale" && data.version !== BLACKBOARD_CONFIG_VERSION && savedValue === "100" ? BLACKBOARD_DEFAULT_SCALE_VALUE : savedValue;
+            input.value = savedValue;
           }
         });
       } catch (error) {
@@ -1945,6 +1946,12 @@
       window.setTimeout(function () {
         URL.revokeObjectURL(url);
       }, 1000);
+    }
+
+    function isIOSDevice() {
+      const userAgent = navigator.userAgent || "";
+      const platform = navigator.platform || "";
+      return /iPad|iPhone|iPod/.test(userAgent) || (platform === "MacIntel" && navigator.maxTouchPoints > 1);
     }
 
     function buildUploadIndicator() {
