@@ -888,6 +888,58 @@ html.app-navigation-loading::after {
   margin-bottom: 24px;
 }
 
+.photo-pending-uploads {
+  align-items: center;
+  background: #fff5f5;
+  border: 2px solid #d92d20;
+  border-radius: 18px;
+  box-shadow: 0 12px 24px rgba(217, 45, 32, 0.12);
+  color: #7a271a;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin: 0 0 24px;
+  padding: 14px;
+}
+
+.photo-pending-uploads.hidden {
+  display: none;
+}
+
+.photo-pending-uploads-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.photo-pending-uploads-main strong {
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.photo-pending-uploads-main span {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.photo-pending-uploads-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.photo-pending-upload-button {
+  background: #d92d20;
+  color: #fff;
+}
+
+.photo-pending-delete-button {
+  background: #fff;
+  border: 1px solid #f0b8b2;
+  color: #7a271a;
+}
+
 .photo-blackboard {
   background: #fff;
   border: 1px solid #d8dce2;
@@ -1542,6 +1594,16 @@ form.photo-detail-table-actions {
 }
 
 @media (max-width: 520px) {
+  .photo-pending-uploads {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .photo-pending-uploads-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
   .photo-upload-dialog {
     gap: 16px;
     padding: 30px 22px;

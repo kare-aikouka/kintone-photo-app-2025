@@ -34,6 +34,14 @@
           写真：
           %strong{ class: ("is-done" if photo_status(@record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(@record)
 
+    .photo-pending-uploads.hidden.js-photo-pending-uploads
+      .photo-pending-uploads-main
+        %strong.js-photo-pending-count 未送信写真があります
+        %span 通信が戻ったら再アップロードしてください。
+      .photo-pending-uploads-actions
+        %button.btn.photo-pending-upload-button.js-photo-pending-retry{ type: "button" } 再アップロード
+        %button.btn.photo-pending-delete-button.js-photo-pending-delete{ type: "button" } 削除
+
     - blackboard_date = blackboard_date_text(@record)
     - blackboard_project = field_value(@record, :site).presence || record_title(@record)
     - blackboard_maker = field_value(@record, :prime_contractor).presence || ""
@@ -287,6 +295,10 @@
     const BLACKBOARD_DEFAULT_SCALE_VALUE = "72";
     const BLACKBOARD_SCALE_STEPS = [56, 64, 72, 84, 96, 108, 120];
     const PHOTO_RELOAD_AFTER_UPLOAD = false;
+    const PENDING_UPLOAD_DB_NAME = "kintone-photo-pending-uploads";
+    const PENDING_UPLOAD_DB_VERSION = 1;
+    const PENDING_UPLOAD_STORE = "uploads";
+    let pendingUploadDbPromise = null;
     const uploadedPreviewFiles = new WeakMap();
     const BLACKBOARD_SCALE_LABELS = {
       56: "最小",
@@ -428,6 +440,8 @@
 
     document.querySelectorAll(".js-photo-upload-form").forEach(bindPhotoUploadForm);
     document.querySelectorAll("form").forEach(bindPhotoScrollMemory);
+    bindPendingUploadControls();
+    refreshPendingUploadBanner();
 
     document.querySelectorAll(".js-delete-confirm").forEach(function (form) {
       form.addEventListener("submit", function (event) {
@@ -634,6 +648,7 @@
         form.dataset.uploading = "true";
         const disabledInputs = disableInactiveChoiceInputs(form);
         const progressSteps = hasFiles ? PHOTO_UPLOAD_STEPS : PHOTO_SAVE_STEPS;
+        let pendingUploadId = null;
         try {
           if (hasFiles && selectedLabel) selectedLabel.textContent = "画像処理中...";
           uploadIndicator.show(
@@ -650,6 +665,9 @@
             );
           }
           const body = hasFiles ? await compressedFormData(form) : new FormData(form);
+          if (hasFiles) {
+            pendingUploadId = await savePendingPhotoUpload(form, body);
+          }
           if (hasFiles && selectedLabel) selectedLabel.textContent = "kintoneへ送信中...";
           uploadIndicator.show(
             hasFiles ? "kintoneへ送信中..." : "kintoneへ保存中...",
@@ -665,6 +683,10 @@
           });
 
           if (!response.ok) throw new Error("upload failed");
+          if (pendingUploadId) {
+            await deletePendingPhotoUpload(pendingUploadId);
+            refreshPendingUploadBanner();
+          }
           
           if (hasFiles && selectedInput && selectedInput.hasAttribute("capture") && !isIOSDevice()) {
             try {
@@ -693,8 +715,13 @@
           uploadIndicator.hide();
           showUploadError(form, selectedInput, selectedLabel);
           if (hasFiles) {
-            alert("写真を保存できなかったので端末に保存します。");
-            files.filter(function (file) { return file && file.size > 0; }).forEach(downloadLocalFile);
+            refreshPendingUploadBanner();
+            if (pendingUploadId) {
+              alert("通信エラーのため、写真を端末内の未送信写真に保存しました。通信が戻ったら「再アップロード」を押してください。");
+            } else {
+              alert("写真を端末内に自動退避できませんでした。保存画面が開いた場合は、共有ボタンから保存してください。");
+              files.filter(function (file) { return file && file.size > 0; }).forEach(downloadLocalFile);
+            }
           } else {
             alert("保存できませんでした。通信状況を確認してもう一度お試しください。");
           }
@@ -826,6 +853,252 @@
       label.removeAttribute("role");
       label.removeAttribute("tabindex");
       delete label.dataset.retryInput;
+    }
+
+    function bindPendingUploadControls() {
+      const root = document.querySelector(".js-photo-pending-uploads");
+      if (!root) return;
+
+      const retryButton = root.querySelector(".js-photo-pending-retry");
+      const deleteButton = root.querySelector(".js-photo-pending-delete");
+      if (retryButton) {
+        retryButton.addEventListener("click", retryPendingPhotoUploads);
+      }
+      if (deleteButton) {
+        deleteButton.addEventListener("click", deleteAllPendingPhotoUploads);
+      }
+    }
+
+    async function refreshPendingUploadBanner() {
+      const root = document.querySelector(".js-photo-pending-uploads");
+      if (!root) return;
+
+      let uploads = [];
+      try {
+        uploads = await getAllPendingPhotoUploads();
+      } catch (error) {
+        root.classList.add("hidden");
+        return;
+      }
+
+      const count = uploads.length;
+      root.classList.toggle("hidden", count === 0);
+      const countLabel = root.querySelector(".js-photo-pending-count");
+      if (countLabel) countLabel.textContent = "端末内の未送信写真：" + count + "枚";
+    }
+
+    async function retryPendingPhotoUploads() {
+      const root = document.querySelector(".js-photo-pending-uploads");
+      const retryButton = root && root.querySelector(".js-photo-pending-retry");
+      if (retryButton && retryButton.disabled) return;
+
+      let uploads = [];
+      try {
+        uploads = await getAllPendingPhotoUploads();
+      } catch (error) {
+        alert("未送信写真を読み込めませんでした。画面を更新して再度お試しください。");
+        return;
+      }
+      if (uploads.length === 0) {
+        refreshPendingUploadBanner();
+        return;
+      }
+
+      if (retryButton) retryButton.disabled = true;
+      let successCount = 0;
+      let failedCount = 0;
+      uploadIndicator.show(
+        "未送信写真を再アップロード中...",
+        uploads.length + "枚の写真を順番に送信します"
+      );
+
+      for (let index = 0; index < uploads.length; index += 1) {
+        const upload = uploads[index];
+        uploadIndicator.show(
+          "未送信写真を再アップロード中...",
+          (index + 1) + " / " + uploads.length + " 枚目を送信しています"
+        );
+        try {
+          const response = await fetch(upload.action, {
+            body: pendingPhotoUploadFormData(upload),
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+            method: upload.method || "POST"
+          });
+          if (!response.ok) throw new Error("pending upload failed");
+
+          await deletePendingPhotoUpload(upload.id);
+          successCount += 1;
+        } catch (error) {
+          failedCount += 1;
+        }
+      }
+
+      uploadIndicator.hide();
+      if (retryButton) retryButton.disabled = false;
+      refreshPendingUploadBanner();
+
+      if (failedCount > 0) {
+        alert("未送信写真の一部を送信できませんでした。通信状況を確認して再度お試しください。");
+        return;
+      }
+
+      if (successCount > 0) {
+        alert("未送信写真を再アップロードしました。画面を更新します。");
+        window.location.reload();
+      }
+    }
+
+    async function deleteAllPendingPhotoUploads() {
+      let uploads = [];
+      try {
+        uploads = await getAllPendingPhotoUploads();
+      } catch (error) {
+        return;
+      }
+      if (uploads.length === 0) return;
+      if (!window.confirm("端末内の未送信写真を削除します。よろしいですか？")) return;
+
+      await Promise.all(uploads.map(function (upload) {
+        return deletePendingPhotoUpload(upload.id);
+      }));
+      refreshPendingUploadBanner();
+    }
+
+    async function savePendingPhotoUpload(form, formData) {
+      if (!window.indexedDB) return null;
+
+      const upload = pendingPhotoUploadRecord(form, formData);
+      if (!upload) return null;
+
+      try {
+        await putPendingPhotoUpload(upload);
+        refreshPendingUploadBanner();
+        return upload.id;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function pendingPhotoUploadRecord(form, formData) {
+      const fields = [];
+      let fileName = "";
+      let hasFile = false;
+
+      formData.forEach(function (value, name) {
+        if (value instanceof Blob) {
+          hasFile = true;
+          fileName = value.name || fileName || "photo.jpg";
+          fields.push({
+            kind: "file",
+            name: name,
+            fileName: value.name || "photo.jpg",
+            value: value
+          });
+        } else {
+          fields.push({
+            kind: "field",
+            name: name,
+            value: String(value)
+          });
+        }
+      });
+
+      if (!hasFile) return null;
+
+      const blackboard = document.querySelector(".js-photo-blackboard-config");
+      return {
+        id: "pending-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10),
+        action: form.action,
+        method: (form.method || "post").toUpperCase(),
+        createdAt: Date.now(),
+        fileName: fileName || "photo.jpg",
+        pagePath: window.location.pathname,
+        recordId: blackboard && blackboard.dataset.recordId ? blackboard.dataset.recordId : "",
+        fields: fields
+      };
+    }
+
+    function pendingPhotoUploadFormData(upload) {
+      const formData = new FormData();
+      (upload.fields || []).forEach(function (field) {
+        if (field.name === "authenticity_token") return;
+        if (field.kind === "file") {
+          formData.append(field.name, field.value, field.fileName || upload.fileName || "photo.jpg");
+        } else {
+          formData.append(field.name, field.value || "");
+        }
+      });
+
+      const token = csrfToken();
+      if (token) formData.set("authenticity_token", token);
+      return formData;
+    }
+
+    function openPendingUploadDb() {
+      if (!window.indexedDB) return Promise.reject(new Error("IndexedDB is not available"));
+      if (pendingUploadDbPromise) return pendingUploadDbPromise;
+
+      pendingUploadDbPromise = new Promise(function (resolve, reject) {
+        const request = indexedDB.open(PENDING_UPLOAD_DB_NAME, PENDING_UPLOAD_DB_VERSION);
+        request.onupgradeneeded = function () {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(PENDING_UPLOAD_STORE)) {
+            db.createObjectStore(PENDING_UPLOAD_STORE, { keyPath: "id" });
+          }
+        };
+        request.onsuccess = function () {
+          resolve(request.result);
+        };
+        request.onerror = function () {
+          reject(request.error || new Error("IndexedDB open failed"));
+        };
+      });
+      return pendingUploadDbPromise;
+    }
+
+    async function putPendingPhotoUpload(upload) {
+      const db = await openPendingUploadDb();
+      return new Promise(function (resolve, reject) {
+        const transaction = db.transaction(PENDING_UPLOAD_STORE, "readwrite");
+        transaction.objectStore(PENDING_UPLOAD_STORE).put(upload);
+        transaction.oncomplete = resolve;
+        transaction.onerror = function () {
+          reject(transaction.error || new Error("pending upload put failed"));
+        };
+        transaction.onabort = transaction.onerror;
+      });
+    }
+
+    async function deletePendingPhotoUpload(id) {
+      const db = await openPendingUploadDb();
+      return new Promise(function (resolve, reject) {
+        const transaction = db.transaction(PENDING_UPLOAD_STORE, "readwrite");
+        transaction.objectStore(PENDING_UPLOAD_STORE).delete(id);
+        transaction.oncomplete = resolve;
+        transaction.onerror = function () {
+          reject(transaction.error || new Error("pending upload delete failed"));
+        };
+        transaction.onabort = transaction.onerror;
+      });
+    }
+
+    async function getAllPendingPhotoUploads() {
+      const db = await openPendingUploadDb();
+      return new Promise(function (resolve, reject) {
+        const transaction = db.transaction(PENDING_UPLOAD_STORE, "readonly");
+        const request = transaction.objectStore(PENDING_UPLOAD_STORE).getAll();
+        request.onsuccess = function () {
+          const uploads = Array.isArray(request.result) ? request.result : [];
+          uploads.sort(function (left, right) {
+            return Number(left.createdAt || 0) - Number(right.createdAt || 0);
+          });
+          resolve(uploads);
+        };
+        request.onerror = function () {
+          reject(request.error || new Error("pending upload read failed"));
+        };
+      });
     }
 
     function selectedUploadFiles(form) {
