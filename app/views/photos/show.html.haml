@@ -6,7 +6,7 @@
   .photo-header
     .photo-title
       = link_to "← 戻る", back_url
-      %span.machine-title= @machine_name.presence || "施工写真詳細"
+      %span.machine-title= display_machine_name(@machine_name).presence || "施工写真詳細"
 
   - if @photo_error
     .alert.alert-danger.photo-alert

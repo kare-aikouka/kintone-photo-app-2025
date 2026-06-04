@@ -5,6 +5,8 @@ class PhotosController < ApplicationController
 
   PICTURE_FLAG_DONE = "完了"
   PICTURE_FLAG_INCOMPLETE = "未完了"
+  COOPERATION_MACHINE_NAME = "住パイ"
+  COOPERATION_MACHINE_DISPLAY_NAME = "協力会社様施工物件"
   COMPLETION_EXCLUDED_TABLES = %w[その他 テーブルその他].freeze
   SUMMARY_CACHE_VERSION = "v5"
   SUMMARY_CACHE_TTL = 10.minutes
@@ -139,7 +141,8 @@ class PhotosController < ApplicationController
     @date_tabs = date_tabs
     @records_by_date = @default_records.group_by { |record| schedule_bucket_date(record) }
     @completed_records = completed_records(@default_records)
-    @future_records = future_records(@default_records, @date_tabs)
+    @future_records_enabled = future_records_enabled?
+    @future_records = @future_records_enabled ? future_records(@default_records, @date_tabs) : []
     @future_incomplete_count = @future_records.count { |record| incomplete?(record) }
     @selected_filter = selected_filter
     @selected_date = selected_date(@date_tabs)
@@ -156,6 +159,7 @@ class PhotosController < ApplicationController
     @incomplete_records = []
     @completed_records = []
     @future_records = []
+    @future_records_enabled = false
     @future_incomplete_count = 0
     @records_by_date = {}
     @date_tabs = []
@@ -628,12 +632,14 @@ class PhotosController < ApplicationController
 
   def selected_date(date_tabs)
     requested = parse_date(params[:date])
-    return requested if requested
+    return requested if requested && date_tabs.include?(requested)
 
     date_tabs.first || Date.current
   end
 
   def selected_filter
+    return nil if cooperation_machine? && params[:date].to_s == "all"
+
     params[:date].presence
   end
 
@@ -654,6 +660,19 @@ class PhotosController < ApplicationController
     return Date.current if date < Date.current && incomplete?(record)
 
     date
+  end
+
+  def display_machine_name(machine_name)
+    machine_name.to_s.strip == COOPERATION_MACHINE_NAME ? COOPERATION_MACHINE_DISPLAY_NAME : machine_name
+  end
+  helper_method :display_machine_name
+
+  def cooperation_machine?
+    @machine_name.to_s.strip == COOPERATION_MACHINE_NAME
+  end
+
+  def future_records_enabled?
+    !cooperation_machine?
   end
 
   def record_date(record)
