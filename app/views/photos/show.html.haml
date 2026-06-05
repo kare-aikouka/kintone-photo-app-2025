@@ -87,11 +87,15 @@
         .photo-blackboard-field
           %label 施工明細
           .photo-blackboard-piles-control
-            = text_field_tag :photo_blackboard_piles_body, blackboard_piles.to_s.sub(/(?:本|set)\z/i, ""), class: "photo-blackboard-input js-blackboard-field js-blackboard-piles-body", data: { blackboard_key: "pilesBody" }
-            .photo-blackboard-piles-unit-row
-              = select_tag :photo_blackboard_piles_unit_choice, options_for_select([["選択してください", ""], ["本（単杭）", "本"], ["set（継ぎ杭）", "set"], ["その他（手入力してください）", "__other__"]]), class: "photo-blackboard-input photo-blackboard-piles-unit-choice js-blackboard-field js-blackboard-piles-unit-choice", data: { blackboard_key: "pilesUnitChoice", blackboard_default: "" }
-              = text_field_tag :photo_blackboard_piles_unit_other, "", class: "photo-blackboard-input photo-blackboard-piles-unit-other hidden js-blackboard-field js-blackboard-piles-unit-other", placeholder: "単位を入力", data: { blackboard_key: "pilesUnitOther", blackboard_default: "" }
-            = hidden_field_tag :photo_blackboard_piles, blackboard_piles, class: "js-blackboard-field js-blackboard-piles-value", data: { blackboard_key: "piles" }
+            = text_field_tag :photo_blackboard_piles, blackboard_piles, class: "photo-blackboard-input js-blackboard-field js-blackboard-piles-input", placeholder: "例）6m×50本 / 13m(6+7)-32set", readonly: true, inputmode: "none", autocomplete: "off", data: { blackboard_key: "piles" }
+            .photo-blackboard-keypad.js-blackboard-piles-keypad.hidden
+              .photo-blackboard-keypad-grid
+                - ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "m", ".", ",", "×", "-", "(", ")", "+", "本", "s"].each do |key|
+                  %button.photo-blackboard-keypad-key{ type: "button", data: { blackboard_keypad_value: key } }= key
+                %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-wide{ type: "button", data: { blackboard_keypad_action: "delete" } } 削除
+                %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-wide{ type: "button", data: { blackboard_keypad_action: "clear" } } クリア
+                %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-wide{ type: "button", data: { blackboard_keypad_action: "native" } } 通常入力
+                %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-wide{ type: "button", data: { blackboard_keypad_action: "close" } } 閉じる
         .photo-blackboard-field
           %label 下部表記
           = text_field_tag :photo_blackboard_footer, "會澤高圧コンクリート(株)", class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "footer" }
@@ -1509,49 +1513,121 @@
       const root = document.querySelector(".js-photo-blackboard-config");
       if (!root) return;
 
-      const body = root.querySelector(".js-blackboard-piles-body");
-      const choice = root.querySelector(".js-blackboard-piles-unit-choice");
-      const other = root.querySelector(".js-blackboard-piles-unit-other");
-      if (!body || !choice) return;
+      const input = root.querySelector(".js-blackboard-piles-input");
+      const keypad = root.querySelector(".js-blackboard-piles-keypad");
+      if (!input) return;
 
       const sync = function () {
         syncBlackboardPilesValue(root);
         updateBlackboardRequiredHighlights();
         updateBlackboardPreview();
       };
-      body.addEventListener("input", sync);
-      body.addEventListener("change", sync);
-      choice.addEventListener("change", sync);
-      if (other) {
-        other.addEventListener("input", sync);
-        other.addEventListener("change", sync);
+      const openKeypad = function () {
+        if (!keypad || input.dataset.nativeInput === "true") return;
+        input.readOnly = true;
+        input.setAttribute("inputmode", "none");
+        keypad.classList.remove("hidden");
+      };
+
+      input.addEventListener("focus", openKeypad);
+      input.addEventListener("click", openKeypad);
+      input.addEventListener("input", sync);
+      input.addEventListener("change", sync);
+      input.addEventListener("blur", function () {
+        window.setTimeout(function () {
+          if (document.activeElement === input) return;
+          input.dataset.nativeInput = "";
+          input.readOnly = true;
+          input.setAttribute("inputmode", "none");
+        }, 120);
+      });
+
+      if (keypad) {
+        keypad.addEventListener("pointerdown", function (event) {
+          if (event.target.closest("button")) event.preventDefault();
+        });
+        keypad.addEventListener("click", function (event) {
+          const button = event.target.closest("[data-blackboard-keypad-value], [data-blackboard-keypad-action]");
+          if (!button) return;
+
+          event.preventDefault();
+          const value = button.dataset.blackboardKeypadValue;
+          const action = button.dataset.blackboardKeypadAction;
+          if (value != null) {
+            insertBlackboardPilesText(input, value);
+          } else if (action === "delete") {
+            deleteBlackboardPilesText(input);
+          } else if (action === "clear") {
+            input.value = "";
+          } else if (action === "native") {
+            input.dataset.nativeInput = "true";
+            input.readOnly = false;
+            input.setAttribute("inputmode", "text");
+            keypad.classList.add("hidden");
+            focusBlackboardPilesInput(input);
+            return;
+          } else if (action === "close") {
+            keypad.classList.add("hidden");
+            input.blur();
+            return;
+          }
+          sync();
+          focusBlackboardPilesInput(input);
+        });
+        document.addEventListener("click", function (event) {
+          if (keypad.classList.contains("hidden")) return;
+          if (event.target === input || keypad.contains(event.target)) return;
+          keypad.classList.add("hidden");
+        });
       }
       syncBlackboardPilesValue(root);
     }
 
     function syncBlackboardPilesValue(root) {
-      const body = root.querySelector(".js-blackboard-piles-body");
-      const choice = root.querySelector(".js-blackboard-piles-unit-choice");
-      const other = root.querySelector(".js-blackboard-piles-unit-other");
-      const valueInput = root.querySelector(".js-blackboard-piles-value");
-      if (!body || !choice || !valueInput) return;
+      const input = root.querySelector(".js-blackboard-piles-input");
+      if (!input) return;
 
-      const bodyValue = sanitizeBlackboardPilesBodyValue(body.value);
-      const choiceValue = choice.value || "";
-      const isOther = choiceValue === "__other__";
-      if (other) {
-        other.classList.toggle("hidden", !isOther);
-        other.disabled = !isOther;
+      input.value = normalizeBlackboardPilesTypingValue(input.value);
+    }
+
+    function focusBlackboardPilesInput(input) {
+      input.focus({ preventScroll: true });
+      const position = input.value.length;
+      try {
+        input.setSelectionRange(position, position);
+      } catch (error) {
+        // 一部端末ではreadonly中のカーソル操作に対応していません。
       }
+    }
 
-      let unit = "";
-      if (choiceValue === "本" || choiceValue === "set") {
-        unit = choiceValue;
-      } else if (isOther && other) {
-        unit = String(other.value || "").trim();
+    function insertBlackboardPilesText(input, text) {
+      const value = input.value || "";
+      const start = typeof input.selectionStart === "number" ? input.selectionStart : value.length;
+      const end = typeof input.selectionEnd === "number" ? input.selectionEnd : start;
+      input.value = value.slice(0, start) + text + value.slice(end);
+      try {
+        input.setSelectionRange(start + text.length, start + text.length);
+      } catch (error) {
+        // 一部端末ではreadonly中のカーソル操作に対応していません。
       }
+    }
 
-      valueInput.value = bodyValue && unit ? bodyValue + unit : "";
+    function deleteBlackboardPilesText(input) {
+      const value = input.value || "";
+      const start = typeof input.selectionStart === "number" ? input.selectionStart : value.length;
+      const end = typeof input.selectionEnd === "number" ? input.selectionEnd : start;
+      if (start !== end) {
+        input.value = value.slice(0, start) + value.slice(end);
+        try {
+          input.setSelectionRange(start, start);
+        } catch (error) {}
+        return;
+      }
+      if (start <= 0) return;
+      input.value = value.slice(0, start - 1) + value.slice(start);
+      try {
+        input.setSelectionRange(start - 1, start - 1);
+      } catch (error) {}
     }
 
     function blackboardPilesValidationError() {
@@ -1561,36 +1637,34 @@
       const enabledInput = root.querySelector(".js-blackboard-enabled:checked");
       if (enabledInput && enabledInput.value !== "1") return null;
 
-      const body = root.querySelector(".js-blackboard-piles-body");
-      const choice = root.querySelector(".js-blackboard-piles-unit-choice");
-      const other = root.querySelector(".js-blackboard-piles-unit-other");
-      if (body && !sanitizeBlackboardPilesBodyValue(body.value)) {
+      const input = root.querySelector(".js-blackboard-piles-input");
+      const value = input ? sanitizeBlackboardPilesValue(input.value) : "";
+      if (input && !value) {
         return {
-          input: body,
+          input: input,
           title: "施工明細が空白です",
-          message: "施工明細を入力してから写真を撮影してください。\n例）8m*42"
+          message: "施工明細を入力してから写真を撮影してください。\n例）6m×50本"
         };
       }
-      if (choice && !choice.value) {
+      if (input && !blackboardPilesHasAllowedUnit(value)) {
         return {
-          input: choice,
-          title: "施工明細の単位が未選択です",
-          message: "施工明細の単位を選択してから写真を撮影してください。"
-        };
-      }
-      if (choice && choice.value === "__other__" && other && !String(other.value || "").trim()) {
-        return {
-          input: other,
+          input: input,
           title: "施工明細の単位が未入力です",
-          message: "その他を選択した場合は、施工明細の単位を入力してから写真を撮影してください。"
+          message: "施工明細の末尾に「本」「s」「set」のいずれかを入力してください。\n例）6m×50本 / 13m(6+7)-32set"
         };
       }
       return null;
     }
 
+    function blackboardPilesHasAllowedUnit(value) {
+      const text = String(value || "").trim();
+      if (!text) return false;
+
+      return ["本", "s", "S", "ｓ", "Ｓ", "t", "T", "ｔ", "Ｔ"].includes(text.slice(-1));
+    }
+
     function blackboardMissingRequiredPiles() {
-      const config = currentBlackboardConfig();
-      return !!(config.enabled && !(config.values && String(config.values.piles || "").trim()));
+      return !!blackboardPilesValidationError();
     }
 
     function guardBlackboardBeforePhoto(event) {
@@ -2131,8 +2205,6 @@
       const root = document.querySelector(".js-photo-blackboard-config");
       if (!root) return;
 
-      const body = root.querySelector(".js-blackboard-piles-body");
-      if (body) body.value = sanitizeBlackboardPilesBodyValue(body.value);
       syncBlackboardPilesValue(root);
     }
 
@@ -2161,17 +2233,9 @@
       }
 
       const pilesError = blackboardPilesValidationError();
-      const pilesBody = root.querySelector(".js-blackboard-piles-body");
-      const pilesUnitChoice = root.querySelector(".js-blackboard-piles-unit-choice");
-      const pilesUnitOther = root.querySelector(".js-blackboard-piles-unit-other");
-      if (pilesBody) {
-        pilesBody.classList.toggle("is-blackboard-critical-empty", !!(pilesError && pilesError.input === pilesBody));
-      }
-      if (pilesUnitChoice) {
-        pilesUnitChoice.classList.toggle("is-blackboard-critical-empty", !!(pilesError && pilesError.input === pilesUnitChoice));
-      }
-      if (pilesUnitOther) {
-        pilesUnitOther.classList.toggle("is-blackboard-critical-empty", !!(pilesError && pilesError.input === pilesUnitOther));
+      const pilesInput = root.querySelector(".js-blackboard-piles-input");
+      if (pilesInput) {
+        pilesInput.classList.toggle("is-blackboard-critical-empty", !!(pilesError && pilesError.input === pilesInput));
       }
     }
 
@@ -2269,10 +2333,6 @@
       return input.dataset.blackboardKey === "piles" ? sanitizeBlackboardPilesValue(fallback) : (fallback || "");
     }
 
-    function sanitizeBlackboardPilesBodyValue(value) {
-      return sanitizeBlackboardPilesValue(String(value || "").replace(/(?:本|set)\s*$/i, ""));
-    }
-
     function sanitizeBlackboardPilesValue(value) {
       let sanitized = String(value || "").replace(/[，]/g, ",").replace(/[★☆]/g, "").trim();
       sanitized = sanitized.replace(/\s+/g, " ");
@@ -2281,6 +2341,17 @@
       sanitized = sanitized.replace(/\s+(?:JIS\b|H-?CPT|カーボン|キュア|.*材).*$/i, "").trim();
       if (/推定|概算|未定|確認中|調整中|仮/.test(sanitized)) return "";
       return /[mMｍＭ]/.test(sanitized) ? sanitized : "";
+    }
+
+    function normalizeBlackboardPilesTypingValue(value) {
+      return String(value || "")
+        .replace(/[，]/g, ",")
+        .replace(/[ｍＭ]/g, "m")
+        .replace(/[ｓＳ]/g, "s")
+        .replace(/[ｔＴ]/g, "t")
+        .replace(/[＊]/g, "*")
+        .replace(/[－ー―–—]/g, "-")
+        .replace(/[★☆]/g, "");
     }
 
     function updateBlackboardPreview() {

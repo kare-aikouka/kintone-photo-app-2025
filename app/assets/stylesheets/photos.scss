@@ -1071,10 +1071,46 @@ html.app-navigation-loading::after {
   min-width: 0;
 }
 
-.photo-blackboard-piles-unit-row {
+.photo-blackboard-keypad {
+  background: #eef6ff;
+  border: 1px solid #c9dcf6;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(33, 64, 120, 0.16);
+  padding: 10px;
+}
+
+.photo-blackboard-keypad-grid {
   display: grid;
   gap: 8px;
-  grid-template-columns: minmax(160px, 1fr) minmax(140px, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.photo-blackboard-keypad-key {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #b9cbe4;
+  border-radius: 10px;
+  color: #14233b;
+  cursor: pointer;
+  display: flex;
+  font-size: 1.25rem;
+  font-weight: 900;
+  justify-content: center;
+  min-height: 54px;
+  padding: 8px 6px;
+  touch-action: manipulation;
+}
+
+.photo-blackboard-keypad-key:active {
+  background: #dbeafe;
+  transform: translateY(1px);
+}
+
+.photo-blackboard-keypad-key-wide {
+  background: #3e5faa;
+  border-color: #3e5faa;
+  color: #fff;
+  font-size: 1rem;
 }
 
 .photo-blackboard-preview {
@@ -1626,8 +1662,14 @@ form.photo-detail-table-actions {
     grid-template-columns: 1fr 1fr;
   }
 
-  .photo-blackboard-piles-unit-row {
-    grid-template-columns: 1fr;
+  .photo-blackboard-keypad-grid {
+    gap: 7px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .photo-blackboard-keypad-key {
+    font-size: 1.2rem;
+    min-height: 52px;
   }
 
   .photo-upload-dialog {
