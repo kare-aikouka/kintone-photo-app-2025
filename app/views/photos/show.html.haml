@@ -86,7 +86,12 @@
           = text_field_tag :photo_blackboard_place, blackboard_place, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "place" }
         .photo-blackboard-field
           %label 施工明細
-          = text_field_tag :photo_blackboard_piles, blackboard_piles, class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "piles" }
+          .photo-blackboard-piles-control
+            = text_field_tag :photo_blackboard_piles_body, blackboard_piles.to_s.sub(/(?:本|set)\z/i, ""), class: "photo-blackboard-input js-blackboard-field js-blackboard-piles-body", data: { blackboard_key: "pilesBody" }
+            .photo-blackboard-piles-unit-row
+              = select_tag :photo_blackboard_piles_unit_choice, options_for_select([["選択してください", ""], ["本（単杭）", "本"], ["set（継ぎ杭）", "set"], ["その他（手入力してください）", "__other__"]]), class: "photo-blackboard-input photo-blackboard-piles-unit-choice js-blackboard-field js-blackboard-piles-unit-choice", data: { blackboard_key: "pilesUnitChoice", blackboard_default: "" }
+              = text_field_tag :photo_blackboard_piles_unit_other, "", class: "photo-blackboard-input photo-blackboard-piles-unit-other hidden js-blackboard-field js-blackboard-piles-unit-other", placeholder: "単位を入力", data: { blackboard_key: "pilesUnitOther", blackboard_default: "" }
+            = hidden_field_tag :photo_blackboard_piles, blackboard_piles, class: "js-blackboard-field js-blackboard-piles-value", data: { blackboard_key: "piles" }
         .photo-blackboard-field
           %label 下部表記
           = text_field_tag :photo_blackboard_footer, "會澤高圧コンクリート(株)", class: "photo-blackboard-input js-blackboard-field", data: { blackboard_key: "footer" }
@@ -380,6 +385,7 @@
     restorePhotoScroll();
     restoreBlackboardConfig();
     syncBlackboardKindControl();
+    syncBlackboardPilesControl();
     syncBlackboardScaleControl();
     sanitizeBlackboardPilesInput();
     syncBlackboardFieldDefaults();
@@ -1404,6 +1410,7 @@
       const root = document.querySelector(".js-photo-blackboard-config");
       if (!root) return { enabled: false };
       syncBlackboardKindValue(root);
+      syncBlackboardPilesValue(root);
 
       const enabledInput = root.querySelector(".js-blackboard-enabled:checked");
       const positionInput = root.querySelector(".js-blackboard-position:checked");
@@ -1498,6 +1505,89 @@
       };
     }
 
+    function syncBlackboardPilesControl() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root) return;
+
+      const body = root.querySelector(".js-blackboard-piles-body");
+      const choice = root.querySelector(".js-blackboard-piles-unit-choice");
+      const other = root.querySelector(".js-blackboard-piles-unit-other");
+      if (!body || !choice) return;
+
+      const sync = function () {
+        syncBlackboardPilesValue(root);
+        updateBlackboardRequiredHighlights();
+        updateBlackboardPreview();
+      };
+      body.addEventListener("input", sync);
+      body.addEventListener("change", sync);
+      choice.addEventListener("change", sync);
+      if (other) {
+        other.addEventListener("input", sync);
+        other.addEventListener("change", sync);
+      }
+      syncBlackboardPilesValue(root);
+    }
+
+    function syncBlackboardPilesValue(root) {
+      const body = root.querySelector(".js-blackboard-piles-body");
+      const choice = root.querySelector(".js-blackboard-piles-unit-choice");
+      const other = root.querySelector(".js-blackboard-piles-unit-other");
+      const valueInput = root.querySelector(".js-blackboard-piles-value");
+      if (!body || !choice || !valueInput) return;
+
+      const bodyValue = sanitizeBlackboardPilesBodyValue(body.value);
+      const choiceValue = choice.value || "";
+      const isOther = choiceValue === "__other__";
+      if (other) {
+        other.classList.toggle("hidden", !isOther);
+        other.disabled = !isOther;
+      }
+
+      let unit = "";
+      if (choiceValue === "本" || choiceValue === "set") {
+        unit = choiceValue;
+      } else if (isOther && other) {
+        unit = String(other.value || "").trim();
+      }
+
+      valueInput.value = bodyValue && unit ? bodyValue + unit : "";
+    }
+
+    function blackboardPilesValidationError() {
+      const root = document.querySelector(".js-photo-blackboard-config");
+      if (!root) return null;
+
+      const enabledInput = root.querySelector(".js-blackboard-enabled:checked");
+      if (enabledInput && enabledInput.value !== "1") return null;
+
+      const body = root.querySelector(".js-blackboard-piles-body");
+      const choice = root.querySelector(".js-blackboard-piles-unit-choice");
+      const other = root.querySelector(".js-blackboard-piles-unit-other");
+      if (body && !sanitizeBlackboardPilesBodyValue(body.value)) {
+        return {
+          input: body,
+          title: "施工明細が空白です",
+          message: "施工明細を入力してから写真を撮影してください。\n例）8m*42"
+        };
+      }
+      if (choice && !choice.value) {
+        return {
+          input: choice,
+          title: "施工明細の単位が未選択です",
+          message: "施工明細の単位を選択してから写真を撮影してください。"
+        };
+      }
+      if (choice && choice.value === "__other__" && other && !String(other.value || "").trim()) {
+        return {
+          input: other,
+          title: "施工明細の単位が未入力です",
+          message: "その他を選択した場合は、施工明細の単位を入力してから写真を撮影してください。"
+        };
+      }
+      return null;
+    }
+
     function blackboardMissingRequiredPiles() {
       const config = currentBlackboardConfig();
       return !!(config.enabled && !(config.values && String(config.values.piles || "").trim()));
@@ -1518,6 +1608,23 @@
           kindError.input.scrollIntoView({ behavior: "smooth", block: "center" });
         }
         blackboardWarning.open(kindError.title, kindError.message);
+        return false;
+      }
+
+      const pilesError = blackboardPilesValidationError();
+      if (pilesError) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        updateBlackboardRequiredHighlights();
+        updateBlackboardPreview();
+        refreshBlackboardPreviewSoon();
+        if (pilesError.input) {
+          pilesError.input.focus({ preventScroll: true });
+          pilesError.input.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        blackboardWarning.open(pilesError.title, pilesError.message);
         return false;
       }
 
@@ -1950,6 +2057,7 @@
       const root = document.querySelector(".js-photo-blackboard-config");
       if (!root || !window.localStorage) return;
       syncBlackboardKindValue(root);
+      syncBlackboardPilesValue(root);
 
       const enabledInput = root.querySelector(".js-blackboard-enabled:checked");
       const positionInput = root.querySelector(".js-blackboard-position:checked");
@@ -2023,8 +2131,9 @@
       const root = document.querySelector(".js-photo-blackboard-config");
       if (!root) return;
 
-      const input = root.querySelector(".js-blackboard-field[data-blackboard-key='piles']");
-      if (input) input.value = sanitizeBlackboardPilesValue(input.value);
+      const body = root.querySelector(".js-blackboard-piles-body");
+      if (body) body.value = sanitizeBlackboardPilesBodyValue(body.value);
+      syncBlackboardPilesValue(root);
     }
 
     function updateBlackboardRequiredHighlights() {
@@ -2049,6 +2158,20 @@
       }
       if (kindOther) {
         kindOther.classList.toggle("is-blackboard-critical-empty", !!(kindError && kindError.input === kindOther));
+      }
+
+      const pilesError = blackboardPilesValidationError();
+      const pilesBody = root.querySelector(".js-blackboard-piles-body");
+      const pilesUnitChoice = root.querySelector(".js-blackboard-piles-unit-choice");
+      const pilesUnitOther = root.querySelector(".js-blackboard-piles-unit-other");
+      if (pilesBody) {
+        pilesBody.classList.toggle("is-blackboard-critical-empty", !!(pilesError && pilesError.input === pilesBody));
+      }
+      if (pilesUnitChoice) {
+        pilesUnitChoice.classList.toggle("is-blackboard-critical-empty", !!(pilesError && pilesError.input === pilesUnitChoice));
+      }
+      if (pilesUnitOther) {
+        pilesUnitOther.classList.toggle("is-blackboard-critical-empty", !!(pilesError && pilesError.input === pilesUnitOther));
       }
     }
 
@@ -2131,6 +2254,7 @@
         input.value = normalizedBlackboardFieldDefault(input);
       });
       syncBlackboardKindValue(root);
+      syncBlackboardPilesValue(root);
       updateBlackboardRequiredHighlights();
       saveBlackboardConfig();
     }
@@ -2143,6 +2267,10 @@
     function normalizedBlackboardFieldDefault(input) {
       const fallback = input.dataset.blackboardDefault != null ? input.dataset.blackboardDefault : input.defaultValue;
       return input.dataset.blackboardKey === "piles" ? sanitizeBlackboardPilesValue(fallback) : (fallback || "");
+    }
+
+    function sanitizeBlackboardPilesBodyValue(value) {
+      return sanitizeBlackboardPilesValue(String(value || "").replace(/(?:本|set)\s*$/i, ""));
     }
 
     function sanitizeBlackboardPilesValue(value) {
