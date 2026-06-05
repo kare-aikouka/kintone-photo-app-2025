@@ -435,6 +435,26 @@ class PhotosController < ApplicationController
     redirect_to photo_detail_return_path(params[:id]), alert: "写真明細の保存に失敗しました。#{e.message}"
   end
 
+  def update_large_photo_details_batch
+    photo_record_for_cache = photo_record(params[:id])
+    item = large_photo_detail_item_by_code(params[:photo_item_code])
+    raise "撮影項目を特定できませんでした。" if item.blank?
+
+    params.fetch(:large_photo_details, {}).each do |detail_record_id, detail_params|
+      payload = large_photo_detail_update_payload(detail_params, item)
+      next if payload.blank?
+
+      large_photo_detail_record_client.update(detail_record_id, payload)
+    end
+    clear_photo_summary_cache(photo_record_for_cache)
+
+    redirect_to photo_detail_return_path(params[:id]), notice: "#{item[:label]}の写真明細を保存しました。"
+  rescue StandardError => e
+    Rails.logger.error("Large photo detail batch update failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    redirect_to photo_detail_return_path(params[:id]), alert: "写真明細の編集に失敗しました。#{e.message}"
+  end
+
   private
 
   def respond_photo_table_error(message)
@@ -1423,6 +1443,22 @@ class PhotosController < ApplicationController
       fields[:photo] => { value: [{ fileKey: file_key }] },
       fields[:memo] => { value: params[:memo].to_s }
     }
+  end
+
+  def large_photo_detail_update_payload(detail_params, item)
+    fields = LARGE_PHOTO_DETAIL_FIELDS
+    payload = {
+      fields[:pile_number] => { value: detail_params[:pile_number].to_s },
+      fields[:memo] => { value: detail_params[:memo].to_s }
+    }
+
+    photo = Array(detail_params[:photo]).find { |file| file.present? && (!file.respond_to?(:size) || file.size.to_i.positive?) }
+    if photo.present?
+      file_key = upload_large_photo_detail_file(photo, item)
+      payload[fields[:photo]] = { value: [{ fileKey: file_key }] }
+    end
+
+    payload
   end
 
   def large_photo_detail_records(parent_record_id, item_code)
