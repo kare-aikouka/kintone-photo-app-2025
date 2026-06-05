@@ -17,6 +17,26 @@ class PhotosController < ApplicationController
     /杭長/,
     /杭材検寸.*(下端|頭端|上端)/
   ].freeze
+  LARGE_PHOTO_DETAIL_APP_ID = 3481
+  LARGE_PHOTO_DETAIL_FIELDS = {
+    parent_record_id: "親レコードID",
+    item_code: "撮影項目コード",
+    item_name: "撮影項目名",
+    pile_number: "杭番号",
+    photo: "写真",
+    memo: "メモ"
+  }.freeze
+  LARGE_PHOTO_DETAIL_ITEMS = {
+    "テーブル杭頭レベル確認" => {
+      label: "杭頭レベル確認",
+      item_code: "pile_head_level"
+    },
+    "テーブル杭天端仕上げ確認" => {
+      label: "カット後断面状況",
+      item_code: "cut_section_after",
+      legacy_label: "杭天端仕上げ確認"
+    }
+  }.freeze
 
   DETAIL_SECTIONS = [
     {
@@ -172,6 +192,7 @@ class PhotosController < ApplicationController
     @machine_name = field_value(@record, :machine)
     @back_url = photos_path(photo_index_return_params(@machine_name))
     @detail_sections = visible_detail_sections(@record)
+    @large_photo_items = visible_large_photo_detail_items(@record)
     @field_keys = record_field_keys([@record])
     @field_preview = record_field_preview([@record])
   rescue StandardError => e
@@ -181,6 +202,7 @@ class PhotosController < ApplicationController
     @photo_error = e
     @record = nil
     @detail_sections = []
+    @large_photo_items = []
   end
 
   def documents
@@ -388,6 +410,31 @@ class PhotosController < ApplicationController
     Rails.logger.error("Photo table row delete failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
     respond_photo_table_error("写真・メモの削除に失敗しました。")
+  end
+
+  def add_large_photo_detail
+    record = photo_record(params[:id])
+    item = large_photo_detail_item_by_code(params[:photo_item_code])
+    raise "撮影項目を特定できませんでした。" if item.blank?
+
+    photo = Array(params[:photo]).find { |file| file.present? && (!file.respond_to?(:size) || file.size.to_i.positive?) }
+    raise "写真ファイルを取得できませんでした。" if photo.blank?
+
+    file_key = upload_large_photo_detail_file(photo, item)
+    large_photo_detail_record_client.create(
+      large_photo_detail_payload(
+        parent_record_id: record_id(record),
+        item: item,
+        file_key: file_key
+      )
+    )
+    clear_photo_summary_cache(record)
+
+    redirect_to photo_detail_return_path(params[:id]), notice: "#{item[:label]}の写真を保存しました。"
+  rescue StandardError => e
+    Rails.logger.error("Large photo detail add failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    redirect_to photo_detail_return_path(params[:id]), alert: "写真明細の保存に失敗しました。#{e.message}"
   end
 
   private
@@ -761,6 +808,8 @@ class PhotosController < ApplicationController
 
   def detail_table_label(table_code)
     return "その他" if other_table_code?(table_code)
+    large_photo_item = large_photo_detail_item(table_code)
+    return large_photo_item[:label] if large_photo_item.present?
 
     table_code.to_s.sub(/\Aテーブル/, "")
   end
@@ -881,6 +930,8 @@ class PhotosController < ApplicationController
         table_code = resolve_detail_table_code(record, configured_table_code)
         label = detail_table_label(configured_table_code)
         resolved_label = detail_table_label(table_code)
+        next if large_photo_detail_selected?(enabled, configured_table_code, table_code)
+
         rows = detail_table_rows(record, table_code)
         if enabled.present?
           table_code if enabled.include?(label) || enabled.include?(resolved_label) || other_table_code?(configured_table_code)
@@ -893,6 +944,22 @@ class PhotosController < ApplicationController
       section.merge(tables: tables)
     end
   end
+
+  def visible_large_photo_detail_items(record)
+    enabled = Array(record&.dig("報告書フォーマット撮影写真", "value")).map(&:to_s)
+    return [] if enabled.blank?
+
+    LARGE_PHOTO_DETAIL_ITEMS.filter_map do |configured_table_code, config|
+      table_code = resolve_detail_table_code(record, configured_table_code)
+      next unless large_photo_detail_selected?(enabled, configured_table_code, table_code)
+
+      config.merge(
+        table_code: table_code,
+        records: large_photo_detail_records(record_id(record), config[:item_code])
+      )
+    end
+  end
+  helper_method :visible_large_photo_detail_items
 
   def resolve_detail_table_code(record, table_code)
     candidates = detail_table_code_candidates(table_code)
@@ -926,6 +993,41 @@ class PhotosController < ApplicationController
   def other_table_code?(table_code)
     raw = table_code.to_s
     raw == "その他" || raw == "テーブルその他"
+  end
+
+  def large_photo_detail_selected?(enabled, configured_table_code, resolved_table_code)
+    return false if enabled.blank?
+
+    item = large_photo_detail_item(configured_table_code) || large_photo_detail_item(resolved_table_code)
+    return false if item.blank?
+
+    labels = [
+      item[:label],
+      item[:legacy_label],
+      detail_table_label_without_large_override(configured_table_code),
+      detail_table_label_without_large_override(resolved_table_code)
+    ].compact_blank
+    labels.any? { |label| enabled.include?(label) }
+  end
+
+  def large_photo_detail_item(table_code)
+    LARGE_PHOTO_DETAIL_ITEMS[large_photo_detail_config_key(table_code)]
+  end
+
+  def large_photo_detail_item_by_code(item_code)
+    LARGE_PHOTO_DETAIL_ITEMS.values.find { |item| item[:item_code].to_s == item_code.to_s }
+  end
+
+  def large_photo_detail_config_key(table_code)
+    raw = table_code.to_s
+    label = raw.sub(/\Aテーブル/, "")
+    [raw, "テーブル#{label}", label].find { |candidate| LARGE_PHOTO_DETAIL_ITEMS.key?(candidate) } || raw
+  end
+
+  def detail_table_label_without_large_override(table_code)
+    return "その他" if other_table_code?(table_code)
+
+    table_code.to_s.sub(/\Aテーブル/, "")
   end
 
   def table_has_visible_content?(rows)
@@ -1280,6 +1382,56 @@ class PhotosController < ApplicationController
     raise
   end
 
+  def upload_large_photo_detail_file(photo, item)
+    upload_log = photo_upload_log_attributes(photo, table_code: item[:label], row_id: nil)
+    KintoneSync::File.new(large_photo_detail_app_id, photos_guest_space_id).upload(
+      data: photo.read,
+      content_type: photo.content_type,
+      filename: photo.original_filename
+    ).tap do
+      log_photo_upload_successes([upload_log])
+    end
+  rescue StandardError => e
+    log_photo_upload_failure(upload_log, e) if upload_log
+    raise
+  end
+
+  def large_photo_detail_payload(parent_record_id:, item:, file_key:)
+    fields = LARGE_PHOTO_DETAIL_FIELDS
+    {
+      fields[:parent_record_id] => { value: parent_record_id.to_s },
+      fields[:item_code] => { value: item[:item_code].to_s },
+      fields[:item_name] => { value: item[:label].to_s },
+      fields[:pile_number] => { value: params[:pile_number].to_s },
+      fields[:photo] => { value: [{ fileKey: file_key }] },
+      fields[:memo] => { value: params[:memo].to_s }
+    }
+  end
+
+  def large_photo_detail_records(parent_record_id, item_code)
+    return [] if parent_record_id.blank? || item_code.blank?
+
+    fields = LARGE_PHOTO_DETAIL_FIELDS.values + %w[$id レコード番号]
+    query = [
+      "#{LARGE_PHOTO_DETAIL_FIELDS[:parent_record_id]} = \"#{kintone_query_value(parent_record_id)}\"",
+      "#{LARGE_PHOTO_DETAIL_FIELDS[:item_code]} = \"#{kintone_query_value(item_code)}\""
+    ].join(" and ")
+    fetch_all_photo_records("#{query} order by $id asc", record_client: large_photo_detail_record_client, fields: fields)
+  rescue StandardError => e
+    Rails.logger.warn("Large photo detail fetch skipped: #{e.class}: #{e.message}")
+    []
+  end
+
+  def large_photo_detail_value(record, field_key)
+    record&.dig(LARGE_PHOTO_DETAIL_FIELDS[field_key], "value")
+  end
+  helper_method :large_photo_detail_value
+
+  def large_photo_detail_files(record)
+    Array(large_photo_detail_value(record, :photo))
+  end
+  helper_method :large_photo_detail_files
+
   def photo_upload_log_attributes(photo, table_code:, row_id:)
     client_metrics = photo_upload_client_metrics
     {
@@ -1442,6 +1594,10 @@ class PhotosController < ApplicationController
     @photos_record_client ||= KintoneSync::Record.new(photos_app_id, photos_guest_space_id)
   end
 
+  def large_photo_detail_record_client
+    @large_photo_detail_record_client ||= KintoneSync::Record.new(large_photo_detail_app_id, photos_guest_space_id)
+  end
+
   def fallback_table_columns(table_code)
     subfield_codes = table_subfield_codes(table_code)
     return order_detail_table_columns([], subfield_codes, table_code) if subfield_codes.present?
@@ -1480,5 +1636,9 @@ class PhotosController < ApplicationController
 
   def photos_guest_space_id
     ENV["GUEST_SPACE"].presence&.to_i || 57
+  end
+
+  def large_photo_detail_app_id
+    (ENV["APP_LARGE_PHOTO_DETAILS"].presence || LARGE_PHOTO_DETAIL_APP_ID).to_i
   end
 end

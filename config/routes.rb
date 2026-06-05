@@ -14,6 +14,7 @@ Rails.application.routes.draw do
       patch 'table_rows', action: :update_table_row
       patch 'table_rows/batch', action: :update_table_rows_batch, as: :batch_table_rows
       delete 'table_rows', action: :delete_table_row
+      post 'large_photo_details', action: :add_large_photo_detail
     end
   end
   get 'router' => 'router#index'
