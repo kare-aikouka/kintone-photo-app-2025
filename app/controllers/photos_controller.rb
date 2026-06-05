@@ -24,7 +24,8 @@ class PhotosController < ApplicationController
     item_name: "撮影項目名",
     pile_number: "杭番号",
     photo: "写真",
-    memo: "メモ"
+    memo: "メモ",
+    report_excluded: "報告書記載除外"
   }.freeze
   LARGE_PHOTO_DETAIL_ITEMS = {
     "テーブル杭頭レベル確認" => {
@@ -453,6 +454,21 @@ class PhotosController < ApplicationController
     Rails.logger.error("Large photo detail batch update failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
     redirect_to photo_detail_return_path(params[:id]), alert: "写真明細の編集に失敗しました。#{e.message}"
+  end
+
+  def delete_large_photo_detail
+    photo_record_for_cache = photo_record(params[:id])
+    detail_record_id = params[:detail_record_id].to_s
+    raise "削除対象の写真明細を取得できませんでした。" if detail_record_id.blank?
+
+    large_photo_detail_record_client.update(detail_record_id, large_photo_detail_exclusion_payload)
+    clear_photo_summary_cache(photo_record_for_cache)
+
+    redirect_to photo_detail_return_path(params[:id]), notice: "写真明細を報告書記載除外にしました。"
+  rescue StandardError => e
+    Rails.logger.error("Large photo detail delete failed: #{e.class}: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    redirect_to photo_detail_return_path(params[:id]), alert: "写真明細の除外に失敗しました。#{e.message}"
   end
 
   private
@@ -1461,18 +1477,52 @@ class PhotosController < ApplicationController
     payload
   end
 
+  def large_photo_detail_exclusion_payload
+    field_code = LARGE_PHOTO_DETAIL_FIELDS[:report_excluded]
+    field_type = large_photo_detail_form_properties.dig(field_code, "type")
+    raise "写真明細アプリに「#{field_code}」フィールドを追加してください。" if field_type.blank?
+
+    value = case field_type
+            when "CHECK_BOX", "MULTI_SELECT"
+              ["除外"]
+            when "NUMBER"
+              "1"
+            else
+              "除外"
+            end
+    { field_code => { value: value } }
+  end
+
   def large_photo_detail_records(parent_record_id, item_code)
     return [] if parent_record_id.blank? || item_code.blank?
 
-    fields = LARGE_PHOTO_DETAIL_FIELDS.values + %w[$id レコード番号]
+    fields = large_photo_detail_field_codes + %w[$id レコード番号]
     query = [
       "#{LARGE_PHOTO_DETAIL_FIELDS[:parent_record_id]} = \"#{kintone_query_value(parent_record_id)}\"",
       "#{LARGE_PHOTO_DETAIL_FIELDS[:item_code]} = \"#{kintone_query_value(item_code)}\""
     ].join(" and ")
     fetch_all_photo_records("#{query} order by $id asc", record_client: large_photo_detail_record_client, fields: fields)
+      .reject { |record| large_photo_detail_excluded?(record) }
   rescue StandardError => e
     Rails.logger.warn("Large photo detail fetch skipped: #{e.class}: #{e.message}")
     []
+  end
+
+  def large_photo_detail_field_codes
+    form_codes = large_photo_detail_form_properties.keys
+    LARGE_PHOTO_DETAIL_FIELDS.values.select { |field_code| form_codes.include?(field_code) }
+  rescue StandardError
+    LARGE_PHOTO_DETAIL_FIELDS.values - [LARGE_PHOTO_DETAIL_FIELDS[:report_excluded]]
+  end
+
+  def large_photo_detail_excluded?(record)
+    value = record&.dig(LARGE_PHOTO_DETAIL_FIELDS[:report_excluded], "value")
+    case value
+    when Array
+      value.any? { |item| item.to_s == "除外" }
+    else
+      value.to_s == "除外" || value.to_s == "1"
+    end
   end
 
   def large_photo_detail_value(record, field_key)
@@ -1649,6 +1699,10 @@ class PhotosController < ApplicationController
 
   def large_photo_detail_record_client
     @large_photo_detail_record_client ||= KintoneSync::Record.new(large_photo_detail_app_id, photos_guest_space_id)
+  end
+
+  def large_photo_detail_form_properties
+    @large_photo_detail_form_properties ||= large_photo_detail_record_client.properties
   end
 
   def fallback_table_columns(table_code)
