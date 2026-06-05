@@ -192,7 +192,6 @@ class PhotosController < ApplicationController
     @machine_name = field_value(@record, :machine)
     @back_url = photos_path(photo_index_return_params(@machine_name))
     @detail_sections = visible_detail_sections(@record)
-    @large_photo_items = visible_large_photo_detail_items(@record)
     @field_keys = record_field_keys([@record])
     @field_preview = record_field_preview([@record])
   rescue StandardError => e
@@ -202,7 +201,6 @@ class PhotosController < ApplicationController
     @photo_error = e
     @record = nil
     @detail_sections = []
-    @large_photo_items = []
   end
 
   def documents
@@ -930,10 +928,10 @@ class PhotosController < ApplicationController
         table_code = resolve_detail_table_code(record, configured_table_code)
         label = detail_table_label(configured_table_code)
         resolved_label = detail_table_label(table_code)
-        next if large_photo_detail_selected?(enabled, configured_table_code, table_code)
-
         rows = detail_table_rows(record, table_code)
-        if enabled.present?
+        if large_photo_detail_selected?(enabled, configured_table_code, table_code)
+          table_code
+        elsif enabled.present?
           table_code if enabled.include?(label) || enabled.include?(resolved_label) || other_table_code?(configured_table_code)
         else
           table_code if table_has_visible_content?(rows) || other_table_code?(configured_table_code)
@@ -960,6 +958,23 @@ class PhotosController < ApplicationController
     end
   end
   helper_method :visible_large_photo_detail_items
+
+  def large_photo_detail_table_item(record, table_code)
+    enabled = Array(record&.dig("報告書フォーマット撮影写真", "value")).map(&:to_s)
+    return if enabled.blank?
+
+    table_code = resolve_detail_table_code(record, table_code)
+    return unless large_photo_detail_selected?(enabled, table_code, table_code)
+
+    item = large_photo_detail_item(table_code)
+    return if item.blank?
+
+    item.merge(
+      table_code: table_code,
+      records: large_photo_detail_records(record_id(record), item[:item_code])
+    )
+  end
+  helper_method :large_photo_detail_table_item
 
   def resolve_detail_table_code(record, table_code)
     candidates = detail_table_code_candidates(table_code)
@@ -1212,6 +1227,8 @@ class PhotosController < ApplicationController
   end
 
   def completion_excluded_table?(table_code)
+    return true if large_photo_detail_item(table_code).present?
+
     table_text = [table_code, detail_table_label(table_code)].compact.join(" ")
     COMPLETION_EXCLUDED_TABLES.any? { |excluded| table_text.include?(excluded) } ||
       table_text.include?("その他")
