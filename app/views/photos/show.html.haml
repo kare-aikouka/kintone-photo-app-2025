@@ -2778,18 +2778,31 @@
         if (!targetForm) return;
         const form = targetForm;
         targetForm = null;
+        if (form.dataset.deleting === "true") return;
+        form.dataset.deleting = "true";
+        yes.disabled = true;
+        back.disabled = true;
         overlay.classList.add("hidden");
         rememberPhotoScroll(form);
+        disableFormSubmitButtons(form);
+        uploadIndicator.show(
+          "処理中...",
+          "kintoneへ反映しています。完了までそのままお待ちください"
+        );
         form.submit();
       });
       back.addEventListener("click", function () {
         targetForm = null;
         overlay.classList.add("hidden");
+        yes.disabled = false;
+        back.disabled = false;
       });
       overlay.addEventListener("click", function (event) {
         if (event.target === overlay) {
           targetForm = null;
           overlay.classList.add("hidden");
+          yes.disabled = false;
+          back.disabled = false;
         }
       });
 
@@ -2797,10 +2810,20 @@
         open: function (form, text) {
           targetForm = form;
           message.textContent = text;
+          yes.disabled = false;
+          back.disabled = false;
           overlay.classList.remove("hidden");
           back.focus();
         }
       };
+    }
+
+    function disableFormSubmitButtons(form) {
+      if (!form) return;
+
+      form.querySelectorAll("button, input[type='submit']").forEach(function (button) {
+        button.disabled = true;
+      });
     }
 
     function buildPhotoPreview() {
