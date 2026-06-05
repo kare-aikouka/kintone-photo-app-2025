@@ -1531,14 +1531,19 @@
         keypad.classList.remove("hidden");
       };
 
-      input.addEventListener("focus", openKeypad);
+      input.addEventListener("focus", function () {
+        if (input.dataset.nativeInput === "true") input.dataset.nativeFocused = "true";
+        openKeypad();
+      });
       input.addEventListener("click", openKeypad);
       input.addEventListener("input", sync);
       input.addEventListener("change", sync);
       input.addEventListener("blur", function () {
         window.setTimeout(function () {
           if (document.activeElement === input) return;
+          if (input.dataset.nativeInput === "true" && input.dataset.nativeFocused !== "true") return;
           input.dataset.nativeInput = "";
+          input.dataset.nativeFocused = "";
           input.readOnly = true;
           input.setAttribute("inputmode", "none");
         }, 120);
@@ -1546,28 +1551,33 @@
 
       if (keypad) {
         keypad.addEventListener("pointerdown", function (event) {
-          if (event.target.closest("button")) event.preventDefault();
+          const button = event.target.closest("button");
+          if (!button) return;
+          if (button.dataset.blackboardKeypadAction === "native") {
+            enableNativeBlackboardPilesInput(input, keypad);
+            return;
+          }
+          event.preventDefault();
         });
         keypad.addEventListener("click", function (event) {
           const button = event.target.closest("[data-blackboard-keypad-value], [data-blackboard-keypad-action]");
           if (!button) return;
 
-          event.preventDefault();
           const value = button.dataset.blackboardKeypadValue;
           const action = button.dataset.blackboardKeypadAction;
+          if (action === "native") {
+            enableNativeBlackboardPilesInput(input, keypad);
+            focusBlackboardPilesInputForNativeKeyboard(input);
+            return;
+          }
+
+          event.preventDefault();
           if (value != null) {
             insertBlackboardPilesText(input, value);
           } else if (action === "delete") {
             deleteBlackboardPilesText(input);
           } else if (action === "clear") {
             input.value = "";
-          } else if (action === "native") {
-            input.dataset.nativeInput = "true";
-            input.readOnly = false;
-            input.setAttribute("inputmode", "text");
-            keypad.classList.add("hidden");
-            focusBlackboardPilesInputForNativeKeyboard(input);
-            return;
           } else if (action === "close") {
             keypad.classList.add("hidden");
             input.blur();
@@ -1583,6 +1593,15 @@
         });
       }
       syncBlackboardPilesValue(root);
+    }
+
+    function enableNativeBlackboardPilesInput(input, keypad) {
+      input.dataset.nativeInput = "true";
+      input.dataset.nativeFocused = "";
+      input.readOnly = false;
+      input.removeAttribute("readonly");
+      input.setAttribute("inputmode", "text");
+      if (keypad) keypad.classList.add("hidden");
     }
 
     function syncBlackboardPilesValue(root) {
