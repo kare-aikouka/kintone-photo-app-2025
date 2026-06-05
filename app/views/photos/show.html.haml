@@ -94,7 +94,9 @@
                   %button.photo-blackboard-keypad-key{ type: "button", data: { blackboard_keypad_value: key } }= key
                 %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-wide{ type: "button", data: { blackboard_keypad_action: "delete" } } 削除
                 %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-wide{ type: "button", data: { blackboard_keypad_action: "clear" } } クリア
-                %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-wide{ type: "button", data: { blackboard_keypad_action: "native" } } 通常入力
+                %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-wide.photo-blackboard-keypad-key-native{ type: "button", data: { blackboard_keypad_action: "native" } }
+                  %span 通常
+                  %span 入力
                 %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-wide{ type: "button", data: { blackboard_keypad_action: "close" } } 閉じる
         .photo-blackboard-field
           %label 下部表記
@@ -1564,7 +1566,7 @@
             input.readOnly = false;
             input.setAttribute("inputmode", "text");
             keypad.classList.add("hidden");
-            focusBlackboardPilesInput(input);
+            focusBlackboardPilesInputForNativeKeyboard(input);
             return;
           } else if (action === "close") {
             keypad.classList.add("hidden");
@@ -1598,6 +1600,17 @@
       } catch (error) {
         // 一部端末ではreadonly中のカーソル操作に対応していません。
       }
+    }
+
+    function focusBlackboardPilesInputForNativeKeyboard(input) {
+      input.blur();
+      input.focus({ preventScroll: true });
+      try {
+        input.click();
+      } catch (error) {
+        // iOS Safariではclickが不要な場合があります。
+      }
+      focusBlackboardPilesInput(input);
     }
 
     function insertBlackboardPilesText(input, text) {

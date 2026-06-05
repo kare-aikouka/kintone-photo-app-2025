@@ -1111,6 +1111,14 @@ html.app-navigation-loading::after {
   border-color: #3e5faa;
   color: #fff;
   font-size: 1rem;
+  white-space: nowrap;
+}
+
+.photo-blackboard-keypad-key-native {
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.05;
+  white-space: normal;
 }
 
 .photo-blackboard-preview {
