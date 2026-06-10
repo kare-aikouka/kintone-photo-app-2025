@@ -17,6 +17,22 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="/icon-192.png">
+  <script>
+    (function () {
+      const root = document.documentElement;
+
+      try {
+        const fontSize = window.localStorage.getItem("displayFontSize") || "normal";
+        const outdoorMode = window.localStorage.getItem("displayOutdoorMode") === "true";
+
+        root.classList.toggle("app-font-large", fontSize === "large");
+        root.classList.toggle("app-font-xlarge", fontSize === "xlarge");
+        root.classList.toggle("app-outdoor-mode", outdoorMode);
+      } catch (_error) {
+        root.classList.remove("app-font-large", "app-font-xlarge", "app-outdoor-mode");
+      }
+    })();
+  </script>
   <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
   <%= javascript_importmap_tags "machines" %>
   <script>
@@ -60,7 +76,8 @@
       }
 
       function submitLogoutRequest(form) {
-        const token = document.querySelector("meta[name='csrf-token']")?.content;
+        const tokenMeta = document.querySelector("meta[name='csrf-token']");
+        const token = tokenMeta ? tokenMeta.content : null;
         const headers = {
           "Accept": "application/json",
           "X-Requested-With": "XMLHttpRequest"
@@ -125,6 +142,117 @@
       window.addEventListener("pagehide", hideNavigationLoader);
       document.addEventListener("visibilitychange", function () {
         if (document.visibilityState === "visible") hideNavigationLoader();
+      });
+    })();
+
+    (function () {
+      const FONT_KEY = "displayFontSize";
+      const OUTDOOR_KEY = "displayOutdoorMode";
+
+      function storageGet(key, fallback) {
+        try {
+          return window.localStorage.getItem(key) || fallback;
+        } catch (_error) {
+          return fallback;
+        }
+      }
+
+      function storageSet(key, value) {
+        try {
+          window.localStorage.setItem(key, value);
+        } catch (_error) {
+          // ストレージが無効な端末では、その場の表示切替だけ反映する。
+        }
+      }
+
+      function applyDisplaySettings(fontSize, outdoorMode) {
+        const root = document.documentElement;
+        root.classList.remove("app-font-large", "app-font-xlarge");
+        root.classList.toggle("app-font-large", fontSize === "large");
+        root.classList.toggle("app-font-xlarge", fontSize === "xlarge");
+        root.classList.toggle("app-outdoor-mode", outdoorMode);
+      }
+
+      function currentSettings() {
+        return {
+          fontSize: storageGet(FONT_KEY, "normal"),
+          outdoorMode: storageGet(OUTDOOR_KEY, "false") === "true"
+        };
+      }
+
+      function syncControls(panel) {
+        const settings = currentSettings();
+        panel.querySelectorAll(".js-display-font-size").forEach(function (input) {
+          const choice = input.closest(".js-display-choice");
+          input.checked = input.value === settings.fontSize;
+          if (choice) choice.classList.toggle("is-selected", input.checked);
+        });
+
+        const outdoorInput = panel.querySelector(".js-display-outdoor-mode");
+        if (outdoorInput) {
+          const choice = outdoorInput.closest(".js-display-choice");
+          outdoorInput.checked = settings.outdoorMode;
+          if (choice) choice.classList.toggle("is-selected", outdoorInput.checked);
+        }
+      }
+
+      function openPanel(panel) {
+        syncControls(panel);
+        panel.classList.remove("hidden");
+        const checkedInput = panel.querySelector("input:checked") || panel.querySelector("button");
+        if (checkedInput) checkedInput.focus();
+      }
+
+      function closePanel(panel) {
+        panel.classList.add("hidden");
+        const opener = document.querySelector(".js-display-settings-open");
+        if (opener) opener.focus();
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const panel = document.querySelector(".js-display-settings-panel");
+        const opener = document.querySelector(".js-display-settings-open");
+        if (!panel || !opener) return;
+
+        const settings = currentSettings();
+        applyDisplaySettings(settings.fontSize, settings.outdoorMode);
+        syncControls(panel);
+
+        opener.addEventListener("click", function () {
+          openPanel(panel);
+        });
+
+        panel.querySelectorAll(".js-display-settings-close").forEach(function (button) {
+          button.addEventListener("click", function () {
+            closePanel(panel);
+          });
+        });
+
+        panel.querySelectorAll(".js-display-font-size").forEach(function (input) {
+          input.addEventListener("change", function () {
+            const outdoorInput = panel.querySelector(".js-display-outdoor-mode");
+            storageSet(FONT_KEY, input.value);
+            applyDisplaySettings(input.value, outdoorInput ? outdoorInput.checked : false);
+            syncControls(panel);
+          });
+        });
+
+        const outdoorInput = panel.querySelector(".js-display-outdoor-mode");
+        if (outdoorInput) {
+          outdoorInput.addEventListener("change", function () {
+            const checkedFontInput = panel.querySelector(".js-display-font-size:checked");
+            const fontSize = checkedFontInput ? checkedFontInput.value : "normal";
+            storageSet(OUTDOOR_KEY, String(outdoorInput.checked));
+            applyDisplaySettings(fontSize, outdoorInput.checked);
+            syncControls(panel);
+          });
+        }
+
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape" && !panel.classList.contains("hidden")) {
+            closePanel(panel);
+          }
+        });
       });
     })();
   </script>

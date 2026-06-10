@@ -116,6 +116,13 @@
   padding-right: 0;
 }
 
+.app-shell-settings-link {
+  font-size: 1.35rem;
+  min-width: 54px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .app-shell-refresh-link:hover {
   color: #b91c1c;
 }
@@ -131,6 +138,226 @@
   align-items: center;
   display: flex;
   margin: 0;
+}
+
+.display-settings-panel {
+  bottom: 0;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 1200;
+}
+
+.display-settings-backdrop {
+  background: rgba(0, 0, 0, 0.42);
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.display-settings-dialog {
+  background: #fff;
+  border: 2px solid #1f2937;
+  border-radius: 8px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+  color: #111827;
+  left: 50%;
+  max-width: 360px;
+  padding: 18px;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 32px);
+}
+
+.display-settings-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.display-settings-head h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.display-settings-close {
+  background: #fff;
+  border: 2px solid #111827;
+  border-radius: 50%;
+  color: #111827;
+  font-size: 1.25rem;
+  font-weight: 800;
+  height: 40px;
+  line-height: 1;
+  width: 40px;
+}
+
+.display-settings-group {
+  border-top: 1px solid #d1d5db;
+  padding-top: 14px;
+}
+
+.display-settings-label {
+  font-size: 1rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.display-settings-choice,
+.display-settings-toggle {
+  align-items: center;
+  border: 2px solid #9ca3af;
+  border-radius: 8px;
+  display: flex;
+  font-size: 1.08rem;
+  font-weight: 800;
+  gap: 10px;
+  margin-bottom: 10px;
+  min-height: 50px;
+  padding: 10px 12px;
+}
+
+.display-settings-choice input,
+.display-settings-toggle input {
+  height: 22px;
+  width: 22px;
+}
+
+.display-settings-choice.is-selected,
+.display-settings-toggle.is-selected {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+
+.display-settings-toggle {
+  margin-top: 16px;
+}
+
+.display-settings-done {
+  background: #1f5fbf;
+  border: 2px solid #174a96;
+  border-radius: 8px;
+  color: #fff;
+  display: block;
+  font-size: 1.08rem;
+  font-weight: 800;
+  margin-top: 16px;
+  min-height: 50px;
+  width: 100%;
+}
+
+html.app-font-large {
+  font-size: 18px;
+}
+
+html.app-font-xlarge {
+  font-size: 20px;
+}
+
+html.app-outdoor-mode body {
+  background: #fff;
+  color: #000;
+}
+
+html.app-outdoor-mode .app-shell {
+  background: #000;
+  box-shadow: none;
+}
+
+html.app-outdoor-mode .app-shell-logo,
+html.app-outdoor-mode .app-shell-copy,
+html.app-outdoor-mode .app-shell-context {
+  color: #fff;
+}
+
+html.app-outdoor-mode .app-shell-link,
+html.app-outdoor-mode .app-shell-button {
+  background: #fff;
+  border-color: #fff;
+  color: #000;
+}
+
+html.app-outdoor-mode .app-shell-refresh-link {
+  color: #b00000;
+}
+
+html.app-outdoor-mode .photo-page,
+html.app-outdoor-mode .machines-page,
+html.app-outdoor-mode .app-info-page {
+  background: #fff;
+  color: #000;
+}
+
+html.app-outdoor-mode .photo-header,
+html.app-outdoor-mode .machines-page-header {
+  background: #000;
+  border: 2px solid #000;
+  box-shadow: none;
+  color: #fff;
+}
+
+html.app-outdoor-mode .photo-header a,
+html.app-outdoor-mode .photo-header a:hover {
+  color: #fff;
+}
+
+html.app-outdoor-mode .header-badge,
+html.app-outdoor-mode .badge {
+  background: #fff;
+  border: 2px solid #000;
+  color: #000;
+}
+
+html.app-outdoor-mode .photo-record,
+html.app-outdoor-mode .photo-detail-table,
+html.app-outdoor-mode .photo-blackboard,
+html.app-outdoor-mode .company-group,
+html.app-outdoor-mode .machine-name {
+  border-color: #000;
+  box-shadow: none;
+}
+
+html.app-outdoor-mode .btn,
+html.app-outdoor-mode button,
+html.app-outdoor-mode input,
+html.app-outdoor-mode select,
+html.app-outdoor-mode textarea {
+  border-color: #000;
+}
+
+html.app-outdoor-mode .btn-primary-action,
+html.app-outdoor-mode .btn-document-action,
+html.app-outdoor-mode .photo-table-action-add,
+html.app-outdoor-mode .photo-table-action-edit,
+html.app-outdoor-mode .display-settings-done {
+  background: #000;
+  border-color: #000;
+  color: #fff;
+}
+
+html.app-outdoor-mode .btn-soft,
+html.app-outdoor-mode .photo-date-tab,
+html.app-outdoor-mode .photo-blackboard-option,
+html.app-outdoor-mode .display-settings-choice,
+html.app-outdoor-mode .display-settings-toggle {
+  background: #fff;
+  border-color: #000;
+  color: #000;
+}
+
+html.app-outdoor-mode .photo-date-tab.active,
+html.app-outdoor-mode .display-settings-choice.is-selected,
+html.app-outdoor-mode .display-settings-toggle.is-selected {
+  background: #000;
+  border-color: #000;
+  color: #fff;
 }
 
 .page-kicker {
@@ -215,6 +442,13 @@
 
   .app-shell-refresh-link {
     font-size: 1.15rem;
+    min-width: 38px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .app-shell-settings-link {
+    font-size: 1rem;
     min-width: 38px;
     padding-left: 0;
     padding-right: 0;

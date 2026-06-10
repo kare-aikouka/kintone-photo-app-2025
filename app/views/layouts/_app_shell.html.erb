@@ -15,6 +15,11 @@
       <% if app_shell_context_label.present? %>
         <span class="app-shell-context"><%= app_shell_context_label %></span>
       <% end %>
+      <button type="button"
+              class="app-shell-link app-shell-settings-link js-display-settings-open"
+              aria-label="表示設定を開く"
+              aria-haspopup="dialog"
+              title="表示設定">⚙</button>
       <%= link_to "↻", request.fullpath, class: "app-shell-link app-shell-refresh-link", aria: { label: "現在の画面を更新" }, title: "更新", data: { turbo: false } %>
       <%= link_to "ホーム", app_home_path, class: "app-shell-link" %>
       <%= button_to "ログアウト",
@@ -28,3 +33,36 @@
     </div>
   </div>
 </header>
+
+<div class="display-settings-panel hidden js-display-settings-panel" role="dialog" aria-modal="true" aria-labelledby="display-settings-title">
+  <div class="display-settings-backdrop js-display-settings-close"></div>
+  <section class="display-settings-dialog">
+    <div class="display-settings-head">
+      <h2 id="display-settings-title">表示設定</h2>
+      <button type="button" class="display-settings-close js-display-settings-close" aria-label="表示設定を閉じる">×</button>
+    </div>
+
+    <div class="display-settings-group">
+      <div class="display-settings-label">文字サイズ</div>
+      <label class="display-settings-choice js-display-choice">
+        <input type="radio" name="display_font_size" value="normal" class="js-display-font-size">
+        <span>標準</span>
+      </label>
+      <label class="display-settings-choice js-display-choice">
+        <input type="radio" name="display_font_size" value="large" class="js-display-font-size">
+        <span>大</span>
+      </label>
+      <label class="display-settings-choice js-display-choice">
+        <input type="radio" name="display_font_size" value="xlarge" class="js-display-font-size">
+        <span>特大</span>
+      </label>
+    </div>
+
+    <label class="display-settings-toggle js-display-choice">
+      <input type="checkbox" class="js-display-outdoor-mode">
+      <span>屋外モード</span>
+    </label>
+
+    <button type="button" class="display-settings-done js-display-settings-close">閉じる</button>
+  </section>
+</div>
