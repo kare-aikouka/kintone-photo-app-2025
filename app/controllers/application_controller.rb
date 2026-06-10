@@ -3,8 +3,8 @@
 class ApplicationController < ActionController::Base
   DEFAULT_OPERATOR_LABEL = '會澤高圧コンクリート株式会社'.freeze
   INTERNAL_GROUP_LABELS = ['會澤社員'].freeze
-  APP_VERSION_CODE = ENV.fetch('APP_VERSION', '260605').freeze
-  APP_RELEASE_DATE = ENV.fetch('APP_RELEASE_DATE', '2026-06-05').freeze
+  APP_VERSION_CODE = ENV.fetch('APP_VERSION', '260610').freeze
+  APP_RELEASE_DATE = ENV.fetch('APP_RELEASE_DATE', '2026-06-10').freeze
 
   protect_from_forgery with: :exception
 
