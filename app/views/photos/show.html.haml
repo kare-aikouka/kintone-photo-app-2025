@@ -1595,6 +1595,8 @@
             message: "その他を選択した場合は、右上表記を入力してから写真を撮影してください。"
           };
         }
+        const duplicateError = blackboardKindDuplicateValidationError(root, choice, other);
+        if (duplicateError) return duplicateError;
         return null;
       }
 
@@ -1603,6 +1605,31 @@
         title: "右上表記が未選択です",
         message: "右上表記を選択してから写真を撮影してください。\n不要な場合は「表記無し（工事名に含まれている）」を選択してください。"
       };
+    }
+
+    function blackboardKindDuplicateValidationError(root, choice, other) {
+      if (!choice || choice.value === "__blank__") return null;
+
+      const project = root.querySelector(".js-blackboard-field[data-blackboard-key='project']");
+      const projectText = normalizeBlackboardKindDuplicateText(project ? project.value : "");
+      const isOther = choice.value === "__other__";
+      const kindText = normalizeBlackboardKindDuplicateText(isOther && other ? other.value : choice.value);
+      if (!projectText || !kindText) return null;
+
+      const duplicatedTerm = ["新築工事", "増築工事", "改築工事", "建替工事", "設置工事"].find(function (term) {
+        return projectText.includes(term) && kindText.includes(term);
+      });
+      if (!duplicatedTerm) return null;
+
+      return {
+        input: isOther && other ? other : choice,
+        title: "右上表記が重複しています",
+        message: "工事名に「" + duplicatedTerm + "」が含まれています。\n右上表記は「表記無し（工事名に含まれている）」を選択してください。"
+      };
+    }
+
+    function normalizeBlackboardKindDuplicateText(value) {
+      return String(value || "").replace(/\s+/g, "").replace(/　/g, "");
     }
 
     function syncBlackboardPilesControl() {
