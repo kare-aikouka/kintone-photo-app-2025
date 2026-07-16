@@ -2125,9 +2125,18 @@
       const labelWidth = Math.round(boardWidth * 0.22);
       const kindWidth = Math.round(boardWidth * 0.30);
       const pad = Math.round(boardWidth * 0.012);
-      const labelFont = Math.max(12, Math.round(dataRowHeight * 0.42) - 2);
-      const valueFont = Math.max(11, Math.round(dataRowHeight * 0.40) - 2);
-      const footerFont = Math.max(12, Math.round(footerHeight * 0.46) - 2);
+      const baseLabelFont = Math.max(12, Math.round(dataRowHeight * 0.42) - 2);
+      const baseValueFont = Math.max(11, Math.round(dataRowHeight * 0.40) - 2);
+      const baseFooterFont = Math.max(12, Math.round(footerHeight * 0.46) - 2);
+      const labelMaxWidth = labelWidth - pad * 2;
+      context.font = "bold " + baseLabelFont + "px " + BLACKBOARD_FONT_FAMILY;
+      const longestLabelWidth = labels.reduce(function (width, label) {
+        return Math.max(width, context.measureText(label).width);
+      }, 0);
+      const fontScale = longestLabelWidth > labelMaxWidth ? Math.max(0.55, (labelMaxWidth / longestLabelWidth) * 0.96) : 1;
+      const labelFont = Math.max(6, Math.floor(baseLabelFont * fontScale));
+      const valueFont = Math.max(6, Math.floor(baseValueFont * fontScale));
+      const footerFont = Math.max(6, Math.floor(baseFooterFont * fontScale));
       const rowLayouts = labels.map(function (_label, index) {
         const valueWidth = index === 0 ? boardWidth - labelWidth - kindWidth - pad * 2 : boardWidth - labelWidth - pad * 2;
         const projectLines = index === 0 ? textLineCount(context, values.project || "", valueWidth, valueFont, "bold", 2) : 1;
