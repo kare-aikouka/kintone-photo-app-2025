@@ -2085,7 +2085,7 @@
         drawTextFit(context, label, x + pad, rowY + rowHeight * 0.66, labelWidth - pad * 2, labelFont, "bold", "left");
         if (index === 0) {
           drawTextFitMultiline(context, values.project || "", x + labelWidth + pad, rowY, boardWidth - labelWidth - kindWidth - pad * 2, rowHeight, valueFont, "bold", "left", 2);
-          drawTextFitMultiline(context, values.kind || "", x + boardWidth - kindWidth + pad, rowY, kindWidth - pad * 2, rowHeight, valueFont, "bold", "left", 1);
+          drawTextFitMultiline(context, values.kind || "", x + boardWidth - kindWidth + pad, rowY, kindWidth - pad * 2, rowHeight, valueFont, "bold", "right", 1);
         } else {
           const isMissingPilesRow = missingPiles && keys[index] === "piles";
           drawTextFitMultiline(
