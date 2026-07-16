@@ -49,7 +49,7 @@ jobs:
         run: bundle install
 
       - name: Scan for common Rails security vulnerabilities using static analysis
-        run: bin/brakeman --no-pager -i .brakeman.ignore
+        run: bin/brakeman --no-pager -x EOLRails
 
   lint:
     needs: generate_lockfile
