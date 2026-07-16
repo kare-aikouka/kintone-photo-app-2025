@@ -107,8 +107,8 @@
         .photo-blackboard-adjustments
           .photo-blackboard-adjustment
             %label サイズ
-            %span.photo-blackboard-scale-label.js-blackboard-scale-label 標準（72%）
-            = range_field_tag :photo_blackboard_scale, 72, min: 56, max: 120, step: 1, list: "blackboard-scale-steps", class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
+            %span.photo-blackboard-scale-label.js-blackboard-scale-label 最小（1）
+            = range_field_tag :photo_blackboard_scale, 56, min: 56, max: 120, step: 1, list: "blackboard-scale-steps", class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
             %datalist#blackboard-scale-steps
               %option{ value: 56, label: "最小" }
               %option{ value: 64, label: "小" }
@@ -394,13 +394,14 @@
     const blackboardRootForStorage = document.querySelector(".js-photo-blackboard-config");
     const BLACKBOARD_RECORD_ID = (blackboardRootForStorage && blackboardRootForStorage.dataset.recordId) || window.location.pathname;
     const BLACKBOARD_STORAGE_KEY = "photo-blackboard:" + BLACKBOARD_RECORD_ID;
+    const BLACKBOARD_SCALE_STORAGE_KEY = "photo-blackboard-scale";
     const BLACKBOARD_PHOTO_STORAGE_KEY = "photo-blackboard-photos:" + BLACKBOARD_RECORD_ID;
     const BLACKBOARD_FONT_FAMILY = '"Noto Sans CJK JP", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif';
     const BLACKBOARD_MIN_SCALE = 0.56;
     const BLACKBOARD_MAX_SCALE = 1.2;
     const BLACKBOARD_OVERWRITE_SCALE = 1.03;
     const BLACKBOARD_CONFIG_VERSION = 3;
-    const BLACKBOARD_DEFAULT_SCALE_VALUE = "72";
+    const BLACKBOARD_DEFAULT_SCALE_VALUE = "56";
     const BLACKBOARD_SCALE_STEPS = [56, 64, 72, 84, 96, 108, 120];
     const PHOTO_RELOAD_AFTER_UPLOAD = false;
     const PENDING_UPLOAD_DB_NAME = "kintone-photo-pending-uploads";
@@ -1528,7 +1529,7 @@
       return {
         enabled: !enabledInput || enabledInput.value === "1",
         position: positionInput ? positionInput.value : "left",
-        scale: scaleInput ? numberInRange(scaleInput.value, 70, 140, 100) / 100 : 1,
+        scale: scaleInput ? numberInRange(scaleInput.value, 56, 120, Number(BLACKBOARD_DEFAULT_SCALE_VALUE)) / 100 : 1,
         offsetX: offsetXInput ? numberInRange(offsetXInput.value, -120, 120, 0) : 0,
         offsetY: offsetYInput ? numberInRange(offsetYInput.value, -120, 120, 0) : 0,
         values: values
@@ -2306,6 +2307,7 @@
       });
       try {
         localStorage.setItem(BLACKBOARD_STORAGE_KEY, JSON.stringify(data));
+        saveBlackboardScaleConfig(root);
       } catch (error) {
         // iPadのプライベートブラウズ等では保存できない場合がありますが、撮影処理は継続します。
       }
@@ -2323,7 +2325,10 @@
       } catch (error) {
         return;
       }
-      if (!raw) return;
+      if (!raw) {
+        restoreBlackboardScaleConfig(root, null);
+        return;
+      }
 
       try {
         const data = JSON.parse(raw);
@@ -2345,11 +2350,43 @@
             input.value = savedValue;
           }
         });
+        restoreBlackboardScaleConfig(root, data);
       } catch (error) {
         try {
           localStorage.removeItem(BLACKBOARD_STORAGE_KEY);
         } catch (storageError) {
           // 保存領域に触れない環境では何もしません。
+        }
+        restoreBlackboardScaleConfig(root, null);
+      }
+    }
+
+    function saveBlackboardScaleConfig(root) {
+      const scaleInput = root.querySelector(".js-blackboard-adjust[data-blackboard-key='scale']");
+      if (!scaleInput || !window.localStorage) return;
+
+      localStorage.setItem(BLACKBOARD_SCALE_STORAGE_KEY, scaleInput.value || BLACKBOARD_DEFAULT_SCALE_VALUE);
+    }
+
+    function restoreBlackboardScaleConfig(root, recordData) {
+      const scaleInput = root.querySelector(".js-blackboard-adjust[data-blackboard-key='scale']");
+      if (!scaleInput || !window.localStorage) return;
+
+      let savedScale = "";
+      try {
+        savedScale = localStorage.getItem(BLACKBOARD_SCALE_STORAGE_KEY) || "";
+      } catch (error) {
+        savedScale = "";
+      }
+      if (!savedScale && recordData && recordData.adjustments) {
+        savedScale = recordData.adjustments.scale || "";
+      }
+      if (savedScale) {
+        scaleInput.value = savedScale;
+        try {
+          localStorage.setItem(BLACKBOARD_SCALE_STORAGE_KEY, savedScale);
+        } catch (error) {
+          // 保存できない環境では次回も初期値から開始します。
         }
       }
     }
