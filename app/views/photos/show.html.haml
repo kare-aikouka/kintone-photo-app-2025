@@ -409,6 +409,9 @@
     const PENDING_UPLOAD_STORE = "uploads";
     let pendingUploadDbPromise = null;
     const uploadedPreviewFiles = new WeakMap();
+    const preparedPortraitUploads = new WeakMap();
+    const portraitRetakeBackupIds = new WeakMap();
+    const handlingPhotoInputs = new WeakSet();
     const BLACKBOARD_SCALE_LABELS = {
       56: "最小",
       64: "小",
@@ -467,6 +470,7 @@
     const photoPreview = buildPhotoPreview();
     const uploadIndicator = buildUploadIndicator();
     const blackboardWarning = buildBlackboardWarningDialog();
+    const portraitPhotoDialog = buildPortraitPhotoDialog();
     const PHOTO_UPLOAD_STEPS = [
       { key: "prepare", label: "画像確認" },
       { key: "blackboard", label: "黒板処理" },
@@ -775,9 +779,11 @@
               { steps: progressSteps, activeStep: "blackboard" }
             );
           }
-          const body = hasFiles ? await compressedFormData(form) : new FormData(form);
+          const preparedPortrait = hasFiles ? preparedPortraitUploadFor(form, files[0]) : null;
+          const body = hasFiles ? (preparedPortrait ? preparedPortrait.formData : await compressedFormData(form)) : new FormData(form);
           if (hasFiles) {
-            pendingUploadId = await savePendingPhotoUpload(form, body);
+            pendingUploadId = preparedPortrait ? preparedPortrait.pendingUploadId : await savePendingPhotoUpload(form, body);
+            await removeSupersededPortraitBackup(form, pendingUploadId);
           }
           if (hasFiles && selectedLabel) selectedLabel.textContent = "kintoneへ送信中...";
           uploadIndicator.show(
@@ -796,8 +802,10 @@
           if (!response.ok) throw new Error("upload failed");
           if (pendingUploadId) {
             await deletePendingPhotoUpload(pendingUploadId);
+            clearPortraitBackupId(form, pendingUploadId);
             refreshPendingUploadBanner();
           }
+          await removePortraitBackupAfterSuccessfulUpload(form, pendingUploadId);
           
           if (hasFiles && selectedInput && selectedInput.hasAttribute("capture") && !isIOSDevice()) {
             try {
@@ -1324,7 +1332,7 @@
       });
     }
 
-    async function compressedFormData(form) {
+    async function compressedFormData(form, options) {
       const formData = new FormData(form);
       const input = activeFileInput(form);
       if (!input || !input.name || !input.files || input.files.length === 0) return formData;
@@ -1334,8 +1342,9 @@
 
       let uploadFile;
       try {
-        uploadFile = await compressedImageFile(file, metrics);
+        uploadFile = await compressedImageFile(file, metrics, options);
       } catch (error) {
+        if (options && options.landscapePortrait) throw error;
         metrics.compression_failed = true;
         metrics.compression_error = error && error.message ? error.message : String(error);
         uploadFile = renamedOriginalFile(file);
@@ -1358,7 +1367,7 @@
       };
     }
 
-    async function compressedImageFile(file, metrics) {
+    async function compressedImageFile(file, metrics, options) {
       if (!file || !file.type || !file.type.startsWith("image/")) return file;
 
       const totalStart = performance.now();
@@ -1367,15 +1376,28 @@
       metrics.load_image_ms = roundedMilliseconds(performance.now() - loadStart);
       metrics.source_width = image.width;
       metrics.source_height = image.height;
-      const size = fittedImageSize(image.width, image.height, PHOTO_MAX_SIZE);
+      const landscapePortrait = !!(options && options.landscapePortrait && image.height > image.width);
+      const size = landscapePortrait ? portraitLandscapeSize(image.width, image.height, PHOTO_MAX_SIZE) : fittedImageSize(image.width, image.height, PHOTO_MAX_SIZE);
       metrics.output_width = size.width;
       metrics.output_height = size.height;
+      metrics.portrait_landscape_conversion = landscapePortrait;
       const canvas = document.createElement("canvas");
       canvas.width = size.width;
       canvas.height = size.height;
       const context = canvas.getContext("2d");
       const drawStart = performance.now();
-      context.drawImage(image, 0, 0, size.width, size.height);
+      if (landscapePortrait) {
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        const ratio = Math.min(canvas.width / image.width, canvas.height / image.height);
+        const drawWidth = Math.round(image.width * ratio);
+        const drawHeight = Math.round(image.height * ratio);
+        const drawX = Math.round((canvas.width - drawWidth) / 2);
+        const drawY = Math.round((canvas.height - drawHeight) / 2);
+        context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+      } else {
+        context.drawImage(image, 0, 0, size.width, size.height);
+      }
       if (image.close) image.close();
       drawBlackboardIfNeeded(context, canvas);
       metrics.draw_canvas_ms = roundedMilliseconds(performance.now() - drawStart);
@@ -2627,6 +2649,14 @@
       };
     }
 
+    function portraitLandscapeSize(width, height, maxSize) {
+      const canvasHeight = Math.min(height, Math.round(maxSize * 3 / 4));
+      return {
+        width: Math.round(canvasHeight * 4 / 3),
+        height: canvasHeight
+      };
+    }
+
     function canvasToBlob(canvas, type, quality) {
       return new Promise(function (resolve) {
         canvas.toBlob(resolve, type, quality);
@@ -2660,7 +2690,7 @@
       return meta ? meta.content : "";
     }
 
-    function handleFileInput(input) {
+    async function handleFileInput(input) {
       syncFileChoice(input);
       if (!input.files || input.files.length === 0) return;
       if (!guardBlackboardBeforePhoto()) {
@@ -2675,8 +2705,95 @@
 
       const form = input.form;
       if (!form || form.dataset.uploading === "true") return;
+      if (handlingPhotoInputs.has(input)) return;
 
-      submitRememberingScroll(form);
+      handlingPhotoInputs.add(input);
+      try {
+        const file = input.files[0];
+        if (await isPortraitPhoto(file)) {
+          const prepared = await preparePortraitUpload(form, file);
+          uploadIndicator.hide();
+          const choice = await portraitPhotoDialog.open({
+            canRetake: !!prepared.pendingUploadId,
+            onRetake: function () {
+              preparedPortraitUploads.delete(form);
+              input.click();
+            }
+          });
+          if (choice === "retake") return;
+        }
+
+        submitRememberingScroll(form);
+      } catch (error) {
+        uploadIndicator.hide();
+        alert("縦向き写真の保護処理に失敗しました。写真は送信せず、そのまま残しています。もう一度お試しください。");
+      } finally {
+        handlingPhotoInputs.delete(input);
+      }
+    }
+
+    async function isPortraitPhoto(file) {
+      if (!file || !file.type || !file.type.startsWith("image/")) return false;
+
+      const image = await loadImage(file);
+      const portrait = image.height > image.width;
+      if (image.close) image.close();
+      return portrait;
+    }
+
+    async function preparePortraitUpload(form, file) {
+      uploadIndicator.show(
+        "縦向き写真を保護中...",
+        "横長の成果写真へ変換し、端末内にも退避しています",
+        { steps: PHOTO_UPLOAD_STEPS, activeStep: "prepare" }
+      );
+      const formData = await compressedFormData(form, { landscapePortrait: true });
+      const pendingUploadId = await savePendingPhotoUpload(form, formData);
+      if (pendingUploadId) {
+        await replacePortraitBackup(form, pendingUploadId);
+      }
+      const prepared = { file: file, formData: formData, pendingUploadId: pendingUploadId };
+      preparedPortraitUploads.set(form, prepared);
+      return prepared;
+    }
+
+    function preparedPortraitUploadFor(form, file) {
+      const prepared = preparedPortraitUploads.get(form);
+      return prepared && prepared.file === file ? prepared : null;
+    }
+
+    async function replacePortraitBackup(form, pendingUploadId) {
+      const previousId = portraitRetakeBackupIds.get(form);
+      portraitRetakeBackupIds.set(form, pendingUploadId);
+      if (!previousId || previousId === pendingUploadId) return;
+
+      await deletePendingPhotoUpload(previousId);
+      refreshPendingUploadBanner();
+    }
+
+    async function removeSupersededPortraitBackup(form, currentPendingUploadId) {
+      const backupId = portraitRetakeBackupIds.get(form);
+      if (!currentPendingUploadId || !backupId || backupId === currentPendingUploadId) return;
+
+      await deletePendingPhotoUpload(backupId);
+      portraitRetakeBackupIds.delete(form);
+      refreshPendingUploadBanner();
+    }
+    async function removePortraitBackupAfterSuccessfulUpload(form, currentPendingUploadId) {
+      const backupId = portraitRetakeBackupIds.get(form);
+      if (!backupId || backupId === currentPendingUploadId) return;
+
+      await deletePendingPhotoUpload(backupId);
+      portraitRetakeBackupIds.delete(form);
+      refreshPendingUploadBanner();
+    }
+
+
+    function clearPortraitBackupId(form, pendingUploadId) {
+      if (portraitRetakeBackupIds.get(form) === pendingUploadId) {
+        portraitRetakeBackupIds.delete(form);
+      }
+      preparedPortraitUploads.delete(form);
     }
 
     function retryPendingFileInput() {
@@ -2827,6 +2944,64 @@
         }
       };
     }
+
+    function buildPortraitPhotoDialog() {
+      const overlay = document.createElement("div");
+      overlay.className = "portrait-photo-overlay hidden";
+      overlay.innerHTML = [
+        '<div class="portrait-photo-dialog" role="alertdialog" aria-modal="true" aria-labelledby="portrait-photo-title" aria-describedby="portrait-photo-message">',
+        '  <div class="portrait-photo-badge" aria-hidden="true">!</div>',
+        '  <h2 id="portrait-photo-title" class="portrait-photo-title">縦向きで撮影されています</h2>',
+        '  <p id="portrait-photo-message" class="portrait-photo-message"></p>',
+        '  <div class="portrait-photo-actions">',
+        '    <button type="button" class="portrait-photo-retake">横向きで再撮影する</button>',
+        '    <button type="button" class="portrait-photo-use">この写真を横長に変換して保存</button>',
+        '  </div>',
+        '</div>'
+      ].join("");
+      document.body.appendChild(overlay);
+
+      const message = overlay.querySelector(".portrait-photo-message");
+      const retakeButton = overlay.querySelector(".portrait-photo-retake");
+      const useButton = overlay.querySelector(".portrait-photo-use");
+      let resolveChoice = null;
+      let retakeCallback = null;
+
+      function choose(choice) {
+        overlay.classList.add("hidden");
+        const resolve = resolveChoice;
+        const onRetake = retakeCallback;
+        resolveChoice = null;
+        retakeCallback = null;
+        if (choice === "retake" && onRetake) onRetake();
+        if (resolve) resolve(choice);
+      }
+
+      retakeButton.addEventListener("click", function () {
+        choose("retake");
+      });
+      useButton.addEventListener("click", function () {
+        choose("use");
+      });
+
+      return {
+        open: function (options) {
+          const canRetake = !!(options && options.canRetake);
+          retakeCallback = options && options.onRetake;
+          retakeButton.classList.toggle("hidden", !canRetake);
+          message.textContent = canRetake ?
+            "可能であれば、端末を横向きにして再撮影してください。\nこの写真は横長へ変換し、端末内の未送信写真にも退避しました。" :
+            "端末内へ自動退避できなかったため、この写真を横長に変換して保存してください。";
+          overlay.classList.remove("hidden");
+          (canRetake ? retakeButton : useButton).focus();
+
+          return new Promise(function (resolve) {
+            resolveChoice = resolve;
+          });
+        }
+      };
+    }
+
 
     function buildDeleteConfirm() {
       const overlay = document.createElement("div");
