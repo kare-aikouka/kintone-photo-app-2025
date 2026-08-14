@@ -22,8 +22,15 @@ jobs:
           ruby-version: 3.3.6
 
       - name: Generate Gemfile.lock
+        run: bundle install
+
+      - name: Verify Gemfile.lock
+        if: github.event_name == 'pull_request'
+        run: git diff --exit-code -- Gemfile.lock
+
+      - name: Commit Gemfile.lock
+        if: github.event_name == 'push'
         run: |
-          bundle install
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add Gemfile.lock
