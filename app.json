@@ -1,6 +1,7 @@
 {
   "name": "kintone-photo-app-2025",
   "description": "Kintone-based photo management app for piling construction workflows.",
+  "stack": "heroku-24",
   "buildpacks": [
     {
       "url": "heroku/nodejs"
