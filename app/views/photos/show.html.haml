@@ -90,14 +90,16 @@
             = text_field_tag :photo_blackboard_piles, blackboard_piles, class: "photo-blackboard-input js-blackboard-field js-blackboard-piles-input", placeholder: "例）6m×50本 / 13m(6+7)-32set", readonly: true, inputmode: "none", autocomplete: "off", data: { blackboard_key: "piles" }
             .photo-blackboard-keypad.js-blackboard-piles-keypad.hidden
               .photo-blackboard-keypad-grid
-                - ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "m", ".", "×", ",", "-"].each do |key|
+                - ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ".", "m", "×", ",", "-"].each do |key|
                   %button.photo-blackboard-keypad-key{ type: "button", data: { blackboard_keypad_value: key } }= key
                 %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-frequent{ type: "button", data: { blackboard_keypad_value: "本" } } 本
                 %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-frequent{ type: "button", data: { blackboard_keypad_value: "s" } } s
-                %button.photo-blackboard-keypad-key{ type: "button", data: { blackboard_keypad_value: "計" } } 計
-                - ["(", ")", "+"].each do |key|
+                %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-total{ type: "button", data: { blackboard_keypad_value: "計" } } 計
+                - ["(", "+", ")"].each do |key|
                   %button.photo-blackboard-keypad-key{ type: "button", data: { blackboard_keypad_value: key } }= key
-                %button.photo-blackboard-keypad-key{ type: "button", data: { blackboard_keypad_value: " " } } スペース
+                %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-space{ type: "button", data: { blackboard_keypad_value: " " } }
+                  %span スペ
+                  %span ース
                 %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-wide.photo-blackboard-keypad-key-delete{ type: "button", data: { blackboard_keypad_action: "delete" } }
                   %span ←
                   %span 1文字
