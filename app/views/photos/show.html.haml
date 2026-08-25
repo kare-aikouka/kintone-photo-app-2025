@@ -97,9 +97,7 @@
                 %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-total{ type: "button", data: { blackboard_keypad_value: "計" } } 計
                 - ["(", "+", ")"].each do |key|
                   %button.photo-blackboard-keypad-key{ type: "button", data: { blackboard_keypad_value: key } }= key
-                %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-space{ type: "button", data: { blackboard_keypad_value: " " } }
-                  %span スペ
-                  %span ース
+                %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-space{ type: "button", aria: { label: "半角スペース" }, title: "半角スペース", data: { blackboard_keypad_value: " " } } ␣
                 %button.photo-blackboard-keypad-key.photo-blackboard-keypad-key-wide.photo-blackboard-keypad-key-delete{ type: "button", data: { blackboard_keypad_action: "delete" } }
                   %span ←
                   %span 1文字
