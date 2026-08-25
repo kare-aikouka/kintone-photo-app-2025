@@ -114,19 +114,21 @@
       .photo-blackboard-preview
         .photo-blackboard-preview-title 焼き付けプレビュー
         %canvas.js-blackboard-preview-canvas{ width: 800, height: 600 }
-        .photo-blackboard-adjustments
-          .photo-blackboard-adjustment
-            %label サイズ
-            %span.photo-blackboard-scale-label.js-blackboard-scale-label 最小（1）
-            = range_field_tag :photo_blackboard_scale, 56, min: 56, max: 120, step: 1, list: "blackboard-scale-steps", class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
-            %datalist#blackboard-scale-steps
-              %option{ value: 56, label: "最小" }
-              %option{ value: 64, label: "小" }
-              %option{ value: 72, label: "標準" }
-              %option{ value: 84, label: "やや大" }
-              %option{ value: 96, label: "大" }
-              %option{ value: 108, label: "特大" }
-              %option{ value: 120, label: "最大" }
+        %details.photo-blackboard-scale-details
+          %summary.photo-blackboard-position-summary 看板サイズ調整
+          .photo-blackboard-adjustments
+            .photo-blackboard-adjustment
+              %label サイズ
+              %span.photo-blackboard-scale-label.js-blackboard-scale-label 最小（1）
+              = range_field_tag :photo_blackboard_scale, 56, min: 56, max: 120, step: 1, list: "blackboard-scale-steps", class: "js-blackboard-adjust", data: { blackboard_key: "scale" }
+              %datalist#blackboard-scale-steps
+                %option{ value: 56, label: "最小" }
+                %option{ value: 64, label: "小" }
+                %option{ value: 72, label: "標準" }
+                %option{ value: 84, label: "やや大" }
+                %option{ value: 96, label: "大" }
+                %option{ value: 108, label: "特大" }
+                %option{ value: 120, label: "最大" }
         %details.photo-blackboard-position-details
           %summary.photo-blackboard-position-summary 位置微調整（必要な時だけ開く）
           .photo-blackboard-position-adjustments
@@ -2591,12 +2593,6 @@
 
       const context = canvas.getContext("2d");
       context.clearRect(0, 0, canvas.width, canvas.height);
-      const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
-      gradient.addColorStop(0, "#dbe3ee");
-      gradient.addColorStop(0.52, "#f8fafc");
-      gradient.addColorStop(1, "#cbd5e1");
-      context.fillStyle = gradient;
-      context.fillRect(0, 0, canvas.width, canvas.height);
 
       const config = currentBlackboardConfig();
       if (config.enabled) drawBlackboard(context, canvas, config);

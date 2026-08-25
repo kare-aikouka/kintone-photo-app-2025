@@ -1155,7 +1155,12 @@ html.app-navigation-loading::after {
 }
 
 .photo-blackboard-preview canvas {
-  background: linear-gradient(135deg, #e5e7eb 0%, #f8fafc 52%, #d8dee8 100%);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)),
+    url("/blackboard-preview-background.jpg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
   border: 1px solid #d8dce2;
   border-radius: 10px;
   display: block;
@@ -1169,6 +1174,10 @@ html.app-navigation-loading::after {
   gap: 8px;
   margin-top: 10px;
   max-width: 260px;
+}
+
+.photo-blackboard-scale-details {
+  margin-top: 10px;
 }
 
 .photo-blackboard-position-details {
