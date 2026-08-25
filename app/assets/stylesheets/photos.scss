@@ -1106,6 +1106,10 @@ html.app-navigation-loading::after {
   transform: translateY(1px);
 }
 
+.photo-blackboard-keypad-key-frequent {
+  grid-column: span 2;
+}
+
 .photo-blackboard-keypad-key-wide {
   background: #3e5faa;
   border-color: #3e5faa;
@@ -1115,10 +1119,26 @@ html.app-navigation-loading::after {
 }
 
 .photo-blackboard-keypad-key-native {
+  background: #111827;
+  border-color: #111827;
   flex-direction: column;
   gap: 2px;
   line-height: 1.05;
   white-space: normal;
+}
+
+.photo-blackboard-keypad-key-delete {
+  flex-direction: column;
+  line-height: 1.05;
+  white-space: normal;
+}
+
+.photo-blackboard-keypad-key-close {
+  grid-column: span 2;
+}
+
+.photo-blackboard-keypad-key-clear {
+  grid-column: span 2;
 }
 
 .photo-blackboard-preview {
