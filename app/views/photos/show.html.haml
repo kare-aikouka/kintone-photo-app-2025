@@ -25,7 +25,7 @@
         - if record_address(@record).present?
           .photo-record-address= "【#{record_address(@record)}】"
         .photo-record-actions
-          = link_to "地図", "javascript:undefined", class: "btn btn-soft disabled"
+          = link_to "地図", map_photo_path(record_id(@record), detail_return_params), class: "btn btn-soft"
           = link_to "図面", "javascript:undefined", class: "btn btn-soft disabled"
           = link_to "写真", photo_path(record_id(@record), detail_return_params), class: "btn btn-primary-action"
           = link_to "資料UP", documents_photo_path(record_id(@record), detail_return_params), class: "btn btn-document-action"
@@ -2568,8 +2568,8 @@
       let sanitized = String(value || "").replace(/[，]/g, ",").replace(/[★☆]/g, "").trim();
       sanitized = sanitized.replace(/\s+/g, " ");
       sanitized = sanitized.split(/[→⇒]/)[0] || "";
-      sanitized = sanitized.replace(/[、,]\s*(?:JIS\b|H-?CPT|カーボン|キュア|.*材|.*追加|.*破損|.*折れ).*$/i, "");
-      sanitized = sanitized.replace(/\s+(?:JIS\b|H-?CPT|カーボン|キュア|.*材).*$/i, "").trim();
+      sanitized = sanitized.replace(/[、,]\s*(?:JIS\b|H-?CPT|カーボン|キュア|[^、,\s]*材|[^、,\s]*追加|[^、,\s]*破損|[^、,\s]*折れ).*$/i, "");
+      sanitized = sanitized.replace(/\s+(?:JIS\b|H-?CPT|カーボン|キュア|[^、,\s]*材).*$/i, "").trim();
       if (/推定|概算|未定|確認中|調整中|仮/.test(sanitized)) return "";
       return /[mMｍＭ]/.test(sanitized) ? sanitized : "";
     }

@@ -50,7 +50,10 @@
             - if record_address(record).present?
               .photo-record-address= "【#{record_address(record)}】"
             .photo-record-actions
-              = link_to "地図", "javascript:undefined", class: "btn btn-soft disabled"
+              - if record_id(record).present?
+                = link_to "地図", map_photo_path(record_id(record), photo_link_params.merge(from: "index")), class: "btn btn-soft"
+              - else
+                = link_to "地図", "javascript:undefined", class: "btn btn-soft disabled"
               = link_to "図面", "javascript:undefined", class: "btn btn-soft disabled"
               - if record_id(record).present?
                 = link_to "写真", photo_path(record_id(record), photo_link_params), class: "btn btn-primary-action"

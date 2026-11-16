@@ -1,0 +1,30 @@
+= stylesheet_link_tag "/vendor/leaflet/leaflet.css"
+= javascript_include_tag "/vendor/leaflet/leaflet.js", defer: true
+= javascript_include_tag "photo_map", defer: true
+
+.photo-page.photo-site-map-page
+  .photo-header
+    .photo-title
+      = link_to "← 戻る", @back_url.presence || photos_path
+      %span.machine-title 現場の位置
+  - if @photo_error
+    .alert.alert-danger.photo-alert 現場情報を取得できませんでした。戻って再度お試しください。
+  - if @record.present?
+    %h1.photo-site-map-title= record_title(@record)
+    %p.photo-site-map-address= record_address(@record)
+    .js-site-map{ data: { search_url: map_location_photo_path(params[:id]), save_url: map_location_photo_path(params[:id]), lat: @map_coordinates&.dig(:lat), lng: @map_coordinates&.dig(:lng), address: record_address(@record) } }
+      %p.photo-site-map-notice 地図を動かし、中央のピンを現場の入口に合わせてください。
+      %form.photo-site-map-search.js-site-map-search
+        %label.sr-only{ for: "site-map-address" } 検索する住所
+        %input#site-map-address{ type: "search", value: record_address(@record), maxlength: 200, required: true, autocomplete: "off" }
+        %button.btn.btn-soft{ type: "submit" } 再検索
+      %p.photo-site-map-status.js-site-map-status{ role: "status", "aria-live" => "polite" } 地図を読み込み中…
+      .photo-site-map-frame
+        .photo-site-map-canvas.js-site-map-canvas{ "aria-label" => "現場の位置を選ぶ地図" }
+        %img.photo-site-map-pin{ src: "/vendor/leaflet/images/marker-icon.png", alt: "選択位置", width: 25, height: 41 }
+      .photo-site-map-actions
+        %button.btn.js-site-map-save{ type: "button", disabled: true } この位置を保存
+        %button.btn.btn-primary-action.js-site-map-navigate{ type: "button", disabled: true } この場所へナビ
+      %p.photo-site-map-save-status.js-site-map-save-status{ role: "status", "aria-live" => "polite" }
+    %noscript
+      .alert.alert-danger 地図の表示にはJavaScriptを有効にしてください。

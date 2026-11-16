@@ -6,6 +6,9 @@ Rails.application.routes.draw do
     end
 
     member do
+      get 'map', action: :map
+      get 'map_location', action: :map_location
+      patch 'map_location', action: :save_map_location
       get 'documents', action: :documents
       post 'documents', action: :upload_document
       delete 'documents', action: :delete_document

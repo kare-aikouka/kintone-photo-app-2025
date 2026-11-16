@@ -135,8 +135,13 @@ class PhotosController < ApplicationController
 
   DOCUMENT_CATEGORIES = {
     receipt: {
-      label: "レシート",
-      field_codes: %w[現場直送レシート レシート 資料レシート レシートPDF レシート資料]
+      label: "試験杭レシート",
+      field_codes: %w[現場直送レシート レシート 資料レシート レシートPDF レシート資料],
+      excluded_field_codes: %w[本杭レシート]
+    },
+    main_pile_receipt: {
+      label: "本杭レシート",
+      field_codes: %w[本杭レシート]
     },
     delivery_note: {
       label: "納品書",
@@ -202,6 +207,53 @@ class PhotosController < ApplicationController
     @photo_error = e
     @record = nil
     @detail_sections = []
+  end
+
+  def map
+    @record = photo_record(params[:id])
+    @machine_name = params[:machine].presence || field_value(@record, :machine)
+    @back_url = params[:from] == "index" ? photos_path(photo_index_return_params(@machine_name)) : photo_detail_return_path(params[:id])
+    @map_coordinates = SiteMapGeocoder.coordinates(
+      field_raw_value(@record, "B地点緯度"), field_raw_value(@record, "B地点経度")
+    )
+  rescue StandardError => e
+    Rails.logger.error("Photo map fetch failed: #{e.class}")
+    @record = nil
+    @photo_error = true
+  end
+
+  def map_location
+    location = SiteMapGeocoder.new.search(params[:address])
+    if location
+      render json: location
+    else
+      render json: { message: "住所から位置が見つかりません。町名・丁目までの住所で再検索するか、地図で現場を選んでください。" }, status: :not_found
+    end
+  rescue Faraday::Error, JSON::ParserError
+    render json: { message: "住所を検索できませんでした。通信状況を確認して再検索してください。" }, status: :service_unavailable
+  end
+
+  def save_map_location
+    point = SiteMapGeocoder.coordinates(params[:lat], params[:lng])
+    unless point
+      render json: { message: "有効な緯度・経度を選択してください。" }, status: :unprocessable_entity
+      return
+    end
+
+    record = photo_record(params[:id])
+    unless %w[B地点緯度 B地点経度].all? { |code| record&.key?(code) }
+      render json: { message: "B地点緯度・B地点経度のフィールドを確認できません。管理者へご連絡ください。" }, status: :unprocessable_entity
+      return
+    end
+
+    photos_record_client.update(params[:id], {
+      "B地点緯度" => { value: format("%.7f", point[:lat]) },
+      "B地点経度" => { value: format("%.7f", point[:lng]) }
+    })
+    render json: point.merge(status: "success", message: "現場の位置をkintoneのB地点に保存しました。")
+  rescue StandardError => e
+    Rails.logger.error("Photo map position save failed: #{e.class}")
+    render json: { message: "保存結果を確認できませんでした。通信状況や編集権限を確認し、画面を開き直してB地点を確認してください。" }, status: :unprocessable_entity
   end
 
   def documents
@@ -533,6 +585,7 @@ class PhotosController < ApplicationController
     normalized_candidates = candidates.map { |value| normalize_document_field_name(value) }
     label_match = photos_form_properties.find do |field_code, property|
       next false unless property["type"] == "FILE"
+      next false if Array(category[:excluded_field_codes]).include?(field_code)
 
       document_field_name_match?(field_code, normalized_candidates) ||
         document_field_name_match?(property["label"], normalized_candidates)
@@ -780,7 +833,16 @@ class PhotosController < ApplicationController
   helper_method :blackboard_date_text
 
   def blackboard_piles_text(record)
-    sanitize_blackboard_piles(field_value(record, :detail))
+    detail = field_value(record, :detail)
+    return sanitize_blackboard_piles(detail) if detail.present?
+    return "" if field_raw_value(record, "杭長2").present?
+
+    length = BigDecimal(field_raw_value(record, "杭長1").to_s.strip, exception: false)
+    quantity = BigDecimal(field_raw_value(record, "数量1").to_s.strip, exception: false)
+    return "" unless length&.finite? && length.positive?
+    return "" unless quantity&.finite? && quantity.positive? && quantity.frac.zero?
+
+    "#{length.to_s('F').delete_suffix('.0')}m×#{quantity.to_i}本"
   end
   helper_method :blackboard_piles_text
 
@@ -800,8 +862,8 @@ class PhotosController < ApplicationController
   def sanitize_blackboard_piles(value)
     text = value.to_s.tr("，", ",").tr("★☆", "").squish
     text = text.split(/[→⇒]/).first.to_s
-    text = text.sub(/[、,]\s*(?:JIS\b|H-?CPT|カーボン|キュア|.*材|.*追加|.*破損|.*折れ).*\z/i, "")
-    text = text.sub(/\s+(?:JIS\b|H-?CPT|カーボン|キュア|.*材).*\z/i, "")
+    text = text.sub(/[、,]\s*(?:JIS\b|H-?CPT|カーボン|キュア|[^、,\s]*材|[^、,\s]*追加|[^、,\s]*破損|[^、,\s]*折れ).*\z/i, "")
+    text = text.sub(/\s+(?:JIS\b|H-?CPT|カーボン|キュア|[^、,\s]*材).*\z/i, "")
     text.strip!
     return "" if text.match?(BLACKBOARD_PILES_PROVISIONAL_PATTERN)
 
