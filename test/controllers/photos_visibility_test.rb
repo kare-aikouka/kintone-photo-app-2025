@@ -1,6 +1,7 @@
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../../config/environment"
 require "minitest/autorun"
+require "minitest/mock"
 
 class PhotosVisibilityTest < Minitest::Test
   class Controller < PhotosController
@@ -169,7 +170,9 @@ class PhotosVisibilityTest < Minitest::Test
     fresh = record("1", Date.current - 1)
     @controller.define_singleton_method(:available_field_codes) { |_client| ["写真アプリ非表示"] }
     @controller.define_singleton_method(:fetch_all_photo_records) { |*_args, **_options| [fresh] }
-    PhotosController.instance_method(:refresh_photo_summary_statuses!).bind(@controller).call([cached])
+    KintoneSync::Record.stub(:new, Object.new) do
+      PhotosController.instance_method(:refresh_photo_summary_statuses!).bind(@controller).call([cached])
+    end
     refute @controller.send(:photo_app_hidden?, cached)
     assert_equal "未完了", cached["写真完了フラグ"]["value"]
   end
