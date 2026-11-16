@@ -863,7 +863,8 @@ class PhotosController < ApplicationController
 
   def blackboard_piles_text(record)
     detail = field_value(record, :detail)
-    return sanitize_blackboard_piles(detail) if detail.present?
+    material_note_only = detail.to_s.tr("★☆", "").squish.match?(/\A(?:カーボンキュア材|JIS|H-CP工法)[。．.]*\z/i)
+    return sanitize_blackboard_piles(detail) if detail.present? && !material_note_only
     return "" if field_raw_value(record, "杭長2").present?
 
     length = BigDecimal(field_raw_value(record, "杭長1").to_s.strip, exception: false)
