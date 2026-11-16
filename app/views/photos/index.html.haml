@@ -26,7 +26,7 @@
     - @date_tabs.each do |date|
       - count = @records_by_date.fetch(date, []).count
       - incomplete_count = @records_by_date.fetch(date, []).count { |record| incomplete?(record) }
-      - active = !%w[all completed].include?(@selected_filter) && date == @selected_date
+      - active = !%w[all completed hidden].include?(@selected_filter) && date == @selected_date
       = link_to photos_path(index_return_params.merge(date: date)), class: "photo-date-tab #{'active' if active}" do
         %span= "#{date.month}/#{date.day} #{weekdays[date.wday]}"
         .photo-tab-badges
@@ -43,6 +43,10 @@
       %span 完了分
       .photo-tab-badges
         %strong= @completed_records.count
+    = link_to photos_path(index_return_params.merge(date: "hidden")), class: "photo-date-tab #{'active' if @selected_filter == 'hidden'}" do
+      %span 非表示
+      .photo-tab-badges
+        %strong= @hidden_records.count
 
   - if @selected_records.present?
     .photo-records
@@ -68,11 +72,11 @@
             %span.photo-status-line
               写真：
               %strong{ class: ("is-done" if photo_status(record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(record)
-            - if record_id(record).present? && photo_status_switch_available?(record)
-              %button.photo-status-switch.js-photo-status-switch{ type: "button", data: { update_url: photo_status_photo_path(record_id(record), photo_link_params), current_status: photo_status(record) } }= incomplete?(record) ? "完了に切り替える" : "未完了に戻す"
+            - if record_id(record).present? && photo_visibility_change_available?(record)
+              %button.photo-status-switch.js-photo-status-switch{ type: "button", data: { update_url: visibility_photo_path(record_id(record), photo_link_params), visibility_action: photo_app_hidden?(record) ? "show" : "hide" } }= photo_app_hidden?(record) ? "一覧に戻す" : "フラグ変更"
   - else
     .alert.alert-info.photo-alert
-      = "#{display_machine_name(@machine_name)} に紐づく物件レコードが見つかりませんでした。"
+      = @selected_filter == "hidden" ? "非表示にした物件はありません。" : "#{display_machine_name(@machine_name)} に紐づく物件レコードが見つかりませんでした。"
 
   - if show_debug_panels? && @field_keys.present?
     %details.photo-debug
@@ -90,8 +94,9 @@
 
 %dialog.photo-status-dialog.js-photo-status-dialog{ "aria-labelledby" => "photo-status-dialog-title" }
   %header
-    %h2#photo-status-dialog-title 写真フラグを未完了から完了に切り替えますか？
+    %h2#photo-status-dialog-title この物件をアプリの一覧から非表示にしますか？
     %button.photo-status-dialog-close.js-photo-status-dialog-close{ type: "button", title: "閉じる", "aria-label" => "閉じる" } ×
+  %p 写真完了フラグは変更されません。
   = form_with url: photos_path, method: :patch, authenticity_token: form_authenticity_token, local: true, html: { class: "js-photo-status-form", data: { turbo: false } } do
-    %button{ type: "submit", name: "photo_status", value: PhotosController::PICTURE_FLAG_DONE } 完了にする
-    %button{ type: "submit", name: "photo_status", value: PhotosController::PICTURE_FLAG_INCOMPLETE } 未完了に戻す
+    %button{ type: "submit", name: "visibility", value: "hide" } 一覧から非表示にする
+    %button.photo-status-dialog-back{ type: "button" } 戻る

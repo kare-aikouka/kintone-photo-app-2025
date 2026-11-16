@@ -5,18 +5,26 @@
     dialog.dataset.initialized = 'true';
     const form = dialog.querySelector('.js-photo-status-form');
     const title = dialog.querySelector('h2');
+    const submit = form.querySelector('button[type="submit"]');
+    const back = form.querySelector('.photo-status-dialog-back');
     let submitting = false;
 
     document.querySelectorAll('.js-photo-status-switch').forEach(function (button) {
       button.addEventListener('click', function () {
         if (submitting) return;
         form.action = button.dataset.updateUrl;
-        title.textContent = button.dataset.currentStatus === '完了' ? '写真フラグを完了から未完了に切り替えますか？' : '写真フラグを未完了から完了に切り替えますか？';
+        const restoring = button.dataset.visibilityAction === 'show';
+        title.textContent = restoring ? 'この物件を通常の一覧に戻しますか？' : 'この物件をアプリの一覧から非表示にしますか？';
+        submit.value = restoring ? 'show' : 'hide';
+        submit.textContent = restoring ? '一覧に戻す' : '一覧から非表示にする';
         dialog.showModal();
       });
     });
 
     dialog.querySelector('.js-photo-status-dialog-close').addEventListener('click', function () {
+      if (!submitting) dialog.close();
+    });
+    back.addEventListener('click', function () {
       if (!submitting) dialog.close();
     });
     dialog.addEventListener('cancel', function (event) {
@@ -30,12 +38,14 @@
       submitting = true;
       form.setAttribute('aria-busy', 'true');
       dialog.querySelector('.js-photo-status-dialog-close').disabled = true;
+      back.disabled = true;
     });
 
     window.addEventListener('pageshow', function () {
       submitting = false;
       form.removeAttribute('aria-busy');
       dialog.querySelector('.js-photo-status-dialog-close').disabled = false;
+      back.disabled = false;
     });
     document.addEventListener('turbo:before-cache', function () {
       dialog.close();

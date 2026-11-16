@@ -8,10 +8,12 @@ class PhotosController < ApplicationController
   COOPERATION_MACHINE_NAME = "住パイ"
   COOPERATION_MACHINE_DISPLAY_NAME = "協力会社様施工物件"
   COMPLETION_EXCLUDED_TABLES = %w[その他 テーブルその他].freeze
-  SUMMARY_CACHE_VERSION = "v5"
+  SUMMARY_CACHE_VERSION = "v6"
   SUMMARY_CACHE_TTL = 10.minutes
   SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
   DOCUMENT_CONTACT_NOTE_FIELD_CODE = "施工後連絡事項"
+  PHOTO_VISIBILITY_FIELD_CODE = "写真アプリ非表示"
+  PHOTO_HIDDEN_OPTION = "非表示"
   BLACKBOARD_PILES_PROVISIONAL_PATTERN = /推定|概算|未定|確認中|調整中|仮/.freeze
   NUMBER_MEMO_TABLE_PATTERNS = [
     /杭長/,
@@ -162,7 +164,8 @@ class PhotosController < ApplicationController
     @machine_search_values = machine_search_values(@machine_name, params[:machine_model])
     @records = @machine_name.present? ? photo_records_for(@machine_search_values) : []
     refresh_photo_summary_statuses!(@records)
-    @default_records = default_records(@records)
+    @hidden_records = default_records(@records.select { |record| photo_app_hidden?(record) })
+    @default_records = default_records(@records.reject { |record| photo_app_hidden?(record) })
     @incomplete_records = @default_records.select { |record| incomplete?(record) }
     @date_tabs = date_tabs
     @records_by_date = @default_records.group_by { |record| schedule_bucket_date(record) }
@@ -184,6 +187,7 @@ class PhotosController < ApplicationController
     @default_records = []
     @incomplete_records = []
     @completed_records = []
+    @hidden_records = []
     @future_records = []
     @future_records_enabled = false
     @future_incomplete_count = 0
@@ -256,22 +260,28 @@ class PhotosController < ApplicationController
     render json: { message: "保存結果を確認できませんでした。通信状況や編集権限を確認し、画面を開き直してB地点を確認してください。" }, status: :unprocessable_entity
   end
 
-  def update_photo_status
-    status = params[:photo_status].to_s
-    raise "写真フラグは完了または未完了を選択してください。" unless [PICTURE_FLAG_DONE, PICTURE_FLAG_INCOMPLETE].include?(status)
+  def update_visibility
+    visibility = params[:visibility].to_s
+    raise "非表示または一覧に戻す操作を選択してください。" unless %w[hide show].include?(visibility)
 
     record = photo_record(params[:id])
-    raise "写真フラグの手動変更は、工事予定日の翌日以降に行えます。" unless photo_status_switch_available?(record)
+    if visibility == "hide"
+      date = record_date(record)
+      raise "一覧からの非表示は、工事予定日の翌日以降に行えます。" unless date.present? && date < Date.current
+    end
+    unless record&.dig(PHOTO_VISIBILITY_FIELD_CODE, "type") == "CHECK_BOX"
+      raise "写真アプリ非表示のチェックボックスを確認できません。"
+    end
 
-    status_field = photo_status_field_code(record)
-    raise "写真完了フラグのフィールドを確認できません。" if status_field.blank?
-
-    photos_record_client.update(params[:id], status_field => { value: status })
+    values = Array(field_raw_value(record, PHOTO_VISIBILITY_FIELD_CODE))
+    values = visibility == "hide" ? (values + [PHOTO_HIDDEN_OPTION]).uniq : values - [PHOTO_HIDDEN_OPTION]
+    photos_record_client.update(params[:id], PHOTO_VISIBILITY_FIELD_CODE => { value: values })
     clear_photo_summary_cache(record)
-    redirect_to photos_path(photo_index_return_params(field_value(record, :machine))), notice: "写真フラグを#{status}に切り替えました。"
+    message = visibility == "hide" ? "物件を一覧から非表示にしました。写真完了フラグは変更していません。" : "物件を通常の一覧に戻しました。写真完了フラグは変更していません。"
+    redirect_to photos_path(photo_index_return_params(field_value(record, :machine))), notice: message
   rescue StandardError => e
-    Rails.logger.error("Manual photo status update failed: #{e.class}: #{e.message}")
-    redirect_to photos_path(photo_index_return_params), alert: "写真フラグを変更できませんでした。#{e.message}"
+    Rails.logger.error("Photo visibility update failed: #{e.class}: #{e.message}")
+    redirect_to photos_path(photo_index_return_params), alert: "一覧の表示状態を変更できませんでした。#{e.message}"
   end
 
   def documents
@@ -732,8 +742,7 @@ class PhotosController < ApplicationController
   def photo_summary_query(machine_values = nil, record_client = nil)
     machine_clause = machine_values.present? && record_client ? machine_query_clause(machine_values, record_client) : nil
     conditions = [
-      "施工予定日 > FROM_TODAY(-1, MONTHS)",
-      "施工予定日 < FROM_TODAY(6, MONTHS)",
+      "((施工予定日 > FROM_TODAY(-1, MONTHS) and 施工予定日 < FROM_TODAY(6, MONTHS)) or #{PHOTO_VISIBILITY_FIELD_CODE} in (\"#{PHOTO_HIDDEN_OPTION}\"))",
       machine_clause
     ].compact
 
@@ -801,6 +810,8 @@ class PhotosController < ApplicationController
       @future_records
     when "completed"
       @completed_records
+    when "hidden"
+      @hidden_records
     else
       @records_by_date.fetch(@selected_date, [])
     end
@@ -1006,11 +1017,18 @@ class PhotosController < ApplicationController
   end
   helper_method :photo_status
 
-  def photo_status_switch_available?(record)
+  def photo_app_hidden?(record)
+    Array(field_raw_value(record, PHOTO_VISIBILITY_FIELD_CODE)).include?(PHOTO_HIDDEN_OPTION)
+  end
+  helper_method :photo_app_hidden?
+
+  def photo_visibility_change_available?(record)
+    return true if photo_app_hidden?(record)
+
     date = record_date(record)
     date.present? && date < Date.current
   end
-  helper_method :photo_status_switch_available?
+  helper_method :photo_visibility_change_available?
 
   def incomplete?(record)
     photo_status(record) != PICTURE_FLAG_DONE
@@ -1202,7 +1220,7 @@ class PhotosController < ApplicationController
 
   def summary_field_codes(record_client)
     available_codes = available_field_codes(record_client)
-    (FIELD_ALIASES.values.flatten + SUMMARY_SYSTEM_FIELDS).uniq.select do |field_code|
+    (FIELD_ALIASES.values.flatten + SUMMARY_SYSTEM_FIELDS + [PHOTO_VISIBILITY_FIELD_CODE]).uniq.select do |field_code|
       field_code.start_with?("$") || available_codes.include?(field_code)
     end
   end
@@ -1216,7 +1234,7 @@ class PhotosController < ApplicationController
 
     record_client = KintoneSync::Record.new(photos_app_id, photos_guest_space_id)
     available_codes = available_field_codes(record_client)
-    status_field_codes = FIELD_ALIASES[:photo_status].select { |field_code| available_codes.include?(field_code) }
+    status_field_codes = (FIELD_ALIASES[:photo_status] + [PHOTO_VISIBILITY_FIELD_CODE]).select { |field_code| available_codes.include?(field_code) }
     return if status_field_codes.blank?
 
     fields = (SUMMARY_SYSTEM_FIELDS + status_field_codes).uniq

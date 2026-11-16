@@ -9,7 +9,7 @@ Rails.application.routes.draw do
       get 'map', action: :map
       get 'map_location', action: :map_location
       patch 'map_location', action: :save_map_location
-      patch 'photo_status', action: :update_photo_status
+      patch 'visibility', action: :update_visibility
       get 'documents', action: :documents
       post 'documents', action: :upload_document
       delete 'documents', action: :delete_document

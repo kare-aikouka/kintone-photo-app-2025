@@ -514,6 +514,10 @@ html.app-navigation-loading::after {
   .photo-record-information-address {
     color: #000;
   }
+
+  dd.photo-record-information-address {
+    color: #f00;
+  }
 }
 
 .photo-record-actions {
@@ -638,7 +642,8 @@ html.app-navigation-loading::after {
     margin-top: 20px;
   }
 
-  button[type="submit"] {
+  button[type="submit"],
+  .photo-status-dialog-back {
     background: #3e5faa;
     border: 1px solid #3e5faa;
     border-radius: 6px;
@@ -651,7 +656,7 @@ html.app-navigation-loading::after {
     padding: 10px;
   }
 
-  button[value="未完了"] {
+  .photo-status-dialog-back {
     background: #fff;
     color: #3e5faa;
   }
