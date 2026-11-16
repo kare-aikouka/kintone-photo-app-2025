@@ -14,6 +14,7 @@
       %pre= "#{@photo_error.class}: #{@photo_error.message}"
 
   - if @record.present?
+    - notes = record_notes(@record)
     .photo-record.photo-detail-summary
       .photo-record-main
         .photo-record-date
@@ -27,10 +28,11 @@
           = link_to "図面", "javascript:undefined", class: "btn btn-soft disabled"
           = link_to "写真", photo_path(record_id(@record), detail_return_params), class: "btn btn-primary-action"
           = link_to "資料UP", documents_photo_path(record_id(@record), detail_return_params), class: "btn btn-document-action"
-      .photo-record-status
+      .photo-record-status{ class: ("has-notes" if notes.present?) }
         %span.photo-status-line
           写真：
           %strong{ class: ("is-done" if photo_status(@record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(@record)
+        = render "record_notes", notes: notes
 
     .photo-pending-uploads.hidden.js-photo-pending-uploads
       .photo-pending-uploads-main

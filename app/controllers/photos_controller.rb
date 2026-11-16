@@ -8,12 +8,13 @@ class PhotosController < ApplicationController
   COOPERATION_MACHINE_NAME = "住パイ"
   COOPERATION_MACHINE_DISPLAY_NAME = "協力会社様施工物件"
   COMPLETION_EXCLUDED_TABLES = %w[その他 テーブルその他].freeze
-  SUMMARY_CACHE_VERSION = "v6"
+  SUMMARY_CACHE_VERSION = "v7"
   SUMMARY_CACHE_TTL = 10.minutes
   SUMMARY_SYSTEM_FIELDS = %w[$id レコード番号].freeze
   DOCUMENT_CONTACT_NOTE_FIELD_CODE = "施工後連絡事項"
   PHOTO_VISIBILITY_FIELD_CODE = "写真アプリ非表示"
   PHOTO_HIDDEN_OPTION = "非表示"
+  PHOTO_NOTE_FIELD_CODES = %w[備考1 備考2 備考4].freeze
   BLACKBOARD_PILES_PROVISIONAL_PATTERN = /推定|概算|未定|確認中|調整中|仮/.freeze
   NUMBER_MEMO_TABLE_PATTERNS = [
     /杭長/,
@@ -927,6 +928,14 @@ class PhotosController < ApplicationController
   end
   helper_method :record_address
 
+  def record_notes(record)
+    PHOTO_NOTE_FIELD_CODES.filter_map do |code|
+      text = field_raw_value(record, code).to_s
+      { label: code, text: text } if text.present?
+    end
+  end
+  helper_method :record_notes
+
   def record_id(record)
     record&.dig("$id", "value") || record&.dig("レコード番号", "value")
   end
@@ -1221,7 +1230,7 @@ class PhotosController < ApplicationController
 
   def summary_field_codes(record_client)
     available_codes = available_field_codes(record_client)
-    (FIELD_ALIASES.values.flatten + SUMMARY_SYSTEM_FIELDS + [PHOTO_VISIBILITY_FIELD_CODE]).uniq.select do |field_code|
+    (FIELD_ALIASES.values.flatten + SUMMARY_SYSTEM_FIELDS + [PHOTO_VISIBILITY_FIELD_CODE] + PHOTO_NOTE_FIELD_CODES).uniq.select do |field_code|
       field_code.start_with?("$") || available_codes.include?(field_code)
     end
   end

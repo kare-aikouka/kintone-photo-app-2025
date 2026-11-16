@@ -484,6 +484,11 @@ html.app-navigation-loading::after {
   margin-bottom: 4px;
 }
 
+.photo-record-main {
+  flex: 1;
+  min-width: 0;
+}
+
 .photo-record-address {
   font-size: 1rem;
   color: #f00;
@@ -582,6 +587,57 @@ html.app-navigation-loading::after {
   gap: 12px;
   min-width: 136px;
   text-align: right;
+}
+
+.photo-record-status.has-notes {
+  flex: 0 0 36%;
+  max-width: 420px;
+  min-width: 0;
+}
+
+.photo-record-notes {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  min-width: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.photo-record-note {
+  border-bottom: 1px solid #eef2f7;
+  color: #475467;
+  min-width: 0;
+
+  summary {
+    box-sizing: border-box;
+    cursor: pointer;
+    display: list-item;
+    list-style-position: inside;
+    list-style-type: disclosure-closed;
+    min-height: 40px;
+    overflow: hidden;
+    padding: 8px 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .photo-record-note-label {
+    font-weight: 700;
+  }
+
+  &[open] summary {
+    list-style-type: disclosure-open;
+  }
+
+  &[open] .photo-record-note-preview {
+    display: none;
+  }
+}
+
+.photo-record-note-full {
+  overflow-wrap: anywhere;
+  padding: 0 0 10px;
+  white-space: pre-wrap;
 }
 
 .photo-status-switch {
@@ -2470,6 +2526,12 @@ form.photo-detail-table-actions {
     align-items: stretch;
     min-width: 0;
     text-align: left;
+  }
+
+  .photo-record-status.has-notes {
+    flex-basis: auto;
+    max-width: none;
+    width: 100%;
   }
 
   .photo-status-switch {

@@ -1,0 +1,8 @@
+- if notes.present?
+  .photo-record-notes
+    - notes.each do |note|
+      %details.photo-record-note
+        %summary{ title: note[:text] }
+          %span.photo-record-note-label= "#{note[:label]}："
+          %span.photo-record-note-preview= note[:text]
+        .photo-record-note-full= note[:text]

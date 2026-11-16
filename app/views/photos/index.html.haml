@@ -51,6 +51,7 @@
   - if @selected_records.present?
     .photo-records
       - @selected_records.each do |record|
+        - notes = record_notes(record)
         .photo-record
           .photo-record-main
             .photo-record-date
@@ -68,10 +69,11 @@
               - else
                 = link_to "写真", "javascript:undefined", class: "btn btn-primary-action disabled"
                 = link_to "資料UP", "javascript:undefined", class: "btn btn-document-action disabled"
-          .photo-record-status
+          .photo-record-status{ class: ("has-notes" if notes.present?) }
             %span.photo-status-line
               写真：
               %strong{ class: ("is-done" if photo_status(record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(record)
+            = render "record_notes", notes: notes
             - if record_id(record).present? && photo_visibility_change_available?(record)
               %button.photo-status-switch.js-photo-status-switch{ type: "button", data: { update_url: visibility_photo_path(record_id(record), photo_link_params), visibility_action: photo_app_hidden?(record) ? "show" : "hide" } }= photo_app_hidden?(record) ? "一覧に戻す" : "フラグ変更"
   - else
