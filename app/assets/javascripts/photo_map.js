@@ -36,14 +36,29 @@
       searchButton.disabled = saving || Boolean(searchController);
     }
 
-    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+    const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      minZoom: 5,
+      maxNativeZoom: 19,
+      maxZoom: 20,
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'
+    });
+    const gsiLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
       minZoom: 5,
       maxNativeZoom: 18,
       maxZoom: 20,
       attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院</a>'
-    }).addTo(map).on('tileerror', function () {
-      status.textContent = '地図画像を読み込めません。通信状況を確認してください。';
     });
+    [osmLayer, gsiLayer].forEach(function (layer) {
+      layer.on('tileerror', function () {
+        status.textContent = '地図画像を読み込めません。通信状況を確認するか、右上で地図を切り替えてください。';
+      });
+    });
+    osmLayer.addTo(map);
+    const layers = L.control.layers({ '標準地図（OSM）': osmLayer, '地理院地図': gsiLayer }).addTo(map);
+    const layersToggle = layers.getContainer().querySelector('.leaflet-control-layers-toggle');
+    layersToggle.title = '地図の種類';
+    layersToggle.setAttribute('aria-label', '地図の種類');
 
     function cancelSearch() {
       if (searchController) searchController.abort();
@@ -56,7 +71,7 @@
       hasPoint = true;
       updateActions();
       if (!saving) saveStatus.textContent = '';
-      status.textContent = '選択した位置を確認して「この場所へナビ」を押してください。';
+      status.textContent = '選択した位置を確認して「Googleマップで経路表示」を押してください。';
     }
 
     map.on('dragend', selectPoint);
@@ -145,13 +160,12 @@
     });
 
     navigate.addEventListener('click', function () {
-      if (!hasPoint || saving || !window.confirm('中央のピンの位置を目的地にしてGoogleマップを開きます。よろしいですか？')) return;
+      if (!hasPoint || saving || !window.confirm('中央のピンの位置までの経路をGoogleマップで表示します。ナビはGoogleマップ側で「開始」を押してください。よろしいですか？')) return;
       const point = map.getCenter();
       const url = new URL('https://www.google.com/maps/dir/');
       url.searchParams.set('api', '1');
       url.searchParams.set('destination', point.lat.toFixed(7) + ',' + point.lng.toFixed(7));
       url.searchParams.set('travelmode', 'driving');
-      url.searchParams.set('dir_action', 'navigate');
       window.open(url.toString(), '_blank', 'noopener,noreferrer');
     });
 

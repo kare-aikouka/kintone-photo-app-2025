@@ -489,6 +489,34 @@ html.app-navigation-loading::after {
   color: #f00;
 }
 
+.photo-record-information {
+  display: grid;
+  column-gap: 4px;
+  row-gap: 4px;
+  grid-template-columns: max-content minmax(0, 1fr);
+  font-size: 1.18rem;
+  margin: 0;
+
+  dt {
+    font-weight: 400;
+  }
+
+  dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  strong {
+    font-weight: 700;
+  }
+
+  .photo-record-information-address {
+    color: #f00;
+    font-size: 1rem;
+  }
+}
+
 .photo-record-actions {
   display: flex;
   flex-wrap: wrap;
@@ -520,13 +548,15 @@ html.app-navigation-loading::after {
   color: #fff;
 }
 
-.photo-record-actions .btn-document-action {
+.photo-record-actions .btn-document-action,
+.photo-record-actions .btn-map-action {
   background: #fff2c2;
   border: 1px solid #f0d986;
   color: #6b5400;
 }
 
-.photo-record-actions .btn-document-action:hover {
+.photo-record-actions .btn-document-action:hover,
+.photo-record-actions .btn-map-action:hover {
   background: #ffe9a3;
   color: #3f3100;
 }

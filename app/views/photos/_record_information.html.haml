@@ -1,0 +1,13 @@
+%dl.photo-record-information
+  %dt 元請名：
+  %dd
+    %strong= field_value(record, :prime_contractor)
+  %dt 物件名：
+  %dd
+    %strong= field_value(record, :site)
+  %dt 打設明細：
+  %dd
+    %strong= field_value(record, :detail)
+  %dt.photo-record-information-address 住所：
+  %dd.photo-record-information-address
+    %strong= record_address(record)
