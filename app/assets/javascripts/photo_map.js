@@ -5,6 +5,7 @@
     root.dataset.initialized = 'true';
 
     const status = root.querySelector('.js-site-map-status');
+    const warning = root.querySelector('.js-site-map-warning');
     if (!window.L) {
       status.textContent = '地図を読み込めませんでした。通信状況を確認して画面を更新してください。';
       return;
@@ -95,6 +96,7 @@
       hasPoint = false;
       updateActions();
       saveStatus.textContent = '';
+      warning.hidden = true;
       status.textContent = '住所から参考位置を検索中…';
       try {
         const url = new URL(root.dataset.searchUrl, window.location.origin);
@@ -108,7 +110,8 @@
         map.setView([result.lat, result.lng], 16);
         hasPoint = true;
         updateActions();
-        status.textContent = '参考位置：' + (result.label || address) + '。正確な現場の位置を確認してください。';
+        status.textContent = '参考位置：' + (result.label || address);
+        warning.hidden = false;
       } catch (error) {
         if (controller !== searchController) return;
         status.textContent = error.name === 'AbortError' ? '検索がタイムアウトしました。再検索するか、地図で現場を選んでください。' : error.message;

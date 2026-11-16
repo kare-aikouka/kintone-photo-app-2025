@@ -1,6 +1,7 @@
 - weekdays = %w[日 月 火 水 木 金 土]
 - index_return_params = { machine: @machine_name.presence, machine_model: params[:machine_model].presence }.compact_blank
 - photo_link_params = index_return_params.merge(date: @selected_filter.presence || @selected_date).compact_blank
+= javascript_include_tag "photo_status", defer: true
 
 .photo-page
   .photo-header
@@ -15,6 +16,11 @@
     .alert.alert-danger.photo-alert
       %strong 写真・物件情報を取得できませんでした。
       %pre= "#{@photo_error.class}: #{@photo_error.message}"
+
+  - if flash[:notice].present?
+    .alert.alert-success.photo-alert= flash[:notice]
+  - if flash[:alert].present?
+    .alert.alert-danger.photo-alert= flash[:alert]
 
   .photo-date-tabs
     - @date_tabs.each do |date|
@@ -62,6 +68,8 @@
             %span.photo-status-line
               写真：
               %strong{ class: ("is-done" if photo_status(record) == PhotosController::PICTURE_FLAG_DONE) }= photo_status(record)
+            - if record_id(record).present? && photo_status_switch_available?(record)
+              %button.photo-status-switch.js-photo-status-switch{ type: "button", data: { update_url: photo_status_photo_path(record_id(record), photo_link_params), current_status: photo_status(record) } }= incomplete?(record) ? "完了に切り替える" : "未完了に戻す"
   - else
     .alert.alert-info.photo-alert
       = "#{display_machine_name(@machine_name)} に紐づく物件レコードが見つかりませんでした。"
@@ -79,3 +87,11 @@
               %tr
                 %th= key
                 %td= value
+
+%dialog.photo-status-dialog.js-photo-status-dialog{ "aria-labelledby" => "photo-status-dialog-title" }
+  %header
+    %h2#photo-status-dialog-title 写真フラグを未完了から完了に切り替えますか？
+    %button.photo-status-dialog-close.js-photo-status-dialog-close{ type: "button", title: "閉じる", "aria-label" => "閉じる" } ×
+  = form_with url: photos_path, method: :patch, authenticity_token: form_authenticity_token, local: true, html: { class: "js-photo-status-form", data: { turbo: false } } do
+    %button{ type: "submit", name: "photo_status", value: PhotosController::PICTURE_FLAG_DONE } 完了にする
+    %button{ type: "submit", name: "photo_status", value: PhotosController::PICTURE_FLAG_INCOMPLETE } 未完了に戻す

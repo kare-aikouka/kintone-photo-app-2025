@@ -256,6 +256,24 @@ class PhotosController < ApplicationController
     render json: { message: "保存結果を確認できませんでした。通信状況や編集権限を確認し、画面を開き直してB地点を確認してください。" }, status: :unprocessable_entity
   end
 
+  def update_photo_status
+    status = params[:photo_status].to_s
+    raise "写真フラグは完了または未完了を選択してください。" unless [PICTURE_FLAG_DONE, PICTURE_FLAG_INCOMPLETE].include?(status)
+
+    record = photo_record(params[:id])
+    raise "写真フラグの手動変更は、工事予定日の翌日以降に行えます。" unless photo_status_switch_available?(record)
+
+    status_field = photo_status_field_code(record)
+    raise "写真完了フラグのフィールドを確認できません。" if status_field.blank?
+
+    photos_record_client.update(params[:id], status_field => { value: status })
+    clear_photo_summary_cache(record)
+    redirect_to photos_path(photo_index_return_params(field_value(record, :machine))), notice: "写真フラグを#{status}に切り替えました。"
+  rescue StandardError => e
+    Rails.logger.error("Manual photo status update failed: #{e.class}: #{e.message}")
+    redirect_to photos_path(photo_index_return_params), alert: "写真フラグを変更できませんでした。#{e.message}"
+  end
+
   def documents
     @record = photo_record(params[:id])
     @machine_name = params[:machine].presence || field_value(@record, :machine)
@@ -987,6 +1005,12 @@ class PhotosController < ApplicationController
     field_value(record, :photo_status).presence || "未完了"
   end
   helper_method :photo_status
+
+  def photo_status_switch_available?(record)
+    date = record_date(record)
+    date.present? && date < Date.current
+  end
+  helper_method :photo_status_switch_available?
 
   def incomplete?(record)
     photo_status(record) != PICTURE_FLAG_DONE

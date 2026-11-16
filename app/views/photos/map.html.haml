@@ -19,6 +19,7 @@
         %input#site-map-address{ type: "search", value: record_address(@record), maxlength: 200, required: true, autocomplete: "off" }
         %button.btn.btn-soft{ type: "submit" } 再検索
       %p.photo-site-map-status.js-site-map-status{ role: "status", "aria-live" => "polite" } 地図を読み込み中…
+      %p.photo-site-map-warning.js-site-map-warning{ role: "alert", hidden: true } 注）正確な現場の位置を確認してください。
       .photo-site-map-frame
         .photo-site-map-canvas.js-site-map-canvas{ "aria-label" => "現場の位置を選ぶ地図" }
         %img.photo-site-map-pin{ src: "/vendor/leaflet/images/marker-icon.png", alt: "選択位置", width: 25, height: 41 }

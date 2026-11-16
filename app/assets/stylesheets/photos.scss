@@ -512,8 +512,7 @@ html.app-navigation-loading::after {
   }
 
   .photo-record-information-address {
-    color: #f00;
-    font-size: 1rem;
+    color: #000;
   }
 }
 
@@ -573,8 +572,89 @@ html.app-navigation-loading::after {
 }
 
 .photo-record-status {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   min-width: 136px;
   text-align: right;
+}
+
+.photo-status-switch {
+  background: #fff;
+  border: 1px solid #b9cbe4;
+  border-radius: 6px;
+  color: #3e5faa;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-top: auto;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.photo-status-dialog {
+  border: 1px solid #d8dce2;
+  border-radius: 8px;
+  color: #333;
+  max-width: 460px;
+  padding: 24px;
+  width: calc(100% - 32px);
+
+  &::backdrop {
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  header {
+    align-items: flex-start;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+  }
+
+  h2 {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .photo-status-dialog-close {
+    background: transparent;
+    border: 0;
+    color: #475467;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-size: 1.5rem;
+    height: 36px;
+    width: 36px;
+  }
+
+  form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  button[type="submit"] {
+    background: #3e5faa;
+    border: 1px solid #3e5faa;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    flex: 1 1 160px;
+    font: inherit;
+    font-weight: 700;
+    min-height: 48px;
+    padding: 10px;
+  }
+
+  button[value="未完了"] {
+    background: #fff;
+    color: #3e5faa;
+  }
 }
 
 .photo-status-line {
@@ -2382,8 +2462,13 @@ form.photo-detail-table-actions {
   }
 
   .photo-record-status {
+    align-items: stretch;
     min-width: 0;
     text-align: left;
+  }
+
+  .photo-status-switch {
+    align-self: flex-end;
   }
 
   .photo-document-grid {
