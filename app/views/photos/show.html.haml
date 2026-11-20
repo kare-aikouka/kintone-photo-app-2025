@@ -215,7 +215,7 @@
                     %tr.photo-detail-add-row.hidden{ id: add_form_id }
                       %td{ colspan: 4 }
                         .photo-table-row-editor.photo-table-row-editor-add.photo-table-inline-editor
-                          = form_with url: large_photo_details_photo_path(record_id(@record), detail_return_params), method: :post, multipart: true, local: true, html: { class: "js-photo-upload-form", data: { reload_after_upload: "true" } } do
+                          = form_with url: large_photo_details_photo_path(record_id(@record), detail_return_params), method: :post, multipart: true, local: true, html: { class: "js-photo-upload-form", data: { refresh_before_edit: "true" } } do
                             = hidden_field_tag :photo_item_code, large_photo_item[:item_code]
                             = hidden_field_tag :table_code, large_photo_item[:table_code]
                             .photo-table-inline-grid{ style: "grid-template-columns: minmax(120px, 180px) minmax(220px, 1fr) minmax(220px, 1fr) minmax(96px, 120px);" }
@@ -223,11 +223,11 @@
                                 = text_field_tag :pile_number, nil, placeholder: "杭番号", class: "photo-table-memo", style: "width: 35%; min-width: 56px; max-width: 72px;"
                               .photo-table-inline-cell
                                 .photo-table-file-choice.js-photo-file-choice
-                                  = file_field_tag :photo, accept: "image/*", capture: "environment", id: "large-photo-#{large_photo_item[:item_code]}-camera", class: "photo-table-hidden-file js-photo-auto-submit"
-                                  = label_tag "large-photo-#{large_photo_item[:item_code]}-camera", class: "btn photo-table-capture-button" do
+                                  = file_field_tag :photo, accept: "image/*", capture: "environment", id: "#{add_form_id}-camera", class: "photo-table-hidden-file js-photo-auto-submit"
+                                  = label_tag "#{add_form_id}-camera", class: "btn photo-table-capture-button" do
                                     %span.btn-icon 📷
-                                  = file_field_tag :photo, accept: "image/*", id: "large-photo-#{large_photo_item[:item_code]}-gallery", class: "photo-table-hidden-file js-photo-auto-submit"
-                                  = label_tag "large-photo-#{large_photo_item[:item_code]}-gallery", class: "btn photo-table-capture-button photo-table-gallery-button" do
+                                  = file_field_tag :photo, accept: "image/*", id: "#{add_form_id}-gallery", class: "photo-table-hidden-file js-photo-auto-submit"
+                                  = label_tag "#{add_form_id}-gallery", class: "btn photo-table-capture-button photo-table-gallery-button" do
                                     %span.btn-icon 🖼
                                   %span.photo-table-selected-file.js-photo-selected-file 選択されていません
                               .photo-table-inline-cell
@@ -353,7 +353,7 @@
                       %tr.photo-detail-add-row.hidden{ id: add_form_id }
                         %td{ colspan: columns.count + 1 }
                           .photo-table-row-editor.photo-table-row-editor-add.photo-table-inline-editor
-                            = form_with url: table_rows_photo_path(record_id(@record), detail_return_params), method: :post, multipart: true, local: true, html: { id: "#{add_form_id}-form", class: "js-photo-upload-form", data: { reload_after_upload: "true" } } do
+                            = form_with url: table_rows_photo_path(record_id(@record), detail_return_params), method: :post, multipart: true, local: true, html: { id: "#{add_form_id}-form", class: "js-photo-upload-form", data: { refresh_before_edit: "true" } } do
                               = hidden_field_tag :table_code, table_code
                               = hidden_field_tag :file_column, file_column
                               = hidden_field_tag :memo_column, memo_column
@@ -499,6 +499,7 @@
       { key: "confirm", label: "完了判定" }
     ];
     const scrollStorageKey = "photo-scroll:" + window.location.pathname;
+    const editAfterReloadKey = "photo-edit-after-reload:" + window.location.pathname;
     let pendingFileInput = null;
     let lastSelectedFileInput = null;
     let addRowSequence = 0;
@@ -535,14 +536,14 @@
           return;
         }
 
-        setPhotoTableEditMode(button.dataset.target, true);
-        button.dataset.mode = "save";
-        button.textContent = "保存";
-        button.classList.add("is-save");
-        const cancelButton = document.querySelector(".js-photo-table-edit-cancel[data-target='" + button.dataset.target + "']");
-        if (cancelButton) cancelButton.classList.remove("hidden");
+        if (button.dataset.refreshBeforeEdit === "true") {
+          refreshPhotoTableForEdit(button);
+          return;
+        }
+        openPhotoTableEdit(button);
       });
     });
+    restorePhotoTableEdit();
 
     document.querySelectorAll(".js-photo-table-edit-cancel").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -597,6 +598,7 @@
       const cloneId = target.id + "-copy-" + addRowSequence;
       clone.id = cloneId;
       clone.dataset.addSource = target.id;
+      delete clone.dataset.photoAddSaved;
       clone.classList.remove("hidden");
       resetClonedAddRow(clone, target.id, cloneId);
 
@@ -630,12 +632,12 @@
         input.removeAttribute("data-photo-file-bound");
       });
 
-      row.querySelectorAll("textarea").forEach(function (textarea) {
-        textarea.value = "";
+      row.querySelectorAll("textarea, input[type='text']").forEach(function (input) {
+        input.value = "";
+        input.readOnly = false;
       });
 
       row.querySelectorAll(".photo-file-list").forEach(function (list) {
-        revokeLocalUploadPreviewUrls(list);
         if (list.querySelector("[data-local-preview-url]")) list.remove();
       });
 
@@ -652,6 +654,7 @@
       row.querySelectorAll(".js-photo-table-close").forEach(function (button) {
         button.removeAttribute("data-photo-close-bound");
       });
+      photoAddControls(row).forEach(function (control) { control.classList.remove("hidden"); });
     }
 
     function bindDynamicPhotoControls(container) {
@@ -661,6 +664,52 @@
       container.querySelectorAll(".js-blackboard-overwrite").forEach(bindBlackboardOverwriteButton);
       container.querySelectorAll(".js-photo-upload-form").forEach(bindPhotoUploadForm);
       container.querySelectorAll("form").forEach(bindPhotoScrollMemory);
+    }
+
+    function photoAddControls(row) {
+      return row.querySelectorAll(".js-photo-file-choice label, .js-photo-table-close, .photo-table-row-save");
+    }
+
+    function refreshPhotoTableForEdit(button) {
+      const activeEdit = document.querySelector(".js-photo-table-edit-save[data-mode='save'], .js-photo-upload-form[data-uploading='true']");
+      const unsubmittedPhoto = Array.from(document.querySelectorAll(".js-photo-file-choice input[type='file']")).some(function (input) {
+        return !input.closest(".photo-detail-add-row.hidden") && input.files && input.files.length > 0;
+      });
+      const unsubmittedText = Array.from(document.querySelectorAll(
+        ".photo-detail-add-row:not(.hidden):not([data-photo-add-saved]) :is(textarea, input[type='text'])"
+      )).some(function (input) { return input.value.trim(); });
+      if (activeEdit || unsubmittedPhoto || unsubmittedText) {
+        alert("入力中の編集や写真を保存、またはキャンセルしてから「編集」を押してください。");
+        return;
+      }
+
+      rememberElementScroll(button);
+      sessionStorage.setItem(editAfterReloadKey, button.dataset.saveForm);
+      window.location.reload();
+    }
+
+    function restorePhotoTableEdit() {
+      const formId = sessionStorage.getItem(editAfterReloadKey);
+      if (!formId) return;
+
+      sessionStorage.removeItem(editAfterReloadKey);
+      const button = Array.from(document.querySelectorAll(".js-photo-table-edit-save")).find(function (candidate) {
+        return candidate.dataset.saveForm === formId;
+      });
+      if (button && !button.disabled && document.getElementById(formId)) {
+        openPhotoTableEdit(button);
+      } else {
+        alert("編集する写真行を取得できませんでした。通信状況を確認して開き直してください。");
+      }
+    }
+
+    function openPhotoTableEdit(button) {
+      setPhotoTableEditMode(button.dataset.target, true);
+      button.dataset.mode = "save";
+      button.textContent = "保存";
+      button.classList.add("is-save");
+      const cancelButton = document.querySelector(".js-photo-table-edit-cancel[data-target='" + button.dataset.target + "']");
+      if (cancelButton) cancelButton.classList.remove("hidden");
     }
 
     function setPhotoTableEditMode(targetClass, editing) {
@@ -972,6 +1021,7 @@
         clearUploadError(label);
         label.textContent = "保存済み";
       }
+      if (form.dataset.refreshBeforeEdit === "true") markPhotoRowSaved(form);
       uploadIndicator.show(
         "保存しました",
         "サムネイルを反映しました。次の写真を撮影できます",
@@ -980,6 +1030,25 @@
       window.setTimeout(function () {
         uploadIndicator.hide();
       }, 700);
+    }
+
+    function markPhotoRowSaved(form) {
+      const row = form.closest(".photo-detail-add-row");
+      const table = form.closest(".photo-detail-table");
+      if (!row || !table) return;
+
+      row.dataset.photoAddSaved = "true";
+      photoAddControls(row).forEach(function (control) { control.classList.add("hidden"); });
+      row.querySelectorAll("textarea, input[type='text']").forEach(function (input) {
+        input.readOnly = true;
+      });
+      const placeholder = table.querySelector(".photo-detail-placeholder-row");
+      if (placeholder) placeholder.classList.add("hidden");
+      const editButton = table.querySelector(".js-photo-table-edit-save");
+      if (editButton) {
+        editButton.dataset.refreshBeforeEdit = "true";
+        editButton.disabled = false;
+      }
     }
 
     function insertLocalUploadPreview(form, input, file) {
