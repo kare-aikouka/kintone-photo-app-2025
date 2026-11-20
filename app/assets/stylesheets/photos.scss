@@ -525,6 +525,37 @@ html.app-navigation-loading::after {
   }
 }
 
+.photo-record-delivery {
+  margin-top: 8px;
+
+  summary {
+    color: #3e5faa;
+    cursor: pointer;
+    display: list-item;
+    font-weight: 700;
+    list-style: disclosure-closed inside;
+    min-height: 44px;
+    padding: 8px 0;
+  }
+
+  &[open] summary {
+    list-style-type: disclosure-open;
+  }
+}
+
+.photo-record-delivery-grid {
+  display: grid;
+  gap: 8px 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.photo-record-delivery-item {
+  font-weight: 700;
+  min-height: 1.6em;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .photo-record-actions {
   display: flex;
   flex-wrap: wrap;

@@ -11,3 +11,10 @@
   %dt.photo-record-information-address 住所：
   %dd.photo-record-information-address
     %strong= record_address(record)
+- delivery_items = record_delivery_items(record)
+- if delivery_items.any?(&:present?)
+  %details.photo-record-delivery
+    %summary 納入明細
+    .photo-record-delivery-grid
+      - delivery_items.each do |item|
+        .photo-record-delivery-item= item

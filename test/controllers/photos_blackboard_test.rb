@@ -66,6 +66,19 @@ class PhotosBlackboardTest < Minitest::Test
     assert_equal "", piles("打設明細" => "確認中", "杭長1" => "6", "数量1" => "60")
   end
 
+  def test_estimated_detail_is_treated_as_blank_without_changing_record
+    ["推定4m", "推定４ｍ", "計34本（推定4m）"].each do |detail|
+      record = { "打設明細" => { "value" => detail } }
+      assert_nil @controller.send(:field_value, record, :detail)
+      assert_equal detail, record.dig("打設明細", "value")
+      assert_equal "5m×34本", piles("打設明細" => detail, "杭長1" => "5", "数量1" => "34")
+      assert_equal "", piles("打設明細" => detail)
+      assert_equal "", piles("打設明細" => detail, "杭長1" => "5", "数量1" => "34", "杭長2" => "6")
+    end
+    assert_equal "6m*60本", @controller.send(:field_value, { "打設明細" => { "value" => "6m*60本" } }, :detail)
+    assert_equal "推定工事", @controller.send(:field_value, { "物件名" => { "value" => "推定工事" } }, :site)
+  end
+
   def test_second_length_prevents_population
     assert_equal "", piles("杭長1" => "6", "数量1" => "60", "杭長2" => "5")
   end
