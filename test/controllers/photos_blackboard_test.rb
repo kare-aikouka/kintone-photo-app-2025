@@ -33,7 +33,8 @@ class PhotosBlackboardTest < Minitest::Test
   end
 
   def test_carbon_cure_note_only_allows_single_length_population
-    ["カーボンキュア材", "カーボンキュア材。", " カーボンキュア材. ", "★カーボンキュア材。☆"].each do |detail|
+    ["カーボンキュア材", "カーボンキュア材。", " カーボンキュア材. ", "★カーボンキュア材。☆",
+     "カーボン", "ｶｰﾎﾞﾝｷｭｱ", "ＣＣ", "カーボン材", "ｶｰﾎﾞﾝ材", "カーボンキュア", "cc材", "ＣＣ材。"].each do |detail|
       assert_equal "5m×34本", piles("打設明細" => detail, "杭長1" => "5", "数量1" => "34", "杭長2" => "")
     end
   end
@@ -53,7 +54,7 @@ class PhotosBlackboardTest < Minitest::Test
 
   def test_existing_pile_details_and_provisional_notes_still_take_priority
     assert_equal "12m(6+6)*17s", piles("打設明細" => "12m(6+6)*17s,カーボンキュア材。", "杭長1" => "6", "数量1" => "34")
-    ["確認中", "未定", "カーボンキュア材。確認中", "12(6+6)*17s", "杭長変更の可能性あり", "試験後に杭長決定"].each do |detail|
+    ["確認中", "未定", "カーボンキュア材。確認中", "CC確認中", "カーボン材 杭長未定", "12(6+6)*17s", "杭長変更の可能性あり", "試験後に杭長決定"].each do |detail|
       assert_equal "", piles("打設明細" => detail, "杭長1" => "5", "数量1" => "34")
     end
   end

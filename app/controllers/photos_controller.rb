@@ -865,7 +865,8 @@ class PhotosController < ApplicationController
 
   def blackboard_piles_text(record)
     detail = field_value(record, :detail)
-    material_note_only = detail.to_s.tr("★☆", "").squish.match?(/\A(?:カーボンキュア材|JIS|H-CP工法)[。．.]*\z/i)
+    normalized_note = detail.to_s.unicode_normalize(:nfkc).tr("★☆", "").squish
+    material_note_only = normalized_note.match?(/\A(?:カーボン(?:キュア)?(?:材)?|CC(?:材)?|JIS|H-CP工法)[。．.]*\z/i)
     return sanitize_blackboard_piles(detail) if detail.present? && !material_note_only
     return "" if field_raw_value(record, "杭長2").present?
 
