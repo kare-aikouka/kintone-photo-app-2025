@@ -2,6 +2,10 @@ require 'digest/sha1'
 
 class PhotosController < ApplicationController
   before_action :authentication
+  prepend_before_action :authenticate_photo_upload, only: %i[
+    upload_session add_table_row update_table_row update_table_rows_batch
+    add_large_photo_detail update_large_photo_details_batch
+  ]
 
   PICTURE_FLAG_DONE = "完了"
   PICTURE_FLAG_INCOMPLETE = "未完了"
@@ -424,14 +428,18 @@ class PhotosController < ApplicationController
     head :no_content
   end
 
+  def upload_session
+    response.headers["Cache-Control"] = "no-store"
+    head :no_content
+  end
+
   def add_table_row
     record = photo_record(params[:id])
     table_code = resolve_detail_table_code(record, table_row_params[:table_code])
     rows = detail_table_rows(record, table_code).map { |row| kintone_table_row_payload(row) }
     rows << new_table_row_payload(table_code: table_code)
-    update_table_rows(params[:id], table_code, rows, source_record: record)
-
-    redirect_to photo_detail_return_path(params[:id])
+    uploaded = save_photo_table_rows(record, table_code, rows)
+    respond_photo_upload(uploaded)
   rescue StandardError => e
     Rails.logger.error("Photo table row add failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
@@ -442,14 +450,17 @@ class PhotosController < ApplicationController
     record = photo_record(params[:id])
     table_code = resolve_detail_table_code(record, table_row_params[:table_code])
     target_row_id = table_row_params[:row_id].to_s
-    rows = detail_table_rows(record, table_code).map do |row|
+    source_rows = detail_table_rows(record, table_code)
+    if selected_photo_param?(table_row_params, :photo) && source_rows.none? { |row| row["id"].to_s == target_row_id }
+      raise "写真の保存先が見つかりませんでした。"
+    end
+    rows = source_rows.map do |row|
       payload = kintone_table_row_payload(row)
       apply_table_row_params(payload, source_row: row, table_code: table_code) if row["id"].to_s == target_row_id
       payload
     end
-    update_table_rows(params[:id], table_code, rows, source_record: record)
-
-    redirect_to photo_detail_return_path(params[:id])
+    uploaded = save_photo_table_rows(record, table_code, rows)
+    respond_photo_upload(uploaded)
   rescue StandardError => e
     Rails.logger.error("Photo table row update failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
@@ -460,15 +471,21 @@ class PhotosController < ApplicationController
     record = photo_record(params[:id])
     table_code = resolve_detail_table_code(record, table_row_params[:table_code])
     submitted_rows = params.fetch(:table_rows, {})
-    rows = detail_table_rows(record, table_code).map do |row|
+    source_rows = detail_table_rows(record, table_code)
+    available_row_ids = source_rows.map { |row| row["id"].to_s }
+    submitted_rows.each do |row_id, row_params|
+      if selected_photo_param?(row_params, :photo) && !available_row_ids.include?(row_id)
+        raise "写真の保存先が見つかりませんでした。"
+      end
+    end
+    rows = source_rows.map do |row|
       payload = kintone_table_row_payload(row)
       row_params = submitted_rows[row["id"].to_s] || {}
       apply_table_row_params(payload, row_params, source_row: row, table_code: table_code)
       payload
     end
-    update_table_rows(params[:id], table_code, rows, source_record: record)
-
-    redirect_to photo_detail_return_path(params[:id])
+    uploaded = save_photo_table_rows(record, table_code, rows)
+    respond_photo_upload(uploaded)
   rescue StandardError => e
     Rails.logger.error("Photo table rows batch update failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
@@ -502,6 +519,8 @@ class PhotosController < ApplicationController
     raise "写真ファイルを取得できませんでした。" if photo.blank?
 
     file_key = upload_large_photo_detail_file(photo, item)
+    raise "写真ファイルを取得できませんでした。" if file_key.blank?
+
     large_photo_detail_record_client.create(
       large_photo_detail_payload(
         parent_record_id: record_id(record),
@@ -511,10 +530,12 @@ class PhotosController < ApplicationController
     )
     clear_photo_summary_cache(record)
 
-    redirect_to photo_detail_return_path(params[:id]), notice: "#{item[:label]}の写真を保存しました。"
+    respond_photo_upload(1, notice: "#{item[:label]}の写真を保存しました。")
   rescue StandardError => e
     Rails.logger.error("Large photo detail add failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    return respond_photo_table_error("写真明細の保存に失敗しました。") if photo_upload_json?
+
     redirect_to photo_detail_return_path(params[:id]), alert: "写真明細の保存に失敗しました。#{e.message}"
   end
 
@@ -523,18 +544,22 @@ class PhotosController < ApplicationController
     item = large_photo_detail_item_by_code(params[:photo_item_code])
     raise "撮影項目を特定できませんでした。" if item.blank?
 
+    uploaded = 0
     params.fetch(:large_photo_details, {}).each do |detail_record_id, detail_params|
       payload = large_photo_detail_update_payload(detail_params, item)
       next if payload.blank?
 
       large_photo_detail_record_client.update(detail_record_id, payload)
+      uploaded += 1 if payload.key?(LARGE_PHOTO_DETAIL_FIELDS[:photo])
     end
     clear_photo_summary_cache(photo_record_for_cache)
 
-    redirect_to photo_detail_return_path(params[:id]), notice: "#{item[:label]}の写真明細を保存しました。"
+    respond_photo_upload(uploaded, notice: "#{item[:label]}の写真明細を保存しました。")
   rescue StandardError => e
     Rails.logger.error("Large photo detail batch update failed: #{e.class}: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+    return respond_photo_table_error("写真明細の編集に失敗しました。") if photo_upload_json?
+
     redirect_to photo_detail_return_path(params[:id]), alert: "写真明細の編集に失敗しました。#{e.message}"
   end
 
@@ -554,6 +579,36 @@ class PhotosController < ApplicationController
   end
 
   private
+
+  def authenticate_photo_upload
+    return unless action_name == "upload_session" || photo_upload_json?
+    return if signed_in?
+
+    response.headers["Cache-Control"] = "no-store"
+    head :unauthorized
+  end
+
+  def photo_upload_json?
+    request.xhr? && request.format.json?
+  end
+
+  def save_photo_table_rows(record, table_code, rows)
+    uploaded = pending_photo_upload_logs.size
+    raise "保存する写真がありません。" if photo_upload_json? && uploaded.zero?
+
+    update_table_rows(params[:id], table_code, rows, source_record: record)
+    uploaded
+  end
+
+  def respond_photo_upload(uploaded, notice: nil)
+    if photo_upload_json?
+      return respond_photo_table_error("保存する写真がありません。") if uploaded.zero?
+
+      render json: { status: "saved", uploaded: uploaded }
+    else
+      redirect_to photo_detail_return_path(params[:id]), notice: notice
+    end
+  end
 
   def respond_photo_table_error(message)
     if request.xhr?
@@ -1599,7 +1654,11 @@ class PhotosController < ApplicationController
     photo = Array(detail_params[:photo]).find { |file| file.present? && (!file.respond_to?(:size) || file.size.to_i.positive?) }
     if photo.present?
       file_key = upload_large_photo_detail_file(photo, item)
+      raise "写真ファイルを取得できませんでした。" if file_key.blank?
+
       payload[fields[:photo]] = { value: [{ fileKey: file_key }] }
+    elsif selected_photo_param?(detail_params, :photo)
+      raise "写真ファイルを取得できませんでした。"
     end
 
     payload

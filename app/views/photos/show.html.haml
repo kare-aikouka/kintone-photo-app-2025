@@ -48,7 +48,7 @@
     - blackboard_place = record_address(@record).presence || ""
     - blackboard_piles = blackboard_piles_text(@record)
     - stale_single_date = photo_status(@record) == PhotosController::PICTURE_FLAG_INCOMPLETE && record_date(@record).present? && record_date(@record) < Date.current && blackboard_date.scan("日").size == 1
-    .photo-blackboard.js-photo-blackboard-config{ data: { record_id: record_id(@record) } }
+    .photo-blackboard.js-photo-blackboard-config{ data: { record_id: record_id(@record), upload_session_url: upload_session_photos_path, upload_sign_in_url: sign_in_path(backto: request.fullpath) } }
       .photo-blackboard-head
         .photo-blackboard-title 電子黒板
         .photo-blackboard-summary 写真に白黒板を焼き込んで保存します
@@ -402,6 +402,12 @@
     const BLACKBOARD_STALE_DATE_CHECK = #{stale_single_date ? "true" : "false"};
     const BLACKBOARD_TODAY = new Date(#{Date.current.year}, #{Date.current.month - 1}, #{Date.current.day});
     const blackboardRootForStorage = document.querySelector(".js-photo-blackboard-config");
+    const photoUploadSessionUrl = blackboardRootForStorage && blackboardRootForStorage.dataset.uploadSessionUrl;
+    const photoUploadSignInUrl = blackboardRootForStorage && blackboardRootForStorage.dataset.uploadSignInUrl;
+    let photoUploadSessionCheck = null;
+    let photoUploadSessionCheckedAt = 0;
+    let photoUploadSignInRequired = false;
+    let photoCameraWaitingForSession = false;
     const BLACKBOARD_RECORD_ID = (blackboardRootForStorage && blackboardRootForStorage.dataset.recordId) || window.location.pathname;
     const BLACKBOARD_STORAGE_KEY = "photo-blackboard:" + BLACKBOARD_RECORD_ID;
     const BLACKBOARD_SCALE_STORAGE_KEY = "photo-blackboard-scale";
@@ -559,9 +565,14 @@
 
     window.addEventListener("focus", retryPendingFileInput);
     window.addEventListener("pageshow", retryPendingFileInput);
+    window.addEventListener("pageshow", refreshPhotoUploadSession);
+    window.addEventListener("online", refreshPhotoUploadSession);
     document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState === "visible") retryPendingFileInput();
+      if (document.visibilityState !== "visible") return;
+      retryPendingFileInput();
+      refreshPhotoUploadSession();
     });
+    refreshPhotoUploadSession();
 
     document.querySelectorAll(".js-photo-upload-form").forEach(bindPhotoUploadForm);
     document.querySelectorAll("form").forEach(bindPhotoScrollMemory);
@@ -723,10 +734,95 @@
       });
     }
 
+    function refreshPhotoUploadSession() {
+      if (!photoUploadSessionUrl) return Promise.resolve();
+      if (photoUploadSessionCheck) return photoUploadSessionCheck;
+      if (Date.now() - photoUploadSessionCheckedAt < 1000) return Promise.resolve();
+
+      const controller = new AbortController();
+      const timeout = window.setTimeout(function () { controller.abort(); }, 2500);
+      photoUploadSessionCheck = fetch(photoUploadSessionUrl, {
+        cache: "no-store",
+        credentials: "same-origin",
+        redirect: "error",
+        signal: controller.signal
+      }).then(function (response) {
+        if (response.status === 401) photoUploadSignInRequired = true;
+        if (response.status === 204) photoUploadSignInRequired = false;
+      }).catch(function () {
+        // 通信できないことと、ログアウトが確認できたことは区別する。
+      }).finally(function () {
+        window.clearTimeout(timeout);
+        photoUploadSessionCheckedAt = Date.now();
+        photoUploadSessionCheck = null;
+      });
+      return photoUploadSessionCheck;
+    }
+
+    function promptPhotoUploadSignIn(message) {
+      if (photoUploadSignInUrl && window.confirm(message + "\n再ログイン画面を開きますか？")) {
+        window.location.assign(photoUploadSignInUrl);
+      }
+    }
+
+    function guardPhotoCameraSession(event) {
+      if (!photoUploadSessionUrl) return true;
+      if (photoUploadSignInRequired) {
+        event.preventDefault();
+        promptPhotoUploadSignIn("ログインが切れています。撮影するには再ログインしてください。");
+        return false;
+      }
+      if (Date.now() - photoUploadSessionCheckedAt < 60000) return true;
+
+      event.preventDefault();
+      if (photoCameraWaitingForSession) return false;
+
+      photoCameraWaitingForSession = true;
+      refreshPhotoUploadSession().finally(function () {
+        photoCameraWaitingForSession = false;
+        if (photoUploadSignInRequired) {
+          promptPhotoUploadSignIn("ログインが切れています。撮影するには再ログインしてください。");
+        } else {
+          alert("カメラボタンをもう一度押すと撮影できます。");
+        }
+      });
+      return false;
+    }
+
+    async function sendPhotoUpload(action, body, method) {
+      const response = await fetch(action, {
+        body: body,
+        credentials: "same-origin",
+        headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        method: method,
+        redirect: "error"
+      });
+      if (response.status === 401) {
+        photoUploadSignInRequired = true;
+        const error = new Error("photo upload sign-in required");
+        error.signInRequired = true;
+        throw error;
+      }
+      if (!response.ok || !(response.headers.get("Content-Type") || "").includes("application/json")) {
+        throw new Error("photo upload was not confirmed");
+      }
+
+      const result = await response.json();
+      const count = Array.from(body.values()).filter(function (value) {
+        return value instanceof Blob && value.size > 0;
+      }).length;
+      if (result.status !== "saved" || count === 0 || result.uploaded !== count) {
+        throw new Error("photo attachment was not confirmed");
+      }
+      photoUploadSignInRequired = false;
+      photoUploadSessionCheckedAt = Date.now();
+    }
+
     function bindPhotoFileInput(input) {
       if (input.dataset.photoFileBound === "true") return;
       input.dataset.photoFileBound = "true";
       input.addEventListener("click", function (event) {
+        if (input.hasAttribute("capture") && !guardPhotoCameraSession(event)) return;
         if (!guardBlackboardBeforePhoto(event)) {
           input.value = "";
           return;
@@ -802,14 +898,15 @@
             { steps: progressSteps, activeStep: "send" }
           );
 
-          const response = await fetch(form.action, {
+          const method = (form.method || "post").toUpperCase();
+          const response = hasFiles ? await sendPhotoUpload(form.action, body, method) : await fetch(form.action, {
             body: body,
             credentials: "same-origin",
             headers: { "X-Requested-With": "XMLHttpRequest" },
-            method: (form.method || "post").toUpperCase()
+            method: method
           });
 
-          if (!response.ok) throw new Error("upload failed");
+          if (response && !response.ok) throw new Error("upload failed");
           if (pendingUploadId) {
             await deletePendingPhotoUpload(pendingUploadId);
             clearPortraitBackupId(form, pendingUploadId);
@@ -837,7 +934,7 @@
             return;
           }
           rememberPhotoScroll(form);
-          window.location.href = response.url || window.location.href;
+          window.location.href = (response && response.url) || window.location.href;
         } catch (error) {
           form.dataset.uploading = "false";
           restoreDisabledInputs(disabledInputs);
@@ -846,9 +943,14 @@
           if (hasFiles) {
             refreshPendingUploadBanner();
             if (pendingUploadId) {
-              alert("通信エラーのため、写真を端末内の未送信写真に保存しました。通信が戻ったら「再アップロード」を押してください。");
+              if (error.signInRequired) {
+                promptPhotoUploadSignIn("ログインが切れています。写真は未送信写真に保存しました。再ログイン後に「再アップロード」を押してください。");
+              } else {
+                alert("保存を確認できなかったため、写真を端末内の未送信写真に残しました。「再アップロード」から再送できます。");
+              }
             } else {
-              alert("写真を端末内に自動退避できませんでした。保存画面が開いた場合は、共有ボタンから保存してください。");
+              alert((error.signInRequired ? "ログインが切れています。写真を保存してから再ログインしてください。\n" : "") +
+                "写真を端末内に自動退避できませんでした。保存画面が開いた場合は、共有ボタンから保存してください。");
               files.filter(function (file) { return file && file.size > 0; }).forEach(downloadLocalFile);
             }
           } else {
@@ -1036,6 +1138,7 @@
       if (retryButton) retryButton.disabled = true;
       let successCount = 0;
       let failedCount = 0;
+      let signInRequired = false;
       uploadIndicator.show(
         "未送信写真を再アップロード中...",
         uploads.length + "枚の写真を順番に送信します"
@@ -1048,18 +1151,16 @@
           (index + 1) + " / " + uploads.length + " 枚目を送信しています"
         );
         try {
-          const response = await fetch(upload.action, {
-            body: pendingPhotoUploadFormData(upload),
-            credentials: "same-origin",
-            headers: { "X-Requested-With": "XMLHttpRequest" },
-            method: upload.method || "POST"
-          });
-          if (!response.ok) throw new Error("pending upload failed");
+          await sendPhotoUpload(upload.action, pendingPhotoUploadFormData(upload), upload.method || "POST");
 
           await deletePendingPhotoUpload(upload.id);
           successCount += 1;
         } catch (error) {
           failedCount += 1;
+          if (error.signInRequired) {
+            signInRequired = true;
+            break;
+          }
         }
       }
 
@@ -1067,6 +1168,10 @@
       if (retryButton) retryButton.disabled = false;
       refreshPendingUploadBanner();
 
+      if (signInRequired) {
+        promptPhotoUploadSignIn("ログインが切れています。未送信写真は端末に残っています。再ログイン後に「再アップロード」を押してください。");
+        return;
+      }
       if (failedCount > 0) {
         alert("未送信写真の一部を送信できませんでした。通信状況を確認して再度お試しください。");
         return;
@@ -1513,20 +1618,18 @@
         formData.append("memo_column", button.dataset.memoColumn || "");
         formData.append("photo", file, file.name);
 
-        const uploadResponse = await fetch(button.dataset.updateUrl, {
-          body: formData,
-          credentials: "same-origin",
-          headers: { "X-Requested-With": "XMLHttpRequest" },
-          method: "POST"
-        });
-        if (!uploadResponse.ok) throw new Error("photo overwrite upload failed");
+        await sendPhotoUpload(button.dataset.updateUrl, formData, "POST");
 
         ensureBlackboardPhotoConfig(button, config);
         rememberElementScroll(button);
-        window.location.href = uploadResponse.url || window.location.href;
+        window.location.reload();
       } catch (error) {
         uploadIndicator.hide();
-        alert("黒板の上書き修正に失敗しました。通信状況を確認して、もう一度お試しください。");
+        if (error.signInRequired) {
+          promptPhotoUploadSignIn("ログインが切れています。黒板修正の保存を確認できませんでした。");
+        } else {
+          alert("黒板の上書き修正に失敗しました。通信状況を確認して、もう一度お試しください。");
+        }
         button.dataset.overwriting = "false";
         button.disabled = false;
       }

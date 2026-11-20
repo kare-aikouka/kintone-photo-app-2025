@@ -3,6 +3,7 @@ Rails.application.routes.draw do
   resources :photos, only: %i[index show] do
     collection do
       get 'warm_cache'
+      get 'upload_session'
     end
 
     member do
