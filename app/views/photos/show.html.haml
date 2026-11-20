@@ -353,7 +353,7 @@
                       %tr.photo-detail-add-row.hidden{ id: add_form_id }
                         %td{ colspan: columns.count + 1 }
                           .photo-table-row-editor.photo-table-row-editor-add.photo-table-inline-editor
-                            = form_with url: table_rows_photo_path(record_id(@record), detail_return_params), method: :post, multipart: true, local: true, html: { id: "#{add_form_id}-form", class: "js-photo-upload-form" } do
+                            = form_with url: table_rows_photo_path(record_id(@record), detail_return_params), method: :post, multipart: true, local: true, html: { id: "#{add_form_id}-form", class: "js-photo-upload-form", data: { reload_after_upload: "true" } } do
                               = hidden_field_tag :table_code, table_code
                               = hidden_field_tag :file_column, file_column
                               = hidden_field_tag :memo_column, memo_column
